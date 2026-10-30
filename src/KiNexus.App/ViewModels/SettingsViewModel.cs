@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KiNexus.App.Services;
 using KiNexus.Core;
+using KiNexus.Core.Kis;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Settings;
 using Microsoft.Extensions.Logging;
@@ -12,6 +13,9 @@ namespace KiNexus.App.ViewModels;
 
 /// <summary>Eine fertige Akzentfarbe zum Anklicken.</summary>
 public sealed record AccentPreset(string Name, string Hex);
+
+/// <summary>Ein Eintrag in der Auswahl "Standard-KI". Leere Id = keine feste Standard-KI.</summary>
+public sealed record KiChoice(string Id, string Name);
 
 /// <summary>
 /// Logik des Einstellungs-Dialogs (Zahnrad).
@@ -25,13 +29,14 @@ public sealed partial class SettingsViewModel : ObservableObject
     private readonly AppPaths _paths;
     private readonly ILogger<SettingsViewModel> _logger;
 
-    public SettingsViewModel(ISettingsService settings, IDialogService dialogs, IShellService shell, AppPaths paths, ILogger<SettingsViewModel> logger)
+    public SettingsViewModel(ISettingsService settings, IDialogService dialogs, IShellService shell, AppPaths paths, IKiRegistry kis, ILogger<SettingsViewModel> logger)
     {
         _settings = settings;
         _dialogs = dialogs;
         _shell = shell;
         _paths = paths;
         _logger = logger;
+        KiChoices = [new KiChoice("", "Erste in der Liste"), .. KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder).Select(k => new KiChoice(k.Id, $"{k.DisplayName} ({k.EngineLabel})"))];
         LoadFrom(settings.Current);
     }
 
@@ -50,6 +55,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         new("Orange", "#FFAB40"),
     ];
 
+    public IReadOnlyList<KiChoice> KiChoices { get; }
+
+    [ObservableProperty] private string _defaultKiId = "";
     [ObservableProperty] private string _accentColor = "";
     [ObservableProperty] private ChatStyle _defaultChatStyle;
     [ObservableProperty] private EngineOrder _engineOrder;
@@ -100,7 +108,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync(CancellationToken ct)
     {
-        var updated = SettingsJson.Clone(_settings.Current);
+        var updated = JsonDefaults.Clone(_settings.Current);
         ApplyTo(updated);
 
         try
@@ -119,6 +127,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void LoadFrom(AppSettings settings)
     {
+        DefaultKiId = KiChoices.FirstOrDefault(c => c.Id == settings.DefaultKiId)?.Id ?? "";
         AccentColor = settings.AccentColor;
         DefaultChatStyle = settings.DefaultChatStyle;
         EngineOrder = settings.EngineOrder;
@@ -135,6 +144,7 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     private void ApplyTo(AppSettings settings)
     {
+        settings.DefaultKiId = DefaultKiId.Length == 0 ? null : DefaultKiId;
         settings.AccentColor = AccentColor.Trim();
         settings.DefaultChatStyle = DefaultChatStyle;
         settings.EngineOrder = EngineOrder;

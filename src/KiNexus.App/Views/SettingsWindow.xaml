@@ -153,10 +153,10 @@
 
                         <TextBlock Grid.Row="1" Text="Standard-KI" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,6,0,0" />
                         <StackPanel Grid.Row="1" Grid.Column="1">
-                            <ComboBox Width="260" HorizontalAlignment="Left" IsEnabled="False" SelectedIndex="0">
-                                <ComboBoxItem Content="Noch keine KIs" />
-                            </ComboBox>
-                            <TextBlock Style="{StaticResource Text.Hint}" Text="KIs gibt es ab Meilenstein 1." />
+                            <ComboBox Width="300" HorizontalAlignment="Left" ItemsSource="{Binding KiChoices}"
+                                      DisplayMemberPath="Name" SelectedValuePath="Id" SelectedValue="{Binding DefaultKiId}"
+                                      AutomationProperties.Name="Standard-KI" />
+                            <TextBlock Style="{StaticResource Text.Hint}" Text="Mit dieser KI startet die App. Wirkt beim nächsten Start." />
                         </StackPanel>
 
                         <TextBlock Grid.Row="2" Text="Engine-Reihenfolge" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,25,0,0" />

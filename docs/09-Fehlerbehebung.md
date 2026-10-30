@@ -41,6 +41,20 @@ Dann so testen:
 dotnet test --solution KI-Nexus.sln
 ```
 
+## Engines
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „llama.cpp ist nicht eingerichtet“ | `engines\llama.cpp` fehlt | `.\scripts\setup-engines.ps1` ausführen (oder `Start-KI-Nexus.bat`, es fragt nach) |
+| „Die Modell-Datei fehlt“ | Modell noch nicht in `models\` | Im Test-Feld „Aus Ollama übernehmen“ klicken. Ohne Ollama: ab M3 über den Create-Hub |
+| „Ollama läuft nicht“ | Ollama-App nicht gestartet | Ollama-App starten. llama.cpp-KIs gehen auch ohne Ollama |
+| „Port 8090 ist schon belegt“ | Ein anderer llama-server läuft noch | Im Task-Manager `llama-server.exe` beenden oder im Zahnrad einen anderen Port wählen |
+| „llama-server ist beim Laden abgestürzt“ | z.B. zu wenig Speicher oder kaputte Datei | Die letzte Meldung steht in der Fehlermeldung. Alles steht in `data\logs\llama-server.log` |
+| Antworten sehr langsam (unter 10 Token/s) | Laptop läuft am Akku: die GPU wird stark gedrosselt | Netzteil anschliessen |
+| RAM fast voll mit gemma4 | Normal: 16 GB Modell, nur 8 GB VRAM | Für Games oder grosse Programme das Modell entladen (Power-Symbol) oder „Qwen schnell“ nehmen |
+
+Das Log von llama-server (`data\logs\llama-server.log`) wird bei jedem Laden neu geschrieben.
+
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 
 Die App läuft noch und sperrt `KI-Nexus.exe`. App schliessen und nochmals bauen.

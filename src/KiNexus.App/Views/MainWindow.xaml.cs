@@ -83,6 +83,7 @@ public partial class MainWindow : Window
             var bounds = WindowState == WindowState.Normal ? new Rect(Left, Top, ActualWidth, ActualHeight) : RestoreBounds;
             await _viewModel.SaveWindowStateAsync(bounds.Left, bounds.Top, bounds.Width, bounds.Height,
                 WindowState == WindowState.Maximized, CancellationToken.None);
+            await _viewModel.ShutdownAsync();
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {

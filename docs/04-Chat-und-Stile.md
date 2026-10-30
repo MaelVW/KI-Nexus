@@ -4,11 +4,16 @@ Ein Chat hat drei Ansichten: Terminal, Simpel und Gespräch.
 Du kannst mitten im Chat den Stil wechseln, der Verlauf bleibt gleich.
 Diese Datei wird in **M2** (Terminal, Simpel) und **M4** (Gespräch) gefüllt.
 
-## Stand M0
+## Stand M1
 
 - Der Stil-Umschalter **Terminal | Simpel | Gespräch** ist in der Kopfleiste. Er ist nur im Chat-Tab sichtbar.
-- Jeder Stil zeigt vorerst, in welchem Meilenstein er kommt.
+- In den Stilen Terminal und Simpel zeigt der Chat-Tab vorerst das **Test-Feld**: eine Frage, ohne Verlauf, mit gestreamter Antwort, Thinking an/aus, Gedanken zeigen/verstecken, Stopp-Knopf und Statistik. M2 ersetzt es durch den richtigen Chat.
+- Der Stil Gespräch zeigt „Kommt in Meilenstein 4“.
 - Mit welchem Stil die App startet, stellst du unter Zahnrad → Darstellung → Standard-Stil ein.
+
+Die Statistik im Test-Feld zeigt zum Beispiel:
+`46 Token · 38.0 Token/s · Frage gelesen: 108 Token (226 Token/s) · 1.8 s · llama.cpp`
+„Frage gelesen“ enthält den Systemprompt. Es geht nur Systemprompt und Frage ans Modell, nichts Verstecktes.
 
 ## Plan
 

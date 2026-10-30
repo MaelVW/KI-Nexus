@@ -1,0 +1,179 @@
+<UserControl x:Class="KiNexus.App.Views.EngineTestView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:app="clr-namespace:KiNexus.App"
+             xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:EngineTestViewModel}"
+             d:DesignWidth="1000" d:DesignHeight="650">
+
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Nur-Lese-Textfeld ohne Rahmen: Text lässt sich markieren und kopieren. -->
+        <Style x:Key="OutputText" TargetType="TextBox">
+            <Setter Property="IsReadOnly" Value="True" />
+            <Setter Property="TextWrapping" Value="Wrap" />
+            <Setter Property="BorderThickness" Value="0" />
+            <Setter Property="Background" Value="Transparent" />
+            <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+            <Setter Property="SelectionBrush" Value="{DynamicResource Brush.AccentDim}" />
+            <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="TextBox">
+                        <ScrollViewer x:Name="PART_ContentHost" Focusable="False"
+                                      HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Disabled" />
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </UserControl.Resources>
+
+    <Grid MaxWidth="960" Margin="24,20,24,20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Titel -->
+        <StackPanel Grid.Row="0" Orientation="Horizontal" Margin="0,0,0,12">
+            <TextBlock Text="Test-Feld" FontFamily="{StaticResource Font.UiDisplay}" FontSize="{StaticResource FontSize.Large}" FontWeight="SemiBold" />
+            <TextBlock Margin="12,0,0,0" VerticalAlignment="Bottom" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}"
+                       Text="Vorläufig für Meilenstein 1: eine Frage, ohne Verlauf. Der richtige Chat kommt in Meilenstein 2." />
+        </StackPanel>
+
+        <!-- Hinweis, z.B. "Modell fehlt" oder "Ollama läuft nicht" -->
+        <Border Grid.Row="1" Margin="0,0,0,12" Padding="14,10" CornerRadius="{StaticResource Radius.Normal}"
+                Background="{StaticResource Brush.Surface}" BorderBrush="{StaticResource Brush.Warning}" BorderThickness="1"
+                Visibility="{Binding HasHint, Converter={StaticResource BoolToVisibility}}">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding HintText}" TextWrapping="Wrap" VerticalAlignment="Center"
+                           Foreground="{StaticResource Brush.Warning}" AutomationProperties.AutomationId="EngineHint" />
+                <Button Grid.Column="1" Margin="12,0,0,0" Content="Aus Ollama übernehmen" Style="{StaticResource Button.Primary}"
+                        Command="{Binding ImportFromOllamaCommand}"
+                        Visibility="{Binding CanImport, Converter={StaticResource BoolToVisibility}}"
+                        ToolTip="Legt einen Hardlink an: zweiter Dateiname für dieselben Daten. Braucht keinen Platz, Ollama-Dateien bleiben unverändert." />
+            </Grid>
+        </Border>
+
+        <!-- Ausgabe: Gedanken und Antwort -->
+        <Border Grid.Row="2" Style="{StaticResource Card}" Padding="20,16" BorderBrush="{StaticResource Brush.Border}" BorderThickness="1">
+            <Grid>
+                <ScrollViewer x:Name="OutputScroller" VerticalScrollBarVisibility="Auto">
+                    <StackPanel>
+                        <Border Margin="0,0,0,12" Padding="12,8" CornerRadius="{StaticResource Radius.Small}" Background="{StaticResource Brush.SurfaceLight}">
+                            <Border.Style>
+                                <Style TargetType="Border">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding HasThinking}" Value="True" />
+                                                <Condition Binding="{Binding ShowThinking}" Value="True" />
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible" />
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </Border.Style>
+                            <StackPanel>
+                                <TextBlock Text="Gedanken" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" FontWeight="SemiBold" Margin="0,0,0,4" />
+                                <TextBox Style="{StaticResource OutputText}" Text="{Binding Thinking, Mode=OneWay}"
+                                         Foreground="{StaticResource Brush.TextMuted}" FontSize="{StaticResource FontSize.Small}"
+                                         AutomationProperties.AutomationId="ThinkingText" />
+                            </StackPanel>
+                        </Border>
+                        <TextBox x:Name="AnswerBox" Style="{StaticResource OutputText}" Text="{Binding Answer, Mode=OneWay}" FontSize="15"
+                                 AutomationProperties.AutomationId="AnswerText" TextChanged="OnOutputChanged" />
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Leerer Zustand -->
+                <StackPanel HorizontalAlignment="Center" VerticalAlignment="Center" IsHitTestVisible="False">
+                    <StackPanel.Style>
+                        <Style TargetType="StackPanel">
+                            <Setter Property="Visibility" Value="Collapsed" />
+                            <Style.Triggers>
+                                <MultiDataTrigger>
+                                    <MultiDataTrigger.Conditions>
+                                        <Condition Binding="{Binding HasAnswer}" Value="False" />
+                                        <Condition Binding="{Binding HasThinking}" Value="False" />
+                                    </MultiDataTrigger.Conditions>
+                                    <Setter Property="Visibility" Value="Visible" />
+                                </MultiDataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </StackPanel.Style>
+                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="28" Text="{x:Static app:Glyphs.Bubbles}" Foreground="{DynamicResource Brush.AccentDim}" />
+                    <TextBlock Margin="0,10,0,0" Style="{StaticResource Text.Muted}" HorizontalAlignment="Center"
+                               Text="Wähl oben eine KI und stell eine Frage. Beim ersten Mal wird das Modell geladen." />
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <!-- Status, Fehler, Statistik -->
+        <StackPanel Grid.Row="3" Margin="4,10,4,0">
+            <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource Brush.Accent}" FontSize="{StaticResource FontSize.Small}"
+                       AutomationProperties.AutomationId="EngineStatusText" />
+            <TextBlock Text="{Binding ErrorText}" Foreground="{StaticResource Brush.Error}" TextWrapping="Wrap"
+                       Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="EngineErrorText" />
+            <TextBlock Text="{Binding StatsText}" Style="{StaticResource Text.Muted}" FontFamily="{StaticResource Font.Mono}" FontSize="{StaticResource FontSize.Small}"
+                       AutomationProperties.AutomationId="StatsText" />
+        </StackPanel>
+
+        <!-- Eingabe -->
+        <Grid Grid.Row="4" Margin="0,12,0,0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <TextBox x:Name="QuestionBox" Text="{Binding Question, UpdateSourceTrigger=PropertyChanged}"
+                     AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="140" MinHeight="44" VerticalScrollBarVisibility="Auto"
+                     VerticalContentAlignment="Top" Padding="12,10" FontSize="15"
+                     PreviewKeyDown="OnQuestionKeyDown" AutomationProperties.Name="Frage"
+                     ToolTip="Enter = senden, Shift + Enter = neue Zeile, Esc = abbrechen">
+                <TextBox.InputBindings>
+                    <KeyBinding Key="Escape" Command="{Binding SendCancelCommand}" />
+                </TextBox.InputBindings>
+            </TextBox>
+
+            <StackPanel Grid.Column="1" Margin="16,0" VerticalAlignment="Center">
+                <CheckBox Style="{StaticResource ToggleSwitch}" Content="Thinking" IsChecked="{Binding ThinkEnabled}"
+                          AutomationProperties.Name="Thinking"
+                          ToolTip="Die KI denkt vor der Antwort nach. Das dauert länger, ist bei schwierigen Fragen aber oft besser." />
+                <CheckBox Style="{StaticResource ToggleSwitch}" Content="Gedanken zeigen" IsChecked="{Binding ShowThinking}" Margin="0,8,0,0"
+                          AutomationProperties.Name="Gedanken zeigen" />
+            </StackPanel>
+
+            <Grid Grid.Column="2" VerticalAlignment="Center">
+                <Button Content="Senden" Command="{Binding SendCommand}" MinWidth="100" Padding="18,10"
+                        AutomationProperties.Name="Senden">
+                    <Button.Style>
+                        <Style TargetType="Button" BasedOn="{StaticResource Button.Primary}">
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding SendCommand.IsRunning}" Value="True">
+                                    <Setter Property="Visibility" Value="Collapsed" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </Button.Style>
+                </Button>
+                <Button Content="Stopp" Command="{Binding SendCancelCommand}" MinWidth="100" Padding="18,10"
+                        BorderBrush="{StaticResource Brush.Error}" AutomationProperties.Name="Stopp" ToolTip="Antwort abbrechen (Esc)"
+                        Visibility="{Binding SendCommand.IsRunning, Converter={StaticResource BoolToVisibility}}" />
+            </Grid>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -17,6 +17,10 @@ trim_trailing_whitespace = false
 [*.{bat,cmd,ps1,sln}]
 end_of_line = crlf
 
+# Windows PowerShell 5.1 liest Skripte ohne BOM als ANSI. Dann wären Umlaute kaputt.
+[*.ps1]
+charset = utf-8-bom
+
 [*.cs]
 csharp_style_namespace_declarations = file_scoped:suggestion
 csharp_style_var_for_built_in_types = true:suggestion

@@ -1,6 +1,7 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-                    xmlns:vm="clr-namespace:KiNexus.App.ViewModels">
+                    xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+                    xmlns:views="clr-namespace:KiNexus.App.Views">
 
     <!--
         Vorlagen: Welches ViewModel wird wie angezeigt?
@@ -54,9 +55,13 @@
         <ContentControl Content="{Binding Placeholder}" Focusable="False" />
     </DataTemplate>
 
-    <!-- Chat-Tab: in M0 nur der Platzhalter des gewählten Stils. -->
+    <!-- Chat-Tab: Test-Feld (Terminal, Simpel) oder Platzhalter (Gespräch, kommt in M4). -->
     <DataTemplate DataType="{x:Type vm:ChatTabViewModel}">
-        <ContentControl Content="{Binding Placeholder}" Focusable="False" />
+        <ContentControl Content="{Binding Content}" Focusable="False" />
+    </DataTemplate>
+
+    <DataTemplate DataType="{x:Type vm:EngineTestViewModel}">
+        <views:EngineTestView />
     </DataTemplate>
 
 </ResourceDictionary>

@@ -36,7 +36,7 @@ public sealed class SettingsService : ISettingsService
         try
         {
             await using var stream = File.OpenRead(_filePath);
-            var loaded = await JsonSerializer.DeserializeAsync<AppSettings>(stream, SettingsJson.Options, ct).ConfigureAwait(false);
+            var loaded = await JsonSerializer.DeserializeAsync<AppSettings>(stream, JsonDefaults.Options, ct).ConfigureAwait(false);
             Current = loaded ?? new AppSettings();
         }
         catch (JsonException ex)
@@ -87,7 +87,7 @@ public sealed class SettingsService : ISettingsService
 
         await using (var stream = File.Create(tempPath))
         {
-            await JsonSerializer.SerializeAsync(stream, settings, SettingsJson.Options, ct).ConfigureAwait(false);
+            await JsonSerializer.SerializeAsync(stream, settings, JsonDefaults.Options, ct).ConfigureAwait(false);
         }
 
         File.Move(tempPath, _filePath, overwrite: true);

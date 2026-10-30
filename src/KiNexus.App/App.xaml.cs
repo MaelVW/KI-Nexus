@@ -2,6 +2,7 @@
 using System.Windows.Threading;
 using KiNexus.App.Services;
 using KiNexus.App.Views;
+using KiNexus.Core.Kis;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Settings;
 using Microsoft.Extensions.DependencyInjection;
@@ -31,6 +32,7 @@ public partial class App : Application
             _services = ServiceRegistration.Build(paths);
             var settings = await _services.GetRequiredService<ISettingsService>().LoadAsync(CancellationToken.None);
             _services.GetRequiredService<ThemeService>().ApplyAccent(settings.AccentColor);
+            await _services.GetRequiredService<IKiRegistry>().LoadAsync(CancellationToken.None);
 
             MainWindow = _services.GetRequiredService<MainWindow>();
             MainWindow.Show();
@@ -47,7 +49,8 @@ public partial class App : Application
     protected override void OnExit(ExitEventArgs e)
     {
         Log.Information("KI-Nexus wird beendet (Code {ExitCode}).", e.ApplicationExitCode);
-        _services?.Dispose();
+        // Einige Dienste (EngineManager) räumen asynchron auf. Beim Beenden warten wir darauf kurz.
+        _services?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
         Log.CloseAndFlush();
         base.OnExit(e);
     }

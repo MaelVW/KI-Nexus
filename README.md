@@ -3,16 +3,18 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 0.1.0 (Meilenstein 0 – Gerüst).**
-> Das Hauptfenster mit allen Tabs, das Theme und die Einstellungen sind fertig. Chatten geht ab Meilenstein 1 und 2.
+> **Stand: Version 0.2.0 (Meilenstein 1 – Engines).**
+> Die eigene Engine (llama.cpp) und Ollama laufen. Im Chat-Tab gibt es ein Test-Feld für Fragen. Der richtige Chat kommt in Meilenstein 2.
 
-![Hauptfenster von KI-Nexus in Meilenstein 0](docs/bilder/hauptfenster-m0.png)
+![Hauptfenster von KI-Nexus in Meilenstein 1](docs/bilder/hauptfenster-m1.png)
 
 ## Starten
 
 1. Doppelklick auf **`Start-KI-Nexus.bat`**.
-2. Beim ersten Mal baut das Skript die App. Das dauert etwa eine halbe Minute. Danach geht es schneller.
-3. Das Fenster vom Skript schliesst sich von selbst, und KI-Nexus öffnet sich.
+2. Fehlt llama.cpp noch, fragt das Skript, ob es llama.cpp herunterladen soll (ca. 560 MB).
+3. Beim ersten Mal baut das Skript die App. Das dauert etwa eine halbe Minute.
+4. Das Fenster vom Skript schliesst sich von selbst, und KI-Nexus öffnet sich.
+5. Fehlt einer KI die Modell-Datei, bietet das Test-Feld „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
 
 ## Voraussetzungen
 
@@ -20,14 +22,15 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 |---|---|---|
 | Windows | 11 (10 sollte auch gehen) | – |
 | .NET SDK | 10.0 | `dotnet --list-sdks` |
-
-Ab Meilenstein 1 kommen dazu: NVIDIA-Treiber (für llama.cpp mit CUDA) und optional Ollama.
+| NVIDIA-Treiber | mit CUDA 13 (getestet: 592.01) | `nvidia-smi` |
+| Ollama | optional | Ollama-App |
 
 ## Für Entwickler
 
 ```powershell
 dotnet build KI-Nexus.sln            # alles bauen
 dotnet test --solution KI-Nexus.sln  # alle Tests
+.\scripts\setup-engines.ps1          # llama.cpp nach engines\ laden
 ```
 
 Die Solution `KI-Nexus.sln` kannst du mit Visual Studio 2026 oder Rider öffnen.
@@ -45,10 +48,12 @@ Die Solution `KI-Nexus.sln` kannst du mit Visual Studio 2026 oder Rider öffnen.
 |---|---|
 | `Strg + 1` … `Strg + 5` | Tab wechseln |
 | `Strg + ,` | Einstellungen |
+| `Enter` / `Esc` im Test-Feld | Frage senden / Antwort abbrechen |
 
 ## Doku
 
 Die Doku liegt in [`docs/`](docs/), eine Datei pro System. Einstieg: [docs/00-Uebersicht.md](docs/00-Uebersicht.md).
+Messwerte der Engines: [docs/02-Engines.md](docs/02-Engines.md).
 Was sich pro Version geändert hat, steht im [CHANGELOG.md](CHANGELOG.md).
 
 ## Daten

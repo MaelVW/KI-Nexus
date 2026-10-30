@@ -1,25 +1,49 @@
+using System.Collections.ObjectModel;
 using System.Globalization;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KiNexus.App.Services;
+using KiNexus.Core;
+using KiNexus.Core.Inference;
+using KiNexus.Core.Kis;
+using KiNexus.Core.Resources;
 using KiNexus.Core.Settings;
+using Microsoft.Extensions.Logging;
 
 namespace KiNexus.App.ViewModels;
 
 /// <summary>
-/// Logik des Hauptfensters: Tabs, Kopfleiste und Fenster-Zustand.
+/// Logik des Hauptfensters: Tabs, Kopfleiste (KI-Auswahl, Ressourcen, Entladen) und Fenster-Zustand.
 /// </summary>
 public sealed partial class MainViewModel : ObservableObject
 {
+    private static readonly TimeSpan ResourceInterval = TimeSpan.FromSeconds(2);
+
     private readonly ISettingsService _settings;
     private readonly IDialogService _dialogs;
+    private readonly EngineManager _engines;
+    private readonly IResourceMonitor _resources;
+    private readonly ILogger<MainViewModel> _logger;
+    private readonly SynchronizationContext _ui;
+    private readonly CancellationTokenSource _shutdown = new();
 
-    public MainViewModel(ISettingsService settings, IDialogService dialogs)
+    public MainViewModel(
+        ISettingsService settings,
+        IDialogService dialogs,
+        IKiRegistry kis,
+        EngineManager engines,
+        IResourceMonitor resources,
+        EngineTestViewModel engineTest,
+        ILogger<MainViewModel> logger)
     {
         _settings = settings;
         _dialogs = dialogs;
+        _engines = engines;
+        _resources = resources;
+        _logger = logger;
+        _ui = SynchronizationContext.Current ?? new SynchronizationContext();
 
-        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle);
+        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, engineTest);
         Tabs =
         [
             Chat,
@@ -32,8 +56,14 @@ public sealed partial class MainViewModel : ObservableObject
             new PlaceholderTabViewModel("createHub", "Create-Hub", Glyphs.Library, 3,
                 "KIs erstellen und löschen, Modelle importieren (GGUF, Ollama) und auf Hugging Face suchen."),
         ];
-
         _selectedTab = Tabs.FirstOrDefault(tab => tab.Id == settings.Current.Window.LastTab) ?? Chat;
+
+        Kis = new ObservableCollection<KiProfile>(KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder));
+        SelectedKi = kis.Find(settings.Current.DefaultKiId) ?? Kis.FirstOrDefault();
+
+        _engines.StateChanged += (_, _) => _ui.Post(_ => UpdateEngineState(), null);
+        UpdateEngineState();
+        _ = RunResourceLoopAsync(_shutdown.Token);
     }
 
     public string AppVersion { get; } = AppInfo.Version;
@@ -49,11 +79,29 @@ public sealed partial class MainViewModel : ObservableObject
     /// <summary>Der Stil-Umschalter ist nur im Chat-Tab sichtbar.</summary>
     public bool IsChatTabSelected => SelectedTab == Chat;
 
-    // Kopfleiste: Diese Teile bekommen erst in Meilenstein 1 echte Daten.
-    public string KiPlaceholder => "Keine KI";
-    public string VramText => "–";
-    public string RamText => "–";
-    public string NotYetHint => "Kommt in Meilenstein 1";
+    // ----------------------------------------------------------- KI-Auswahl und Engine-Status
+
+    public ObservableCollection<KiProfile> Kis { get; }
+
+    [ObservableProperty] private KiProfile? _selectedKi;
+
+    [ObservableProperty] private EngineManagerState _engineState;
+    [ObservableProperty] private string _engineStatus = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UnloadCommand))]
+    private bool _isModelLoaded;
+
+    partial void OnSelectedKiChanged(KiProfile? value) => Chat.EngineTest.Ki = value;
+
+    // ----------------------------------------------------------- Ressourcen
+
+    [ObservableProperty] private string _vramText = "–";
+    [ObservableProperty] private string _ramText = "–";
+    [ObservableProperty] private bool _isVramHigh;
+    [ObservableProperty] private bool _isRamHigh;
+
+    // ----------------------------------------------------------- Befehle
 
     [RelayCommand]
     private void OpenSettings() => _dialogs.ShowSettings();
@@ -69,10 +117,25 @@ public sealed partial class MainViewModel : ObservableObject
         }
     }
 
+    /// <summary>Knopf "Entladen": Gibt VRAM und RAM sofort frei, z.B. vor dem Gamen (Lektion 8).</summary>
+    [RelayCommand(CanExecute = nameof(IsModelLoaded))]
+    private async Task UnloadAsync()
+    {
+        try
+        {
+            await _engines.UnloadAsync(CancellationToken.None);
+        }
+        catch (InferenceException ex)
+        {
+            _logger.LogError(ex, "Entladen fehlgeschlagen.");
+            EngineStatus = ex.Message;
+        }
+    }
+
     /// <summary>Speichert Fenstergrösse, Lage und den offenen Tab.</summary>
     public async Task SaveWindowStateAsync(double left, double top, double width, double height, bool isMaximized, CancellationToken ct)
     {
-        var settings = SettingsJson.Clone(_settings.Current);
+        var settings = JsonDefaults.Clone(_settings.Current);
         settings.Window.Left = left;
         settings.Window.Top = top;
         settings.Window.Width = width;
@@ -81,5 +144,41 @@ public sealed partial class MainViewModel : ObservableObject
         settings.Window.LastTab = SelectedTab.Id;
 
         await _settings.SaveAsync(settings, ct);
+    }
+
+    /// <summary>Beim Schliessen: Messung stoppen und das Modell entladen (gibt auch Ollamas VRAM frei).</summary>
+    public async Task ShutdownAsync()
+    {
+        await _shutdown.CancelAsync();
+        await _engines.DisposeAsync();
+    }
+
+    private void UpdateEngineState()
+    {
+        EngineState = _engines.State;
+        EngineStatus = _engines.StatusMessage;
+        IsModelLoaded = _engines.LoadedKi is not null;
+    }
+
+    /// <summary>Misst alle 2 Sekunden VRAM und RAM. Läuft, bis die App schliesst.</summary>
+    private async Task RunResourceLoopAsync(CancellationToken ct)
+    {
+        using var timer = new PeriodicTimer(ResourceInterval);
+        try
+        {
+            do
+            {
+                var snapshot = await Task.Run(_resources.Read, ct);
+                VramText = snapshot.VramText;
+                RamText = snapshot.RamText;
+                IsVramHigh = snapshot.IsVramHigh;
+                IsRamHigh = snapshot.IsRamHigh;
+            }
+            while (await timer.WaitForNextTickAsync(ct));
+        }
+        catch (OperationCanceledException)
+        {
+            // App wird geschlossen.
+        }
     }
 }

@@ -131,7 +131,7 @@ public class SettingsServiceTests
     {
         var original = new AppSettings();
 
-        var copy = SettingsJson.Clone(original);
+        var copy = JsonDefaults.Clone(original);
         copy.Ports.LlamaServer = 9999;
 
         Assert.Equal(8090, original.Ports.LlamaServer);

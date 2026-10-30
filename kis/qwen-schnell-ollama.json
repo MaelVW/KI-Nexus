@@ -1,0 +1,32 @@
+{
+  "id": "qwen-schnell-ollama",
+  "displayName": "Qwen schnell (Ollama)",
+  "description": "Wie Qwen schnell, aber über Ollama",
+  "engine": "ollama",
+  "baseModel": {
+    "path": null,
+    "mmprojPath": null,
+    "ollamaName": "qwen3.5:9b"
+  },
+  "systemPrompt": "Du bist ein hilfsbereiter Assistent.\n- Antworte immer auf Deutsch mit Schweizer Rechtschreibung. Schreibe nie \"ß\", sondern immer \"ss\".\n- Schreibe einfache, kurze Sätze.\n- Wenn du dir bei einem Fakt nicht sicher bist, sag das klar.\n- Erfinde keine Namen, Zahlen oder Quellen.",
+  "parameters": {
+    "temperature": 1.0,
+    "topP": 0.95,
+    "topK": 20,
+    "presencePenalty": 1.5,
+    "contextLength": 8192,
+    "maxTokens": 2048,
+    "thinkByDefault": false
+  },
+  "engineOptions": {
+    "gpuLayers": "auto",
+    "cpuMoeLayers": null,
+    "keepAliveMinutes": 5
+  },
+  "loraAdapterPath": null,
+  "voice": {
+    "defaultMode": "pushToTalk"
+  },
+  "createdAt": "2026-10-30T21:00:00+01:00",
+  "updatedAt": "2026-10-30T21:00:00+01:00"
+}

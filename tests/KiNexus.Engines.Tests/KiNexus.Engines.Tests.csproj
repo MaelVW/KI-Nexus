@@ -19,4 +19,10 @@
     <ProjectReference Include="..\..\src\KiNexus.Engines\KiNexus.Engines.csproj" />
   </ItemGroup>
 
+  <!-- Gemeinsame Test-Helfer aus dem Core-Testprojekt mitbenutzen. -->
+  <ItemGroup>
+    <Compile Include="..\KiNexus.Core.Tests\TempDirectory.cs" Link="Helpers\TempDirectory.cs" />
+    <Compile Include="..\KiNexus.Core.Tests\GgufTestFile.cs" Link="Helpers\GgufTestFile.cs" />
+  </ItemGroup>
+
 </Project>

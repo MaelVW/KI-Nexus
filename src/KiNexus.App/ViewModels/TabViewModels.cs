@@ -27,26 +27,25 @@ public sealed class PlaceholderTabViewModel(string id, string title, string icon
 
 /// <summary>
 /// Der Chat-Tab. Ein Chat, drei Ansichten (Stile).
-/// In M0 zeigt jeder Stil nur, in welchem Meilenstein er kommt.
+/// In M1 zeigen Terminal und Simpel das Test-Feld, Gespräch kommt in M4.
 /// </summary>
 public sealed partial class ChatTabViewModel : TabViewModel
 {
-    public ChatTabViewModel(ChatStyle initialStyle) : base("chat", "Chat", Glyphs.Chat)
+    private static readonly PlaceholderInfo ConversationPlaceholder = new("Gespräch-Stil", Glyphs.Microphone, 4,
+        "Du sprichst Hochdeutsch, die KI antwortet mit Stimme. Mit Push-to-Talk oder freihändig.");
+
+    public ChatTabViewModel(ChatStyle initialStyle, EngineTestViewModel engineTest) : base("chat", "Chat", Glyphs.Chat)
     {
         _style = initialStyle;
+        EngineTest = engineTest;
     }
 
+    public EngineTestViewModel EngineTest { get; }
+
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Placeholder))]
+    [NotifyPropertyChangedFor(nameof(Content))]
     private ChatStyle _style;
 
-    public PlaceholderInfo Placeholder => Style switch
-    {
-        ChatStyle.Terminal => new("Terminal-Stil", Glyphs.Terminal, 2,
-            "Sieht aus wie ein Windows-Terminal, mit Befehlen wie /help, /think und /stats. Es laufen keine echten Shell-Befehle."),
-        ChatStyle.Conversation => new("Gespräch-Stil", Glyphs.Microphone, 4,
-            "Du sprichst Hochdeutsch, die KI antwortet mit Stimme. Mit Push-to-Talk oder freihändig."),
-        _ => new("Simpel-Stil", Glyphs.Bubbles, 2,
-            "Nachrichten als Blasen, mit Markdown, farbigem Code und angehängten Bildern."),
-    };
+    /// <summary>Was im Tab angezeigt wird. WPF wählt die Vorlage passend zum Typ (Views/DataTemplates.xaml).</summary>
+    public object Content => Style == ChatStyle.Conversation ? ConversationPlaceholder : EngineTest;
 }

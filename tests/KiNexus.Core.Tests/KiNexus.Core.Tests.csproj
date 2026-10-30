@@ -9,6 +9,8 @@
 
   <ItemGroup>
     <PackageReference Include="xunit.v3" />
+    <!-- FakeTimeProvider: Zeit im Test vorspulen, z.B. für "Geladen halten 5 Minuten". -->
+    <PackageReference Include="Microsoft.Extensions.TimeProvider.Testing" />
   </ItemGroup>
 
   <ItemGroup>

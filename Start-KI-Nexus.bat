@@ -25,6 +25,19 @@ if not errorlevel 1 (
     exit /b 0
 )
 
+rem Fehlt llama.cpp (z.B. nach einem frischen git clone), bieten wir den Download an.
+if not exist "%~dp0engines\llama.cpp\llama-server.exe" (
+    echo llama.cpp fehlt noch. Ohne llama.cpp gehen nur Ollama-KIs.
+    choice /c JN /m "Jetzt herunterladen (ca. 560 MB)"
+    if not errorlevel 2 (
+        powershell.exe -NoProfile -ExecutionPolicy Bypass -File "%~dp0scripts\setup-engines.ps1"
+        if errorlevel 1 (
+            echo Der Download ist fehlgeschlagen. KI-Nexus startet trotzdem.
+            pause
+        )
+    )
+)
+
 echo KI-Nexus wird vorbereitet ...
 dotnet build "%PROJECT%" -c Release --nologo -v quiet
 if errorlevel 1 (
