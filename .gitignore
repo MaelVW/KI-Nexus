@@ -1,0 +1,23 @@
+# Lokale Daten und grosse Dateien (Bauplan, Kapitel 6)
+/models/
+/data/
+/engines/
+/python/.venv/
+*.gguf
+
+# Build-Ergebnisse
+bin/
+obj/
+TestResults/
+
+# Editoren
+.vs/
+.idea/
+*.user
+*.suo
+.vscode/*
+!.vscode/extensions.json
+
+# Python
+__pycache__/
+*.pyc

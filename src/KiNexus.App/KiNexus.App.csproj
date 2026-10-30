@@ -1,0 +1,30 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <UseWPF>true</UseWPF>
+    <!-- Die .exe heisst KI-Nexus.exe, der Namespace bleibt KiNexus.App. -->
+    <AssemblyName>KI-Nexus</AssemblyName>
+    <RootNamespace>KiNexus.App</RootNamespace>
+    <ApplicationIcon>Assets\KiNexus.ico</ApplicationIcon>
+    <ApplicationManifest>app.manifest</ApplicationManifest>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Resource Include="Assets\KiNexus.ico" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
+    <PackageReference Include="Serilog" />
+    <PackageReference Include="Serilog.Extensions.Logging" />
+    <PackageReference Include="Serilog.Sinks.File" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\KiNexus.Core\KiNexus.Core.csproj" />
+    <ProjectReference Include="..\KiNexus.Engines\KiNexus.Engines.csproj" />
+  </ItemGroup>
+
+</Project>

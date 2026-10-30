@@ -1,0 +1,165 @@
+<Window x:Class="KiNexus.App.Views.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:app="clr-namespace:KiNexus.App"
+        xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+        xmlns:conv="clr-namespace:KiNexus.App.Converters"
+        xmlns:settings="clr-namespace:KiNexus.Core.Settings;assembly=KiNexus.Core"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
+        Title="KI-Nexus"
+        Icon="/Assets/KiNexus.ico"
+        Style="{StaticResource Window.Nexus}"
+        Width="1280" Height="800" MinWidth="1100" MinHeight="700">
+
+    <!-- Eigene, dunkle Titelleiste: Windows zeichnet keinen Rahmen, wir zeichnen alles selbst. -->
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1"
+                      CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <conv:EnumEqualsConverter x:Key="EnumEquals" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Kleine Anzeige in der Kopfleiste, z.B. "VRAM 7.0 / 8 GB". -->
+        <Style x:Key="ResourcePill" TargetType="Border">
+            <Setter Property="Background" Value="{StaticResource Brush.Surface}" />
+            <Setter Property="CornerRadius" Value="{StaticResource Radius.Small}" />
+            <Setter Property="Padding" Value="10,5" />
+            <Setter Property="Margin" Value="4,0" />
+        </Style>
+    </Window.Resources>
+
+    <!-- Tastenkürzel: Strg + 1 bis 5 wechselt den Tab, Strg + , öffnet die Einstellungen. -->
+    <Window.InputBindings>
+        <KeyBinding Gesture="Ctrl+D1" Command="{Binding SelectTabCommand}" CommandParameter="1" />
+        <KeyBinding Gesture="Ctrl+D2" Command="{Binding SelectTabCommand}" CommandParameter="2" />
+        <KeyBinding Gesture="Ctrl+D3" Command="{Binding SelectTabCommand}" CommandParameter="3" />
+        <KeyBinding Gesture="Ctrl+D4" Command="{Binding SelectTabCommand}" CommandParameter="4" />
+        <KeyBinding Gesture="Ctrl+D5" Command="{Binding SelectTabCommand}" CommandParameter="5" />
+        <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding OpenSettingsCommand}" />
+    </Window.InputBindings>
+
+    <Grid x:Name="RootGrid">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- ================= Kopfleiste (gleichzeitig Titelleiste) ================= -->
+        <Grid Grid.Row="0">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+
+            <!-- Logo und Name. Hier kann man das Fenster ziehen. -->
+            <StackPanel Grid.Column="0" Orientation="Horizontal" Margin="16,0,20,0" VerticalAlignment="Center">
+                <Viewbox Width="22" Height="22">
+                    <Canvas Width="24" Height="24">
+                        <Path Stroke="{DynamicResource Brush.Accent}" StrokeThickness="1.8" StrokeLineJoin="Round"
+                              Data="M12,3.5 L19.4,7.75 L19.4,16.25 L12,20.5 L4.6,16.25 L4.6,7.75 Z" />
+                        <Path Stroke="{DynamicResource Brush.Accent}" StrokeThickness="1.1" Opacity="0.8"
+                              Data="M12,12 L12,3.5 M12,12 L19.4,16.25 M12,12 L4.6,16.25" />
+                        <Ellipse Canvas.Left="10.4" Canvas.Top="10.4" Width="3.2" Height="3.2" Fill="{DynamicResource Brush.Accent}" />
+                    </Canvas>
+                </Viewbox>
+                <TextBlock Text="KI-Nexus" Margin="10,0,0,0" VerticalAlignment="Center"
+                           FontFamily="{StaticResource Font.UiDisplay}" FontSize="15" FontWeight="SemiBold" />
+            </StackPanel>
+
+            <!-- KI-Auswahl. Das Schild für die Engine (llama.cpp / Ollama) kommt in M1 dazu. -->
+            <ComboBox Grid.Column="1" Width="210" VerticalAlignment="Center" SelectedIndex="0" IsEnabled="False"
+                      ToolTip="{Binding NotYetHint}" AutomationProperties.Name="KI-Auswahl"
+                      WindowChrome.IsHitTestVisibleInChrome="True">
+                <ComboBoxItem Content="{Binding KiPlaceholder}" />
+            </ComboBox>
+
+            <!-- Stil-Umschalter, nur im Chat-Tab sichtbar. -->
+            <Border Grid.Column="2" Style="{StaticResource SegmentHost}" Margin="12,0,0,0" VerticalAlignment="Center"
+                    Visibility="{Binding IsChatTabSelected, Converter={StaticResource BoolToVisibility}}"
+                    WindowChrome.IsHitTestVisibleInChrome="True">
+                <StackPanel Orientation="Horizontal">
+                    <RadioButton Style="{StaticResource SegmentButton}" Content="Terminal" AutomationProperties.AutomationId="Style_Terminal"
+                                 IsChecked="{Binding Chat.Style, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Terminal}}" />
+                    <RadioButton Style="{StaticResource SegmentButton}" Content="Simpel" AutomationProperties.AutomationId="Style_Simple"
+                                 IsChecked="{Binding Chat.Style, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Simple}}" />
+                    <RadioButton Style="{StaticResource SegmentButton}" Content="Gespräch" AutomationProperties.AutomationId="Style_Conversation"
+                                 IsChecked="{Binding Chat.Style, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Conversation}}" />
+                </StackPanel>
+            </Border>
+
+            <!-- Ressourcen-Anzeige. Echte Werte ab M1 (alle 2 Sekunden). -->
+            <StackPanel Grid.Column="4" Orientation="Horizontal" VerticalAlignment="Center" Margin="0,0,8,0"
+                        Background="Transparent" ToolTip="{Binding NotYetHint}"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                <Border Style="{StaticResource ResourcePill}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="VRAM" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding VramText}" Margin="8,0,0,0" FontFamily="{StaticResource Font.Mono}" FontSize="{StaticResource FontSize.Small}" />
+                    </StackPanel>
+                </Border>
+                <Border Style="{StaticResource ResourcePill}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Text="RAM" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" FontWeight="SemiBold" />
+                        <TextBlock Text="{Binding RamText}" Margin="8,0,0,0" FontFamily="{StaticResource Font.Mono}" FontSize="{StaticResource FontSize.Small}" />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+
+            <!-- Knöpfe. "Alternate Launch" kommt in M5, der Schalter "Lokal | Server" in M9. -->
+            <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center"
+                        WindowChrome.IsHitTestVisibleInChrome="True">
+                <Button Style="{StaticResource Button.Ghost}" IsEnabled="False" AutomationProperties.Name="Modell entladen"
+                        ToolTip="Modell entladen (kommt in Meilenstein 1)">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="14" Text="{x:Static app:Glyphs.Power}" />
+                        <TextBlock Text="Entladen" Margin="8,0,0,0" />
+                    </StackPanel>
+                </Button>
+                <Button Style="{StaticResource Button.Ghost}" Width="40" Height="36" Padding="0" Margin="4,0,0,0"
+                        Command="{Binding OpenSettingsCommand}" AutomationProperties.Name="Einstellungen"
+                        ToolTip="Einstellungen (Strg + ,)">
+                    <TextBlock Style="{StaticResource Text.Icon}" Text="{x:Static app:Glyphs.Settings}" />
+                </Button>
+            </StackPanel>
+
+            <!-- Fenster-Knöpfe. -->
+            <StackPanel Grid.Column="6" Orientation="Horizontal" Margin="8,0,0,0">
+                <Button Style="{StaticResource Button.Caption}" Content="{x:Static app:Glyphs.Minimize}"
+                        Click="OnMinimizeClick" AutomationProperties.Name="Minimieren" />
+                <Button x:Name="MaximizeButton" Style="{StaticResource Button.Caption}" Content="{x:Static app:Glyphs.Maximize}"
+                        Click="OnMaximizeClick" AutomationProperties.Name="Maximieren" />
+                <Button Style="{StaticResource Button.CaptionClose}" Content="{x:Static app:Glyphs.Close}"
+                        Click="OnCloseClick" AutomationProperties.Name="Schliessen" />
+            </StackPanel>
+        </Grid>
+
+        <!-- ================= Tabs ================= -->
+        <TabControl Grid.Row="1" Style="{StaticResource TabControl.Main}"
+                    ItemsSource="{Binding Tabs}" SelectedItem="{Binding SelectedTab}"
+                    AutomationProperties.AutomationId="MainTabs">
+            <TabControl.ItemContainerStyle>
+                <Style TargetType="TabItem" BasedOn="{StaticResource TabItem.Main}">
+                    <Setter Property="AutomationProperties.Name" Value="{Binding Title}" />
+                </Style>
+            </TabControl.ItemContainerStyle>
+            <TabControl.ItemTemplate>
+                <DataTemplate DataType="{x:Type vm:TabViewModel}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="14" Margin="0,0,8,0" Text="{Binding Icon}" />
+                        <TextBlock Text="{Binding Title}" />
+                    </StackPanel>
+                </DataTemplate>
+            </TabControl.ItemTemplate>
+        </TabControl>
+    </Grid>
+</Window>

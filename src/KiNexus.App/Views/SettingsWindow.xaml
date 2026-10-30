@@ -1,0 +1,326 @@
+<Window x:Class="KiNexus.App.Views.SettingsWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        xmlns:app="clr-namespace:KiNexus.App"
+        xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+        xmlns:conv="clr-namespace:KiNexus.App.Converters"
+        xmlns:settings="clr-namespace:KiNexus.Core.Settings;assembly=KiNexus.Core"
+        mc:Ignorable="d"
+        d:DataContext="{d:DesignInstance Type=vm:SettingsViewModel}"
+        Title="Einstellungen"
+        Icon="/Assets/KiNexus.ico"
+        Style="{StaticResource Window.Nexus}"
+        Width="760" Height="740" MinWidth="640" MinHeight="480"
+        WindowStartupLocation="CenterOwner" ShowInTaskbar="False">
+
+    <WindowChrome.WindowChrome>
+        <WindowChrome CaptionHeight="48" ResizeBorderThickness="6" GlassFrameThickness="0,0,0,1"
+                      CornerRadius="0" UseAeroCaptionButtons="False" />
+    </WindowChrome.WindowChrome>
+
+    <Window.Resources>
+        <conv:EnumEqualsConverter x:Key="EnumEquals" />
+        <conv:HexToBrushConverter x:Key="HexToBrush" />
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+
+        <!-- Spalten für "Beschriftung | Wert" in allen Karten gleich breit. -->
+        <GridLength x:Key="LabelWidth">180</GridLength>
+
+        <Style x:Key="SettingsCard" TargetType="Border" BasedOn="{StaticResource Card}">
+            <Setter Property="Margin" Value="0,0,0,12" />
+        </Style>
+
+        <!-- Runder Farbknopf für die Akzentfarbe. -->
+        <Style x:Key="Button.Swatch" TargetType="Button">
+            <Setter Property="Width" Value="26" />
+            <Setter Property="Height" Value="26" />
+            <Setter Property="Margin" Value="0,0,8,0" />
+            <Setter Property="Cursor" Value="Hand" />
+            <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual.Accent}" />
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Grid>
+                            <Ellipse x:Name="ring" Stroke="{StaticResource Brush.Text}" StrokeThickness="0" />
+                            <Ellipse Margin="3" Fill="{TemplateBinding Background}" />
+                        </Grid>
+                        <ControlTemplate.Triggers>
+                            <Trigger Property="IsMouseOver" Value="True">
+                                <Setter TargetName="ring" Property="StrokeThickness" Value="1.5" />
+                            </Trigger>
+                        </ControlTemplate.Triggers>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="48" />
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <!-- Titelleiste -->
+        <Grid Grid.Row="0">
+            <StackPanel Orientation="Horizontal" Margin="20,0,0,0" VerticalAlignment="Center">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{x:Static app:Glyphs.Settings}" Foreground="{DynamicResource Brush.Accent}" />
+                <TextBlock Text="Einstellungen" Margin="10,0,0,0" FontFamily="{StaticResource Font.UiDisplay}" FontSize="15" FontWeight="SemiBold" />
+            </StackPanel>
+            <Button Style="{StaticResource Button.CaptionClose}" Content="{x:Static app:Glyphs.Close}" HorizontalAlignment="Right"
+                    Click="OnCloseClick" AutomationProperties.Name="Schliessen" />
+        </Grid>
+
+        <!-- Inhalt -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Padding="20,4,14,8">
+            <StackPanel Margin="0,0,6,0">
+
+                <!-- Darstellung -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.ColumnSpan="2" Text="Darstellung" Style="{StaticResource Text.SectionTitle}" />
+
+                        <TextBlock Grid.Row="1" Text="Akzentfarbe" Style="{StaticResource Text.Label}" />
+                        <StackPanel Grid.Row="1" Grid.Column="1" Orientation="Horizontal">
+                            <ItemsControl ItemsSource="{Binding AccentPresets}" Focusable="False" VerticalAlignment="Center">
+                                <ItemsControl.ItemsPanel>
+                                    <ItemsPanelTemplate>
+                                        <StackPanel Orientation="Horizontal" />
+                                    </ItemsPanelTemplate>
+                                </ItemsControl.ItemsPanel>
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:AccentPreset}">
+                                        <Button Style="{StaticResource Button.Swatch}" ToolTip="{Binding Name}"
+                                                AutomationProperties.Name="{Binding Name}"
+                                                Background="{Binding Hex, Converter={StaticResource HexToBrush}}"
+                                                Command="{Binding DataContext.SelectAccentCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding Hex}" />
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                            <TextBox Width="100" Margin="8,0,0,0" FontFamily="{StaticResource Font.Mono}"
+                                     Text="{Binding AccentColor, UpdateSourceTrigger=PropertyChanged}"
+                                     AutomationProperties.Name="Akzentfarbe als Hex-Wert" />
+                            <Border Width="32" Height="32" Margin="8,0,0,0" CornerRadius="{StaticResource Radius.Small}"
+                                    Background="{Binding AccentColor, Converter={StaticResource HexToBrush}}"
+                                    BorderBrush="{StaticResource Brush.Border}" BorderThickness="1" />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Text="Standard-Stil" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,25,0,0" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,16,0,0">
+                            <Border Style="{StaticResource SegmentHost}" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Style="{StaticResource SegmentButton}" Content="Terminal"
+                                                 IsChecked="{Binding DefaultChatStyle, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Terminal}}" />
+                                    <RadioButton Style="{StaticResource SegmentButton}" Content="Simpel"
+                                                 IsChecked="{Binding DefaultChatStyle, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Simple}}" />
+                                    <RadioButton Style="{StaticResource SegmentButton}" Content="Gespräch"
+                                                 IsChecked="{Binding DefaultChatStyle, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Conversation}}" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Style="{StaticResource Text.Hint}" Text="Mit diesem Stil startet die App." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- KI und Engines -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.ColumnSpan="2" Text="KI und Engines" Style="{StaticResource Text.SectionTitle}" />
+
+                        <TextBlock Grid.Row="1" Text="Standard-KI" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,6,0,0" />
+                        <StackPanel Grid.Row="1" Grid.Column="1">
+                            <ComboBox Width="260" HorizontalAlignment="Left" IsEnabled="False" SelectedIndex="0">
+                                <ComboBoxItem Content="Noch keine KIs" />
+                            </ComboBox>
+                            <TextBlock Style="{StaticResource Text.Hint}" Text="KIs gibt es ab Meilenstein 1." />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="2" Text="Engine-Reihenfolge" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,25,0,0" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,16,0,0">
+                            <Border Style="{StaticResource SegmentHost}" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Style="{StaticResource SegmentButton}" Content="llama.cpp zuerst"
+                                                 IsChecked="{Binding EngineOrder, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:EngineOrder.LlamaCppFirst}}" />
+                                    <RadioButton Style="{StaticResource SegmentButton}" Content="Ollama zuerst"
+                                                 IsChecked="{Binding EngineOrder, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:EngineOrder.OllamaFirst}}" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Style="{StaticResource Text.Hint}" Text="Welche Engine die App zuerst nimmt, wenn beide gehen." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Ordner -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.ColumnSpan="3" Text="Ordner" Style="{StaticResource Text.SectionTitle}" />
+
+                        <TextBlock Grid.Row="1" Text="Modelle" Style="{StaticResource Text.Label}" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Text="{Binding ModelsPath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Ordner für Modelle" />
+                        <Button Grid.Row="1" Grid.Column="2" Content="…" Margin="8,0,0,0" Command="{Binding BrowseModelsCommand}" ToolTip="Ordner wählen" />
+
+                        <TextBlock Grid.Row="2" Text="Engines" Style="{StaticResource Text.Label}" Margin="0,10,0,0" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Margin="0,10,0,0" Text="{Binding EnginesPath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Ordner für Engines" />
+                        <Button Grid.Row="2" Grid.Column="2" Content="…" Margin="8,10,0,0" Command="{Binding BrowseEnginesCommand}" ToolTip="Ordner wählen" />
+
+                        <TextBlock Grid.Row="3" Text="Open WebUI-Daten" Style="{StaticResource Text.Label}" Margin="0,10,0,0" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Margin="0,10,0,0" Text="{Binding OpenWebUiDataPath, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Daten-Ordner von Open WebUI" />
+                        <Button Grid.Row="3" Grid.Column="2" Content="…" Margin="8,10,0,0" Command="{Binding BrowseOpenWebUiDataCommand}" ToolTip="Ordner wählen" />
+
+                        <TextBlock Grid.Row="4" Text="Daten (fest)" Style="{StaticResource Text.Label}" Margin="0,10,0,0" />
+                        <TextBox Grid.Row="4" Grid.Column="1" Margin="0,10,0,0" IsReadOnly="True" Text="{Binding DataDirectory, Mode=OneWay}" AutomationProperties.Name="Daten-Ordner" />
+                        <Button Grid.Row="4" Grid.Column="2" Margin="8,10,0,0" Command="{Binding OpenDataFolderCommand}" ToolTip="Im Explorer öffnen">
+                            <TextBlock Style="{StaticResource Text.Icon}" FontSize="14" Text="{x:Static app:Glyphs.Folder}" />
+                        </Button>
+
+                        <TextBlock Grid.Row="5" Grid.Column="1" Grid.ColumnSpan="2" Style="{StaticResource Text.Hint}" Margin="0,8,0,0"
+                                   Text="Relative Pfade gelten ab dem Projektordner. Der Daten-Ordner ist fest, weil dort auch diese Einstellungen liegen." />
+                    </Grid>
+                </Border>
+
+                <!-- Ports -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.ColumnSpan="2" Text="Ports" Style="{StaticResource Text.SectionTitle}" />
+
+                        <TextBlock Grid.Row="1" Text="llama-server" Style="{StaticResource Text.Label}" />
+                        <TextBox Grid.Row="1" Grid.Column="1" Width="100" HorizontalAlignment="Left" FontFamily="{StaticResource Font.Mono}"
+                                 Text="{Binding LlamaServerPort, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Port llama-server" />
+
+                        <TextBlock Grid.Row="2" Text="Ollama" Style="{StaticResource Text.Label}" Margin="0,10,0,0" />
+                        <TextBox Grid.Row="2" Grid.Column="1" Width="100" HorizontalAlignment="Left" Margin="0,10,0,0" FontFamily="{StaticResource Font.Mono}"
+                                 Text="{Binding OllamaPort, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Port Ollama" />
+
+                        <TextBlock Grid.Row="3" Text="Open WebUI" Style="{StaticResource Text.Label}" Margin="0,10,0,0" />
+                        <TextBox Grid.Row="3" Grid.Column="1" Width="100" HorizontalAlignment="Left" Margin="0,10,0,0" FontFamily="{StaticResource Font.Mono}"
+                                 Text="{Binding OpenWebUiPort, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Port Open WebUI" />
+
+                        <TextBlock Grid.Row="4" Grid.Column="1" Style="{StaticResource Text.Hint}" Margin="0,8,0,0"
+                                   Text="Alle Dienste hören nur auf 127.0.0.1, also nur auf diesem Laptop." />
+                    </Grid>
+                </Border>
+
+                <!-- Hintergrund-Aufgaben -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <StackPanel>
+                        <TextBlock Text="Hintergrund-Aufgaben" Style="{StaticResource Text.SectionTitle}" />
+                        <CheckBox Style="{StaticResource ToggleSwitch}" Content="Chat-Titel automatisch erzeugen"
+                                  IsChecked="{Binding GenerateChatTitles}" />
+                        <TextBlock Style="{StaticResource Text.Hint}" Margin="52,6,0,0"
+                                   Text="Ohne Thinking und mit niedriger Priorität. Wenn aus, werden die ersten Wörter deiner Frage zum Titel." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Open WebUI -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.ColumnSpan="2" Text="Open WebUI (Alternate Launch)" Style="{StaticResource Text.SectionTitle}" />
+
+                        <CheckBox Grid.Row="1" Grid.ColumnSpan="2" Style="{StaticResource ToggleSwitch}"
+                                  Content="Beim Schliessen von KI-Nexus beenden" IsChecked="{Binding StopOpenWebUiOnExit}" />
+
+                        <TextBlock Grid.Row="2" Text="Feste Version" Style="{StaticResource Text.Label}" VerticalAlignment="Top" Margin="0,22,0,0" />
+                        <StackPanel Grid.Row="2" Grid.Column="1" Margin="0,16,0,0">
+                            <TextBox Width="140" HorizontalAlignment="Left" FontFamily="{StaticResource Font.Mono}"
+                                     Text="{Binding OpenWebUiVersion, UpdateSourceTrigger=PropertyChanged}" AutomationProperties.Name="Feste Version von Open WebUI" />
+                            <TextBlock Style="{StaticResource Text.Hint}"
+                                       Text="Leer = immer die neueste Version (@latest). Mit fester Version lädt nicht jeder Start ein Update." />
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- Sprache -->
+                <Border Style="{StaticResource SettingsCard}">
+                    <StackPanel>
+                        <TextBlock Text="Sprache" Style="{StaticResource Text.SectionTitle}" />
+                        <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
+                                   Text="Mikrofon, Stimme, Spracherkennung (CPU oder GPU) und Push-to-Talk-Taste stellst du hier ab Meilenstein 4 ein." />
+                    </StackPanel>
+                </Border>
+
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Fusszeile -->
+        <Border Grid.Row="2" BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0" Padding="20,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+
+                <Button Grid.Column="0" Content="Auf Standard zurücksetzen" Command="{Binding ResetToDefaultsCommand}" />
+
+                <TextBlock Grid.Column="1" Margin="16,0" VerticalAlignment="Center" TextWrapping="Wrap"
+                           FontSize="{StaticResource FontSize.Small}" AutomationProperties.AutomationId="SettingsError"
+                           Foreground="{StaticResource Brush.Error}" Text="{Binding ErrorMessage}"
+                           Visibility="{Binding HasError, Converter={StaticResource BoolToVisibility}}" />
+
+                <Button Grid.Column="2" Content="Abbrechen" IsCancel="True" Margin="0,0,8,0" />
+                <Button Grid.Column="3" Content="Speichern" Style="{StaticResource Button.Primary}" Command="{Binding SaveCommand}" />
+            </Grid>
+        </Border>
+    </Grid>
+</Window>

@@ -1,0 +1,13 @@
+# Zeilenenden: Git speichert LF, Windows-Dateien bekommen beim Auschecken CRLF.
+* text=auto
+
+# Diese Dateien brauchen unter Windows immer CRLF.
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.ps1 text eol=crlf
+*.sln text eol=crlf
+
+# Binärdateien nie verändern.
+*.ico binary
+*.png binary
+*.gguf binary
