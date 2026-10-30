@@ -4,8 +4,15 @@ using KiNexus.Core.Inference;
 
 namespace KiNexus.Engines.LlamaCpp;
 
-/// <summary>Zeitmessung, die llama-server am Ende einer Antwort mitschickt.</summary>
-public sealed record LlamaTimings(int PromptTokens, double PromptMs, double PromptPerSecond, int PredictedTokens, double PredictedMs, double PredictedPerSecond);
+/// <summary>
+/// Zeitmessung, die llama-server am Ende einer Antwort mitschickt.
+/// CachedTokens = Token, die aus dem Cache kamen und nicht neu gelesen werden mussten.
+/// </summary>
+public sealed record LlamaTimings(int PromptTokens, double PromptMs, double PromptPerSecond, int PredictedTokens, double PredictedMs, double PredictedPerSecond, int CachedTokens = 0)
+{
+    /// <summary>Alles, was nach der Antwort im Kontext steht.</summary>
+    public int ContextTokens => CachedTokens + PromptTokens + PredictedTokens;
+}
 
 /// <summary>Ein Ereignis aus dem Stream: neuer Text, neue Gedanken und/oder die Zeitmessung.</summary>
 public sealed record LlamaStreamEvent(string Text, string Thinking, LlamaTimings? Timings);
@@ -24,7 +31,7 @@ public static class LlamaCppProtocol
         {
             ["messages"] = new JsonArray(request.Messages.Select(ToJson).ToArray<JsonNode?>()),
             ["stream"] = stream,
-            ["max_tokens"] = p.MaxTokens,
+            ["max_tokens"] = request.EffectiveMaxTokens,
             ["cache_prompt"] = true,
             // Beide Vorlagen (Gemma 4, Qwen 3.5) kennen "enable_thinking". Wir setzen es immer ausdrücklich.
             ["chat_template_kwargs"] = new JsonObject { ["enable_thinking"] = request.Think },
@@ -90,17 +97,39 @@ public static class LlamaCppProtocol
         timings is null
             ? new ChatStats(0, 0, 0, 0, wallTime, EngineKind.LlamaCpp)
             : new ChatStats(timings.PromptTokens, timings.PredictedTokens, timings.PromptPerSecond,
-                timings.PredictedPerSecond, wallTime, EngineKind.LlamaCpp);
+                timings.PredictedPerSecond, wallTime, EngineKind.LlamaCpp, timings.ContextTokens);
 
     private static LlamaTimings ParseTimings(JsonElement t) => new(
         GetInt(t, "prompt_n"), GetDouble(t, "prompt_ms"), GetDouble(t, "prompt_per_second"),
-        GetInt(t, "predicted_n"), GetDouble(t, "predicted_ms"), GetDouble(t, "predicted_per_second"));
+        GetInt(t, "predicted_n"), GetDouble(t, "predicted_ms"), GetDouble(t, "predicted_per_second"),
+        GetInt(t, "cache_n"));
 
-    private static JsonObject ToJson(ChatMessage message) => new()
+    /// <summary>
+    /// Ohne Bilder ist "content" einfach Text. Mit Bildern ist es eine Liste aus Text und Bildern (OpenAI-Format).
+    /// </summary>
+    private static JsonObject ToJson(ChatMessage message)
     {
-        ["role"] = message.Role.ToString().ToLowerInvariant(),
-        ["content"] = message.Content,
-    };
+        var json = new JsonObject { ["role"] = message.Role.ToString().ToLowerInvariant() };
+        if (!message.HasImages)
+        {
+            json["content"] = message.Content;
+            return json;
+        }
+
+        var parts = new JsonArray();
+        foreach (var image in message.ImagePaths!)
+        {
+            parts.Add(new JsonObject
+            {
+                ["type"] = "image_url",
+                ["image_url"] = new JsonObject { ["url"] = ImageEncoding.ToDataUrl(image) },
+            });
+        }
+
+        parts.Add(new JsonObject { ["type"] = "text", ["text"] = message.Content });
+        json["content"] = parts;
+        return json;
+    }
 
     private static void AddIfSet<T>(JsonObject body, string key, T? value) where T : struct
     {

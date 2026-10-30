@@ -21,7 +21,7 @@ public static class OllamaProtocol
             ["stream"] = stream,
             ["think"] = request.Think,
             ["keep_alive"] = KeepAlive(request.Ki),
-            ["options"] = BuildOptions(request.Ki),
+            ["options"] = BuildOptions(request.Ki, request.EffectiveMaxTokens),
         };
         return body;
     }
@@ -67,6 +67,14 @@ public static class OllamaProtocol
         return new OllamaStreamEvent(text, thinking, isDone, isDone ? ParseStats(root) : null);
     }
 
+    /// <summary>Anfrage an /api/show: Darin steht unter "capabilities", ob das Modell Bilder versteht ("vision").</summary>
+    public static JsonObject BuildShowRequest(string model) => new() { ["model"] = model };
+
+    public static bool HasVision(JsonElement showResponse) =>
+        showResponse.TryGetProperty("capabilities", out var capabilities)
+        && capabilities.ValueKind == JsonValueKind.Array
+        && capabilities.EnumerateArray().Any(c => c.GetString() == "vision");
+
     /// <summary>Ollama misst Zeiten in Nanosekunden.</summary>
     private static ChatStats ParseStats(JsonElement root)
     {
@@ -82,16 +90,17 @@ public static class OllamaProtocol
             PerSecond(promptTokens, promptNs),
             PerSecond(evalTokens, evalNs),
             TimeSpan.FromTicks(totalNs / 100),
-            EngineKind.Ollama);
+            EngineKind.Ollama,
+            (int)(promptTokens + evalTokens));
     }
 
-    private static JsonObject BuildOptions(KiProfile ki)
+    private static JsonObject BuildOptions(KiProfile ki, int? maxTokens = null)
     {
         var p = ki.Parameters;
         var options = new JsonObject
         {
             ["num_ctx"] = p.ContextLength,
-            ["num_predict"] = p.MaxTokens,
+            ["num_predict"] = maxTokens ?? p.MaxTokens,
         };
         if (p.Temperature is double temperature) { options["temperature"] = temperature; }
         if (p.TopP is double topP) { options["top_p"] = topP; }
@@ -113,11 +122,21 @@ public static class OllamaProtocol
             ? throw new InferenceException($"Bei der KI \"{ki.DisplayName}\" fehlt der Ollama-Name (baseModel.ollamaName).")
             : ki.BaseModel.OllamaName;
 
-    private static JsonObject ToJson(ChatMessage message) => new()
+    /// <summary>Bilder hängt Ollama als Liste von Base64-Texten an die Nachricht ("images").</summary>
+    private static JsonObject ToJson(ChatMessage message)
     {
-        ["role"] = message.Role.ToString().ToLowerInvariant(),
-        ["content"] = message.Content,
-    };
+        var json = new JsonObject
+        {
+            ["role"] = message.Role.ToString().ToLowerInvariant(),
+            ["content"] = message.Content,
+        };
+        if (message.HasImages)
+        {
+            json["images"] = new JsonArray(message.ImagePaths!.Select(path => (JsonNode?)ImageEncoding.ToBase64(path)).ToArray());
+        }
+
+        return json;
+    }
 
     private static double PerSecond(long tokens, long nanoseconds) =>
         nanoseconds > 0 ? tokens / (nanoseconds / 1_000_000_000d) : 0;

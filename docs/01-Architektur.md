@@ -48,7 +48,45 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M1)
+## Wichtige Klassen (Stand M2)
+
+### Neu in M2: Chat
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `ChatRepository` | Core | Speichert Chats und Nachrichten in `data/chats.db` (SQLite), mit Migrationen. |
+| `ChatService` | Core | Steuert eine Frage: speichern, Kontext prüfen, streamen, Antwort speichern. Neu erzeugen, bearbeiten, Titel. |
+| `ContextBudget` | Core | Passt den Verlauf in den Kontext. Die ältesten Nachrichten fallen weg, Systemprompt bleibt. |
+| `ChatTitles` | Core | Titel aus den ersten Wörtern oder vom Modell (aufgeräumt, „ß“ → „ss“). |
+| `TerminalCommands`, `InputHistory` | Core | Befehle des Terminals erkennen, Tab-Vervollständigung, frühere Eingaben. |
+| `AttachmentStore` | Core | Bilder nach `data/attachments/<chat-id>/` kopieren und beim Löschen entfernen. |
+| `ChatSessionViewModel` | App | Der offene Chat. Simpel und Terminal zeigen beide **diesen** einen Chat, darum bleibt der Verlauf beim Stilwechsel gleich. |
+| `MessageViewModel` | App | Eine Nachricht für die Anzeige (Text, Gedanken, Statistik, Bewertung). |
+| `ChatListViewModel` | App | Seitenleiste: Chats laden, suchen, neu, umbenennen, löschen. |
+| `TerminalViewModel` | App | Terminal-Stil: Befehle, Schreibmaschinen-Effekt, Eingabe-Verlauf. |
+| `KiReadinessViewModel` | App | Hinweis-Balken „Modell fehlt“ / „Ollama läuft nicht“ mit Import aus Ollama. |
+| `MarkdownRenderer`, `MarkdownView` | App | Markdown (Markdig) → WPF-Dokument. Zwei Varianten: Blase und Terminal. |
+| `CodeBlockView`, `DarkSyntaxColorizer` | App | Codeblock mit Syntax-Farben (AvalonEdit) und Kopier-Knopf. Hellt zu dunkle Farben auf. |
+| `IChatShell` | App | Was der Chat vom Hauptfenster braucht (KI wählen, Stil wechseln, entladen). |
+
+### Ablauf einer Frage im Chat
+
+```
+Simpel/Terminal ── AskAsync ──► ChatSessionViewModel
+                                  │ 1. Chat anlegen (falls neu), alte Titel-Erzeugung abbrechen
+                                  ▼
+                               ChatService.SendAsync
+                                  │ 2. Frage speichern (Bilder kopieren)        → UserMessageSaved
+                                  │ 3. ContextBudget: Systemprompt + Verlauf     → ContextPrepared
+                                  │ 4. EngineManager.StreamAsync                 → AnswerChunk, AnswerChunk, …
+                                  │ 5. Antwort speichern (auch abgebrochen)      → AnswerSaved
+                                  ▼
+                               Titel nach der ersten Antwort (im Hintergrund, abbrechbar)
+```
+
+Der `EngineManager` kennt alle laufenden Anfragen. „Entladen“ bricht alle ab, auch eine Titel-Erzeugung.
+
+### Aus M0 und M1
 
 | Klasse | Projekt | Aufgabe |
 |---|---|---|
@@ -58,7 +96,6 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 | `DialogService`, `ShellService` | App | Öffnen Dialoge und Ordner, damit ViewModels keine Fenster kennen müssen. |
 | `MainViewModel` | App | Tabs, KI-Auswahl, Engine-Status, Ressourcen-Anzeige (alle 2 s), Entladen, Fensterzustand. |
 | `ChatTabViewModel` | App | Chat-Tab mit Stil (Terminal, Simpel, Gespräch). |
-| `EngineTestViewModel` | App | Test-Feld für M1: Frage stellen, Antwort streamen, Import aus Ollama anbieten. |
 | `SettingsViewModel` | App | Einstellungs-Dialog mit Prüfung der Eingaben. |
 | `NativeWindow` | App | Windows-Funktionen für die dunkle Titelleiste. |
 | `AppPaths` | Core | Findet den Projektordner und kennt alle festen Pfade. |
@@ -67,7 +104,7 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 | `KiProfile`, `KiRegistry` | Core | KI-Profile aus `kis/` lesen. |
 | `IInferenceBackend` | Core | Gemeinsame Schnittstelle aller Engines. |
 | `EngineManager` | Core | Lädt bei Bedarf, immer nur ein Modell, entlädt nach „Geladen halten“. |
-| `PromptBuilder` | Core | Systemprompt + Verlauf + Frage. Sonst nichts (Lektion 5). |
+| `ContextBudget` | Core | Systemprompt + Verlauf + Frage, gekürzt auf den Kontext. Sonst nichts (Lektion 5). |
 | `ProcessSupervisor`, `JobObject` | Core | Startet Hilfsprozesse. Stürzt die App ab, enden sie mit. |
 | `ResourceMonitor` | Core | Misst VRAM (NVML) und RAM (Windows). |
 | `GgufReader` | Core | Liest Metadaten aus dem Kopf einer GGUF-Datei. |
@@ -94,24 +131,26 @@ public interface IInferenceBackend
 }
 ```
 
-Zwei Änderungen gegenüber dem Vorschlag im Bauplan:
+Drei Änderungen gegenüber dem Vorschlag im Bauplan:
 
 - **`Kind`**: Der `EngineManager` muss zu einer KI die passende Engine finden (`engine: llamacpp` → llama.cpp).
 - **`IProgress<string>` bei `LoadAsync`**: Laden dauert bis zu 20 Sekunden. So kann die App anzeigen, was gerade passiert („wird geladen … 12 s“, „Aufwärmen …“).
+- **`SupportsImagesAsync`** (M2): Der +-Knopf für Bilder ist nur aktiv, wenn die KI Bilder versteht.
+
+`ChatMessage` hat seit M2 eine Liste von Bildern, `ChatRequest` eine optionale maximale Antwortlänge (für kurze Hintergrund-Aufgaben wie den Titel), und `ChatStats` meldet zusätzlich `ContextTokens` (alles, was nach der Antwort im Kontext steht).
 
 `ChatChunk` enthält wie geplant: Text, Gedanken, ein Fertig-Flag und am Ende die Statistik (`ChatStats`: Token, Tempo, Dauer, Engine).
 
 ## Ablauf einer Frage
 
 ```
-Test-Feld ── AskAsync ──► EngineManager
-                            │ 1. Ist das richtige Modell geladen? Sonst: altes entladen, neues laden + aufwärmen
-                            │ 2. PromptBuilder: Systemprompt + Verlauf + Frage
-                            ▼
-                         LlamaCppBackend / OllamaBackend ── HTTP-Stream ──► llama-server / Ollama
-                            │
-                            ▼ ChatChunk für ChatChunk (Text, Gedanken, am Ende Statistik)
-                         Test-Feld zeigt laufend an
+ChatService ── StreamAsync ──► EngineManager
+                                 │ Ist das richtige Modell geladen? Sonst: altes entladen, neues laden + aufwärmen
+                                 ▼
+                              LlamaCppBackend / OllamaBackend ── HTTP-Stream ──► llama-server / Ollama
+                                 │
+                                 ▼ ChatChunk für ChatChunk (Text, Gedanken, am Ende Statistik)
+                              Chat zeigt laufend an
 ```
 
 Abbrechen (Knopf „Stopp“ oder `Esc`) bricht die HTTP-Verbindung ab. llama-server und Ollama hören dann sofort auf zu rechnen.
@@ -140,6 +179,9 @@ Alle Schlüssel sind Englisch in camelCase. Fehlt ein Wert, gilt der Standard.
 | `backgroundTasks.generateChatTitles` | `true` | Chat-Titel vom Modell erzeugen |
 | `openWebUi.stopOnExit` | `true` | Open WebUI beim Schliessen beenden |
 | `openWebUi.pinnedVersion` | `null` | feste Version statt `@latest` |
+| `chat.showThinking` | `true` | Gedanken anzeigen |
+| `chat.isSidebarOpen` | `true` | Seitenleiste offen |
+| `chat.lastChatId` | `null` | dieser Chat öffnet sich beim Start |
 | `window.*` | – | Lage, Grösse, maximiert, letzter Tab |
 
 Regeln:
@@ -204,6 +246,9 @@ Kapitel 12, Punkt 10 im Bauplan.
 | Serilog.Sinks.File | 7.0.0 |
 | xunit.v3 | 4.0.2 |
 | Microsoft.Extensions.TimeProvider.Testing | 10.11.0 (nur Tests: Zeit vorspulen) |
+| Microsoft.Data.Sqlite | 10.0.14 (Chat-Datenbank) |
+| Markdig | 1.4.2 (Markdown lesen). 1.5.1 war beim Einbau erst 2 Tage alt, darum die bewährte 1.4er-Reihe. |
+| AvalonEdit | 6.3.1.120 (Codeblöcke mit Syntax-Farben) |
 | llama.cpp | b11960 = v0.8.0 (CUDA 13.4), siehe [02-Engines.md](02-Engines.md) |
 
 Alle Versionen stehen an einem Ort: `Directory.Packages.props` (Central Package Management).

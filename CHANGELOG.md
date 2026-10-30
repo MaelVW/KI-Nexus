@@ -6,6 +6,36 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [0.3.0] – 2026-10-30 – Meilenstein 2: Chat
+
+### Neu
+
+- **Chat** im Chat-Tab, ersetzt das Test-Feld aus M1. Ein Chat, zwei Ansichten: Wechselt man mitten im Gespräch den Stil, bleibt der Verlauf gleich.
+- **Simpel-Stil**: Nachrichten als Blasen, Markdown (Markdig mit eigenem WPF-Renderer), Codeblöcke mit Syntax-Farben (AvalonEdit) und Kopier-Knopf, Gedanken als einklappbarer Block „Nachgedacht für X Sekunden“, Knöpfe kopieren / neu erzeugen / Daumen hoch / Daumen runter / Info, letzte Nachricht bearbeiten und neu senden.
+- **Terminal-Stil**: Cascadia Mono, Prompt `mael@nexus ›`, Schreibmaschinen-Effekt im Tempo des Streamings, blinkender Block-Cursor, Farben nach Bauplan, alle Befehle (`/help`, `/think on|off|show|hide`, `/ki`, `/style`, `/new`, `/clear`, `/stop`, `/stats`, `/unload`), Pfeil hoch/runter, Tab-Vervollständigung, `Strg + C`. Keine echten Shell-Befehle.
+- **Seitenleiste** mit allen Chats: neu, umbenennen, löschen (mit Rückfrage), suchen (Titel und Inhalt), einklappbar.
+- **Chat-Datenbank** `data/chats.db` (SQLite) mit Versionsnummer und Migrationen. Tabellen nach Bauplan, dazu `thinking_ms` und `context_tokens`.
+- **Bilder anhängen** per +-Knopf oder Drag & Drop. Grau mit Hinweis, wenn die KI keine Bilder versteht. Bilder werden nach `data/attachments/` kopiert.
+- **Kontext-Anzeige** (z.B. `243 / 8192 Token`). Wird der Kontext voll, fallen die ältesten Nachrichten weg, der Systemprompt bleibt. Mit Hinweis.
+- **Chat-Titel** nach der ersten Antwort: ohne Thinking, kurz, abbrechbar. Ausgeschaltet: die ersten Wörter der Frage.
+- **Bewertung** mit Daumen hoch/runter, gespeichert für M8.
+- Thinking pro Chat, Gedanken anzeigen/verstecken für alle Chats. Statistik pro Antwort.
+- Rückfragen (z.B. vor dem Löschen) im dunklen Stil der App statt als helle Windows-Meldung.
+- Beim Start öffnet die App den zuletzt benutzten Chat. Öffnet man einen Chat, wechselt die KI-Auswahl zu dessen KI.
+- `Strg + N` für einen neuen Chat.
+- 159 Unit-Tests (vorher 94).
+
+### Geändert
+
+- `IInferenceBackend` hat `SupportsImagesAsync`. Bilder gehen an llama.cpp (OpenAI-Format) und Ollama (`images`).
+- `EngineManager` kennt alle laufenden Anfragen: „Entladen“ bricht auch eine Titel-Erzeugung ab.
+- `PromptBuilder` entfernt; `ContextBudget` baut die Nachrichten jetzt (mit Kürzung).
+- Symbole in `Glyphs.cs` stehen als lesbare Codes (``) statt als unsichtbare Zeichen.
+
+### Entfernt
+
+- Das vorläufige Test-Feld aus M1.
+
 ## [0.2.0] – 2026-10-30 – Meilenstein 1: Engines
 
 ### Neu

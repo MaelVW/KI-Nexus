@@ -55,13 +55,9 @@
         <ContentControl Content="{Binding Placeholder}" Focusable="False" />
     </DataTemplate>
 
-    <!-- Chat-Tab: Test-Feld (Terminal, Simpel) oder Platzhalter (Gespräch, kommt in M4). -->
+    <!-- Chat-Tab: Seitenleiste + Chat (Simpel, Terminal; Gespräch kommt in M4). -->
     <DataTemplate DataType="{x:Type vm:ChatTabViewModel}">
-        <ContentControl Content="{Binding Content}" Focusable="False" />
-    </DataTemplate>
-
-    <DataTemplate DataType="{x:Type vm:EngineTestViewModel}">
-        <views:EngineTestView />
+        <views:ChatView />
     </DataTemplate>
 
 </ResourceDictionary>

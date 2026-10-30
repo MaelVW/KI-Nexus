@@ -1,5 +1,6 @@
 using System.Windows;
 using KiNexus.App.Views;
+using KiNexus.Core.Chats;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Win32;
 
@@ -12,6 +13,12 @@ public interface IDialogService
 
     /// <summary>Lässt einen Ordner wählen. Null, wenn abgebrochen.</summary>
     string? PickFolder(string title, string? initialPath);
+
+    /// <summary>Lässt Bilder wählen (png, jpg, gif, bmp). Leer, wenn abgebrochen.</summary>
+    IReadOnlyList<string> PickImages();
+
+    /// <summary>Fragt nach, z.B. vor dem Löschen. True = bestätigt.</summary>
+    bool Confirm(string title, string message, string confirmText);
 }
 
 public sealed class DialogService(IServiceProvider services) : IDialogService
@@ -32,5 +39,23 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
         }
 
         return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FolderName : null;
+    }
+
+    public IReadOnlyList<string> PickImages()
+    {
+        var patterns = string.Join(";", AttachmentStore.AllowedExtensions.Select(e => "*" + e));
+        var dialog = new OpenFileDialog
+        {
+            Title = "Bilder anhängen",
+            Filter = $"Bilder ({patterns})|{patterns}",
+            Multiselect = true,
+        };
+        return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileNames : [];
+    }
+
+    public bool Confirm(string title, string message, string confirmText)
+    {
+        var dialog = new ConfirmDialog(title, message, confirmText) { Owner = Application.Current.MainWindow };
+        return dialog.ShowDialog() == true;
     }
 }

@@ -140,6 +140,10 @@ public sealed class LlamaCppBackend : IInferenceBackend, IDisposable
         yield return ChatChunk.Done(LlamaCppProtocol.ToStats(timings, stopwatch.Elapsed));
     }
 
+    /// <summary>Bilder gehen, wenn die KI einen Projektor (mmproj) hat und die Datei da ist.</summary>
+    public Task<bool> SupportsImagesAsync(KiProfile ki, CancellationToken ct) =>
+        Task.FromResult(ki.BaseModel.MmprojPath is { Length: > 0 } path && File.Exists(_paths.Resolve(path)));
+
     public void Dispose()
     {
         _process?.Dispose();

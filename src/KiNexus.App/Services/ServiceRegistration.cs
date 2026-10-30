@@ -1,6 +1,7 @@
 using System.IO;
 using KiNexus.App.ViewModels;
 using KiNexus.App.Views;
+using KiNexus.Core.Chats;
 using KiNexus.Core.Inference;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Models;
@@ -41,8 +42,8 @@ public static class ServiceRegistration
         services.AddSingleton<IShellService, ShellService>();
 
         AddEngines(services, paths);
+        AddChats(services, paths);
 
-        services.AddSingleton<EngineTestViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddTransient<SettingsViewModel>();
@@ -76,6 +77,16 @@ public static class ServiceRegistration
         services.AddSingleton<IInferenceBackend>(provider => provider.GetRequiredService<LlamaCppBackend>());
         services.AddSingleton<IInferenceBackend>(provider => provider.GetRequiredService<OllamaBackend>());
         services.AddSingleton<EngineManager>();
+    }
+
+    private static void AddChats(ServiceCollection services, AppPaths paths)
+    {
+        services.AddSingleton<IChatRepository>(provider => new ChatRepository(paths.ChatDatabaseFile, provider.GetRequiredService<ILogger<ChatRepository>>()));
+        services.AddSingleton(_ => new AttachmentStore(paths.AttachmentsDirectory));
+        services.AddSingleton<ChatService>();
+        services.AddSingleton<KiReadinessViewModel>();
+        services.AddSingleton<ChatSessionViewModel>();
+        services.AddSingleton<ChatListViewModel>();
     }
 
     private static AppSettings Settings(IServiceProvider provider) => provider.GetRequiredService<ISettingsService>().Current;

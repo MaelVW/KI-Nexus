@@ -150,6 +150,21 @@
         </Setter>
     </Style>
 
+    <!-- Kleiner Symbol-Knopf, z.B. "kopieren" oder "Daumen hoch" unter einer Antwort. -->
+    <Style x:Key="Button.Icon" TargetType="Button" BasedOn="{StaticResource Button.Ghost}">
+        <Setter Property="Width" Value="30" />
+        <Setter Property="Height" Value="28" />
+        <Setter Property="Padding" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+        <Setter Property="FontFamily" Value="{StaticResource Font.Icons}" />
+        <Setter Property="FontSize" Value="13" />
+        <Style.Triggers>
+            <Trigger Property="IsMouseOver" Value="True">
+                <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+            </Trigger>
+        </Style.Triggers>
+    </Style>
+
     <!-- Knöpfe der Titelleiste (Minimieren, Maximieren, Schliessen). -->
     <Style x:Key="Button.Caption" TargetType="Button">
         <Setter Property="Width" Value="46" />
@@ -477,6 +492,87 @@
                         <!-- Der Name PART_SelectedContentHost ist wichtig: Nur so sehen Screenreader den Inhalt des Tabs. -->
                         <ContentPresenter x:Name="PART_SelectedContentHost" Grid.Row="1" ContentSource="SelectedContent" KeyboardNavigation.TabIndex="2" />
                     </Grid>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- ===================== Listen (z.B. Chats in der Seitenleiste) ===================== -->
+
+    <Style x:Key="ListBox.Plain" TargetType="ListBox">
+        <Setter Property="Background" Value="Transparent" />
+        <Setter Property="BorderThickness" Value="0" />
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="ScrollViewer.HorizontalScrollBarVisibility" Value="Disabled" />
+        <Setter Property="FocusVisualStyle" Value="{x:Null}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBox">
+                    <ScrollViewer Focusable="False" Padding="{TemplateBinding Padding}">
+                        <ItemsPresenter />
+                    </ScrollViewer>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <Style x:Key="ListBoxItem.Card" TargetType="ListBoxItem">
+        <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+        <Setter Property="Padding" Value="10,8" />
+        <Setter Property="Margin" Value="0,0,0,2" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="HorizontalContentAlignment" Value="Stretch" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual.Accent}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ListBoxItem">
+                    <Grid>
+                        <Border x:Name="bd" Background="Transparent" CornerRadius="{StaticResource Radius.Small}" Padding="{TemplateBinding Padding}">
+                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}" />
+                        </Border>
+                        <!-- Schmaler Akzent-Strich links beim gewählten Chat. -->
+                        <Border x:Name="marker" Width="3" HorizontalAlignment="Left" Margin="0,8" CornerRadius="2"
+                                Background="{DynamicResource Brush.Accent}" Visibility="Collapsed" />
+                    </Grid>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{StaticResource Brush.SurfaceLight}" />
+                        </Trigger>
+                        <Trigger Property="IsSelected" Value="True">
+                            <Setter TargetName="bd" Property="Background" Value="{DynamicResource Brush.AccentSoft}" />
+                            <Setter TargetName="marker" Property="Visibility" Value="Visible" />
+                        </Trigger>
+                    </ControlTemplate.Triggers>
+                </ControlTemplate>
+            </Setter.Value>
+        </Setter>
+    </Style>
+
+    <!-- Kopf eines einklappbaren Blocks, z.B. "Nachgedacht für 12 Sekunden". -->
+    <Style x:Key="ToggleButton.Header" TargetType="ToggleButton">
+        <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+        <Setter Property="Cursor" Value="Hand" />
+        <Setter Property="FocusVisualStyle" Value="{StaticResource FocusVisual.Accent}" />
+        <Setter Property="Template">
+            <Setter.Value>
+                <ControlTemplate TargetType="ToggleButton">
+                    <StackPanel Orientation="Horizontal" Background="Transparent">
+                        <TextBlock x:Name="chevron" Style="{StaticResource Text.Icon}" FontSize="10" Text="{x:Static app:Glyphs.ChevronRight}"
+                                   Margin="0,0,8,0" RenderTransformOrigin="0.5,0.5" />
+                        <ContentPresenter VerticalAlignment="Center" />
+                    </StackPanel>
+                    <ControlTemplate.Triggers>
+                        <Trigger Property="IsMouseOver" Value="True">
+                            <Setter Property="Foreground" Value="{StaticResource Brush.Text}" />
+                        </Trigger>
+                        <Trigger Property="IsChecked" Value="True">
+                            <Setter TargetName="chevron" Property="RenderTransform">
+                                <Setter.Value>
+                                    <RotateTransform Angle="90" />
+                                </Setter.Value>
+                            </Setter>
+                        </Trigger>
+                    </ControlTemplate.Triggers>
                 </ControlTemplate>
             </Setter.Value>
         </Setter>

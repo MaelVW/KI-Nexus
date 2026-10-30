@@ -29,6 +29,9 @@ public sealed class KiProfile
     /// <summary>Versteht die KI Bilder? (Bei llama.cpp: Projektor vorhanden.)</summary>
     [JsonIgnore]
     public bool SupportsImages => !string.IsNullOrWhiteSpace(BaseModel.MmprojPath);
+
+    /// <summary>Der Name, z.B. für Screenreader in der KI-Auswahl.</summary>
+    public override string ToString() => DisplayName;
 }
 
 public sealed class BaseModelRef

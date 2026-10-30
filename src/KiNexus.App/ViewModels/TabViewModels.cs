@@ -26,26 +26,34 @@ public sealed class PlaceholderTabViewModel(string id, string title, string icon
 }
 
 /// <summary>
-/// Der Chat-Tab. Ein Chat, drei Ansichten (Stile).
-/// In M1 zeigen Terminal und Simpel das Test-Feld, Gespräch kommt in M4.
+/// Der Chat-Tab: Seitenleiste + ein Chat in drei Ansichten (Stile).
+/// Terminal und Simpel zeigen denselben ChatSessionViewModel. Gespräch kommt in M4.
 /// </summary>
 public sealed partial class ChatTabViewModel : TabViewModel
 {
-    private static readonly PlaceholderInfo ConversationPlaceholder = new("Gespräch-Stil", Glyphs.Microphone, 4,
-        "Du sprichst Hochdeutsch, die KI antwortet mit Stimme. Mit Push-to-Talk oder freihändig.");
-
-    public ChatTabViewModel(ChatStyle initialStyle, EngineTestViewModel engineTest) : base("chat", "Chat", Glyphs.Chat)
+    public ChatTabViewModel(ChatStyle initialStyle, ChatSessionViewModel session, ChatListViewModel chatList, TerminalViewModel terminal)
+        : base("chat", "Chat", Glyphs.Chat)
     {
         _style = initialStyle;
-        EngineTest = engineTest;
+        Session = session;
+        ChatList = chatList;
+        Terminal = terminal;
     }
 
-    public EngineTestViewModel EngineTest { get; }
+    public ChatSessionViewModel Session { get; }
+    public ChatListViewModel ChatList { get; }
+    public TerminalViewModel Terminal { get; }
+
+    public PlaceholderInfo ConversationPlaceholder { get; } = new("Gespräch-Stil", Glyphs.Microphone, 4,
+        "Du sprichst Hochdeutsch, die KI antwortet mit Stimme. Mit Push-to-Talk oder freihändig.");
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Content))]
+    [NotifyPropertyChangedFor(nameof(IsSimple))]
+    [NotifyPropertyChangedFor(nameof(IsTerminal))]
+    [NotifyPropertyChangedFor(nameof(IsConversation))]
     private ChatStyle _style;
 
-    /// <summary>Was im Tab angezeigt wird. WPF wählt die Vorlage passend zum Typ (Views/DataTemplates.xaml).</summary>
-    public object Content => Style == ChatStyle.Conversation ? ConversationPlaceholder : EngineTest;
+    public bool IsSimple => Style == ChatStyle.Simple;
+    public bool IsTerminal => Style == ChatStyle.Terminal;
+    public bool IsConversation => Style == ChatStyle.Conversation;
 }

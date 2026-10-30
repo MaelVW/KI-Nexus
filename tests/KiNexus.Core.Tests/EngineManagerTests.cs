@@ -1,4 +1,3 @@
-using System.Runtime.CompilerServices;
 using KiNexus.Core.Inference;
 using KiNexus.Core.Kis;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -57,7 +56,7 @@ public class EngineManagerTests
         var ki = Ki("a", EngineKind.LlamaCpp);
         ki.SystemPrompt = "Antworte auf Deutsch.";
 
-        var chunks = await ToListAsync(manager.AskAsync(ki, [], "Hallo", think: true, null, Ct));
+        var chunks = await ToListAsync(manager.StreamAsync(new ChatRequest(ki, [new ChatMessage(ChatRole.System, ki.SystemPrompt), new ChatMessage(ChatRole.User, "Hallo")], Think: true), null, Ct));
 
         Assert.Equal("Hallo zurück", string.Concat(chunks.Select(c => c.Text)));
         Assert.True(chunks[^1].IsDone);
@@ -103,7 +102,7 @@ public class EngineManagerTests
         var (manager, llama, _, _) = Create();
         llama.ChunkDelay = TimeSpan.FromSeconds(30);
         var ki = Ki("a", EngineKind.LlamaCpp);
-        var answering = ToListAsync(manager.AskAsync(ki, [], "Hallo", false, null, Ct));
+        var answering = ToListAsync(manager.StreamAsync(new ChatRequest(ki, [new ChatMessage(ChatRole.User, "Hallo")], Think: false), null, Ct));
         await WaitUntilAsync(() => manager.State == EngineManagerState.Answering);
 
         await manager.UnloadAsync(Ct);
@@ -154,47 +153,5 @@ public class EngineManagerTests
         }
 
         Assert.True(condition());
-    }
-
-    /// <summary>Eine Engine nur für Tests: zählt Aufrufe und antwortet immer gleich.</summary>
-    private sealed class FakeBackend(EngineKind kind) : IInferenceBackend
-    {
-        public EngineKind Kind => kind;
-        public string Name => kind.ToString();
-        public int LoadCount { get; private set; }
-        public int UnloadCount { get; private set; }
-        public bool FailLoad { get; set; }
-        public TimeSpan ChunkDelay { get; set; }
-        public List<ChatRequest> Requests { get; } = [];
-
-        public Task<BackendStatus> GetStatusAsync(CancellationToken ct) => Task.FromResult(new BackendStatus(kind, BackendState.Idle, ""));
-
-        public Task<IReadOnlyList<ModelInfo>> ListModelsAsync(CancellationToken ct) => Task.FromResult<IReadOnlyList<ModelInfo>>([]);
-
-        public Task LoadAsync(KiProfile ki, IProgress<string>? progress, CancellationToken ct)
-        {
-            if (FailLoad)
-            {
-                throw new InferenceException("geht nicht");
-            }
-
-            LoadCount++;
-            return Task.CompletedTask;
-        }
-
-        public Task UnloadAsync(CancellationToken ct)
-        {
-            UnloadCount++;
-            return Task.CompletedTask;
-        }
-
-        public async IAsyncEnumerable<ChatChunk> ChatStreamAsync(ChatRequest request, [EnumeratorCancellation] CancellationToken ct)
-        {
-            Requests.Add(request);
-            yield return ChatChunk.FromText("Hallo");
-            await Task.Delay(ChunkDelay, ct);
-            yield return ChatChunk.FromText(" zurück");
-            yield return ChatChunk.Done(new ChatStats(5, 2, 100, 40, TimeSpan.FromSeconds(1), kind));
-        }
     }
 }

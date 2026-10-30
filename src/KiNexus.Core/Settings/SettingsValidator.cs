@@ -33,8 +33,10 @@ public static class SettingsValidator
     private static void FixMissingSections(AppSettings settings, List<string> fixes)
     {
         // In JSON kann "paths": null stehen. Dann ist die Eigenschaft trotz Standardwert null.
+        // Fehlt ein ganzer Abschnitt (z.B. "chat" in einer Datei von M1), setzt der JSON-Leser den Standard selbst.
         if (settings.Paths is null) { settings.Paths = new(); fixes.Add("paths fehlte"); }
         if (settings.Ports is null) { settings.Ports = new(); fixes.Add("ports fehlte"); }
+        if (settings.Chat is null) { settings.Chat = new(); fixes.Add("chat fehlte"); }
         if (settings.Voice is null) { settings.Voice = new(); fixes.Add("voice fehlte"); }
         if (settings.BackgroundTasks is null) { settings.BackgroundTasks = new(); fixes.Add("backgroundTasks fehlte"); }
         if (settings.OpenWebUi is null) { settings.OpenWebUi = new(); fixes.Add("openWebUi fehlte"); }

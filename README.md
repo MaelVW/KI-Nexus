@@ -3,10 +3,12 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 0.2.0 (Meilenstein 1 – Engines).**
-> Die eigene Engine (llama.cpp) und Ollama laufen. Im Chat-Tab gibt es ein Test-Feld für Fragen. Der richtige Chat kommt in Meilenstein 2.
+> **Stand: Version 0.3.0 (Meilenstein 2 – Chat).**
+> Chatten im Simpel- und im Terminal-Stil, mit Seitenleiste, Bildern, Markdown und Code-Farben. Die eigene Engine (llama.cpp) und Ollama laufen. Der Gespräch-Stil (Sprache) kommt in Meilenstein 4.
 
-![Hauptfenster von KI-Nexus in Meilenstein 1](docs/bilder/hauptfenster-m1.png)
+![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
+
+![Terminal-Stil von KI-Nexus](docs/bilder/terminal-m2.png)
 
 ## Starten
 
@@ -14,7 +16,7 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 2. Fehlt llama.cpp noch, fragt das Skript, ob es llama.cpp herunterladen soll (ca. 560 MB).
 3. Beim ersten Mal baut das Skript die App. Das dauert etwa eine halbe Minute.
 4. Das Fenster vom Skript schliesst sich von selbst, und KI-Nexus öffnet sich.
-5. Fehlt einer KI die Modell-Datei, bietet das Test-Feld „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
+5. Fehlt einer KI die Modell-Datei, bietet ein Hinweis über dem Chat „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
 
 ## Voraussetzungen
 
@@ -48,7 +50,9 @@ Die Solution `KI-Nexus.sln` kannst du mit Visual Studio 2026 oder Rider öffnen.
 |---|---|
 | `Strg + 1` … `Strg + 5` | Tab wechseln |
 | `Strg + ,` | Einstellungen |
-| `Enter` / `Esc` im Test-Feld | Frage senden / Antwort abbrechen |
+| `Strg + N` | Neuer Chat |
+| `Enter` / `Shift + Enter` / `Esc` | Senden / neue Zeile / abbrechen (Simpel) |
+| `Strg + C`, `/help` | Abbrechen, alle Befehle (Terminal) |
 
 ## Doku
 
@@ -58,5 +62,5 @@ Was sich pro Version geändert hat, steht im [CHANGELOG.md](CHANGELOG.md).
 
 ## Daten
 
-Chats, Einstellungen und Logs liegen in `data/`. Modelle liegen in `models/`, Engines in `engines/`.
+Chats (`data/chats.db`), angehängte Bilder, Einstellungen und Logs liegen in `data/`. Modelle liegen in `models/`, Engines in `engines/`.
 Diese drei Ordner sind **nicht** in Git, weil sie gross oder persönlich sind. Deine KIs in `kis/` sind in Git und damit gesichert.

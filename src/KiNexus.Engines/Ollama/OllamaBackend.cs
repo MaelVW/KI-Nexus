@@ -16,6 +16,7 @@ public sealed class OllamaBackend : IInferenceBackend, IDisposable
 {
     private readonly HttpClient _http;
     private readonly ILogger<OllamaBackend> _logger;
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<string, bool> _visionCache = new(StringComparer.OrdinalIgnoreCase);
     private string? _loadedModel;
     private string? _loadedKiId;
 
@@ -124,6 +125,36 @@ public sealed class OllamaBackend : IInferenceBackend, IDisposable
                 yield return ChatChunk.Done(stats);
                 yield break;
             }
+        }
+    }
+
+    /// <summary>Fragt Ollama (/api/show), ob das Modell Bilder versteht. Das Ergebnis merkt sich die App.</summary>
+    public async Task<bool> SupportsImagesAsync(KiProfile ki, CancellationToken ct)
+    {
+        if (ki.BaseModel.OllamaName is not { Length: > 0 } model)
+        {
+            return false;
+        }
+
+        if (_visionCache.TryGetValue(model, out var known))
+        {
+            return known;
+        }
+
+        try
+        {
+            using var limit = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            limit.CancelAfter(TimeSpan.FromSeconds(5));
+            using var response = await PostAsync("api/show", OllamaProtocol.BuildShowRequest(model), limit.Token).ConfigureAwait(false);
+            using var document = await JsonDocument.ParseAsync(await response.Content.ReadAsStreamAsync(ct).ConfigureAwait(false), cancellationToken: ct).ConfigureAwait(false);
+            var hasVision = OllamaProtocol.HasVision(document.RootElement);
+            _visionCache[model] = hasVision;
+            return hasVision;
+        }
+        catch (Exception ex) when (ex is InferenceException || (ex is OperationCanceledException && !ct.IsCancellationRequested))
+        {
+            // Ollama läuft nicht: Dann geht sowieso nichts. Nicht merken, später nochmals fragen.
+            return false;
         }
     }
 

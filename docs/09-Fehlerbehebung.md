@@ -55,6 +55,19 @@ dotnet test --solution KI-Nexus.sln
 
 Das Log von llama-server (`data\logs\llama-server.log`) wird bei jedem Laden neu geschrieben.
 
+## Chat
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| +-Knopf für Bilder ist grau | Die gewählte KI versteht keine Bilder | Mit der Maus darüber steht der Grund. Mael-KI (gemma4) versteht Bilder. |
+| „Nur Bilder gehen …“ beim Drag & Drop | Datei ist kein Bild (z.B. PDF) | Erlaubt sind png, jpg, jpeg, gif, bmp |
+| Gelber Hinweis „Der Kontext ist voll …“ | Der Chat ist länger als das Gedächtnis des Modells | Normal. Die ältesten Nachrichten gehen nicht mehr ans Modell. Neuer Chat (`Strg + N`) oder ab M6 grösseren Kontext einstellen. |
+| „Die Nachricht ist zu lang für den Kontext“ | Schon die neue Nachricht allein passt nicht | Nachricht kürzen |
+| Chat-Titel bleibt „Neuer Chat“ | Titel-Erzeugung ist aus oder wurde durch eine neue Frage abgebrochen | Kommt nach der nächsten Antwort. Oder selbst umbenennen (`F2`). |
+| „chats.db hat Version X, diese App kennt nur bis Y“ | Die Datenbank kommt von einer neueren App-Version | App aktualisieren (`git pull`). Die Datei nicht von Hand ändern. |
+
+Alle Chats stehen in `data\chats.db`. Zum Sichern genügt es, diese Datei und den Ordner `data\attachments\` zu kopieren (App vorher schliessen).
+
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 
 Die App läuft noch und sperrt `KI-Nexus.exe`. App schliessen und nochmals bauen.

@@ -140,4 +140,13 @@ Der RAM-Bedarf (ca. 15 GB zusätzlich) ist bei 16 GB Modell und 8 GB VRAM nicht 
 ## Der Draft von gemma4 (noch nicht eingeschaltet)
 
 llama.cpp kann den Draft nutzen: `-md draft.gguf --spec-type draft-mtp`. Gemessen: Schreiben 41–55 statt 40 Token/s, 37–67 % der vorgeschlagenen Wörter werden übernommen.
-Er ist **noch nicht Standard**, weil `--fit` den Speicher des Drafts nicht mitrechnen kann (Meldung im Log). Mit Draft bleiben nur ca. 1 GB VRAM frei. Für Bilder reicht das vielleicht nicht. Wir prüfen das in M2 mit Bildern und machen es in M6 als Einstellung verfügbar.
+Er ist **nicht Standard**, weil `--fit` den Speicher des Drafts nicht mitrechnen kann (Meldung im Log).
+In M2 gemessen: Beim Beschreiben eines Bildes belegt gemma4 **7.0 von 8.0 GB** VRAM (ohne Draft). Der Draft braucht ca. 0.5 GB mehr. Dann bliebe zu wenig Reserve, und bei grösseren Bildern oder längerem Kontext droht „out of memory“.
+Entscheid: Der Draft bleibt aus. In M6 (Feineinstellungen) kann man ihn pro KI einschalten, mit Warnung.
+
+## Bilder
+
+- llama.cpp bekommt Bilder im OpenAI-Format: `content` ist eine Liste aus `image_url` (`data:image/png;base64,…`) und `text`.
+- Ollama bekommt Bilder als Liste von Base64-Texten im Feld `images` der Nachricht.
+- Ob eine KI Bilder versteht: llama.cpp → Projektor-Datei vorhanden. Ollama → `POST /api/show`, Fähigkeit `vision`.
+- Getestet mit Mael-KI (gemma4 über llama.cpp): Bild richtig beschrieben, Text im Bild richtig gelesen.

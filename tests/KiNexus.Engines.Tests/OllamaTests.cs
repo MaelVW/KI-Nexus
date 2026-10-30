@@ -14,7 +14,7 @@ public class OllamaTests
     public void ChatRequest_ContainsModelThinkKeepAliveAndOptions()
     {
         var ki = Ki();
-        var body = OllamaProtocol.BuildChatRequest(new ChatRequest(ki, PromptBuilder.Build(null, [], "Hallo"), Think: false), stream: true);
+        var body = OllamaProtocol.BuildChatRequest(new ChatRequest(ki, [new ChatMessage(ChatRole.User, "Hallo")], Think: false), stream: true);
 
         Assert.Equal("qwen3.5:9b", body["model"]!.GetValue<string>());
         Assert.False(body["think"]!.GetValue<bool>());
@@ -47,6 +47,38 @@ public class OllamaTests
         Assert.Equal(200, last.Stats.PromptTokensPerSecond, precision: 3);
         Assert.Equal(TimeSpan.FromSeconds(3), last.Stats.Duration);
         Assert.Equal(EngineKind.Ollama, last.Stats.Engine);
+    }
+
+    [Fact]
+    public void ChatRequest_WithImage_AddsBase64List()
+    {
+        using var temp = new TempDirectory();
+        var image = temp.Combine("bild.jpg");
+        File.WriteAllBytes(image, [1, 2, 3]);
+
+        var body = OllamaProtocol.BuildChatRequest(new ChatRequest(Ki(), [new ChatMessage(ChatRole.User, "Was ist das?", [image])], Think: false), stream: true);
+
+        Assert.Equal("AQID", body["messages"]![0]!["images"]![0]!.GetValue<string>());
+        Assert.Equal("Was ist das?", body["messages"]![0]!["content"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Stats_ContextTokens_AreQuestionPlusAnswer()
+    {
+        var last = OllamaProtocol.ParseStreamLine("""{"done":true,"prompt_eval_count":120,"prompt_eval_duration":1,"eval_count":30,"eval_duration":1,"total_duration":1}""");
+
+        Assert.Equal(150, last!.Stats!.ContextTokens);
+    }
+
+    [Theory]
+    [InlineData("""{"capabilities":["completion","vision","thinking"]}""", true)]
+    [InlineData("""{"capabilities":["completion"]}""", false)]
+    [InlineData("""{}""", false)]
+    public void HasVision_ReadsCapabilities(string json, bool expected)
+    {
+        using var document = System.Text.Json.JsonDocument.Parse(json);
+
+        Assert.Equal(expected, OllamaProtocol.HasVision(document.RootElement));
     }
 
     [Fact]

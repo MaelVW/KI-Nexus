@@ -117,6 +117,39 @@ public class LlamaCppTests
         Assert.Equal(TimeSpan.FromSeconds(2.5), stats.Duration);
     }
 
+    [Fact]
+    public void Request_WithImage_SendsContentListWithDataUrl()
+    {
+        using var temp = new Core.Tests.TempDirectory();
+        var image = temp.Combine("bild.png");
+        File.WriteAllBytes(image, [0x89, 0x50, 0x4E, 0x47]);
+        var request = new ChatRequest(Ki(), [new ChatMessage(ChatRole.User, "Was ist das?", [image])], Think: false);
+
+        var body = LlamaCppProtocol.BuildChatRequest(request, stream: true);
+
+        var content = body["messages"]![0]!["content"]!.AsArray();
+        Assert.Equal("image_url", content[0]!["type"]!.GetValue<string>());
+        Assert.Equal("data:image/png;base64,iVBORw==", content[0]!["image_url"]!["url"]!.GetValue<string>());
+        Assert.Equal("Was ist das?", content[1]!["text"]!.GetValue<string>());
+    }
+
+    [Fact]
+    public void Request_MaxTokensOverride_WinsOverProfile()
+    {
+        var request = new ChatRequest(Ki(), [new ChatMessage(ChatRole.User, "Titel?")], Think: false, MaxTokens: 24);
+
+        Assert.Equal(24, LlamaCppProtocol.BuildChatRequest(request, stream: true)["max_tokens"]!.GetValue<int>());
+    }
+
+    [Fact]
+    public void ParseStreamLine_ContextTokens_IncludeCache()
+    {
+        var last = LlamaCppProtocol.ParseStreamLine("""data: {"choices":[],"timings":{"cache_n":800,"prompt_n":40,"predicted_n":60,"prompt_per_second":500,"predicted_per_second":40}}""");
+
+        Assert.Equal(900, last!.Timings!.ContextTokens);
+        Assert.Equal(900, LlamaCppProtocol.ToStats(last.Timings, TimeSpan.FromSeconds(1)).ContextTokens);
+    }
+
     private static KiProfile Ki() => new()
     {
         Id = "mael-ki",
@@ -130,7 +163,7 @@ public class LlamaCppTests
     private static ChatRequest Request(bool think)
     {
         var ki = Ki();
-        return new ChatRequest(ki, PromptBuilder.Build(ki.SystemPrompt, [], "Hallo"), think);
+        return new ChatRequest(ki, [new ChatMessage(ChatRole.System, ki.SystemPrompt), new ChatMessage(ChatRole.User, "Hallo")], think);
     }
 
     private static void AssertPair(IReadOnlyList<string> args, string flag, string value)

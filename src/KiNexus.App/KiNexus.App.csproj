@@ -15,7 +15,9 @@
   </ItemGroup>
 
   <ItemGroup>
+    <PackageReference Include="AvalonEdit" />
     <PackageReference Include="CommunityToolkit.Mvvm" />
+    <PackageReference Include="Markdig" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" />
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Logging" />

@@ -15,7 +15,7 @@ namespace KiNexus.App.ViewModels;
 /// <summary>
 /// Logik des Hauptfensters: Tabs, Kopfleiste (KI-Auswahl, Ressourcen, Entladen) und Fenster-Zustand.
 /// </summary>
-public sealed partial class MainViewModel : ObservableObject
+public sealed partial class MainViewModel : ObservableObject, IChatShell
 {
     private static readonly TimeSpan ResourceInterval = TimeSpan.FromSeconds(2);
 
@@ -33,7 +33,8 @@ public sealed partial class MainViewModel : ObservableObject
         IKiRegistry kis,
         EngineManager engines,
         IResourceMonitor resources,
-        EngineTestViewModel engineTest,
+        ChatSessionViewModel session,
+        ChatListViewModel chatList,
         ILogger<MainViewModel> logger)
     {
         _settings = settings;
@@ -43,7 +44,7 @@ public sealed partial class MainViewModel : ObservableObject
         _logger = logger;
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
 
-        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, engineTest);
+        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, session, chatList, new TerminalViewModel(session, this));
         Tabs =
         [
             Chat,
@@ -61,9 +62,19 @@ public sealed partial class MainViewModel : ObservableObject
         Kis = new ObservableCollection<KiProfile>(KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder));
         SelectedKi = kis.Find(settings.Current.DefaultKiId) ?? Kis.FirstOrDefault();
 
+        // Öffnet man einen alten Chat, wechselt die Kopfleiste zur KI dieses Chats.
+        session.ChatOpened += (_, _) =>
+        {
+            if (session.Chat?.KiId is { } kiId && Kis.FirstOrDefault(k => k.Id == kiId) is { } chatKi)
+            {
+                SelectedKi = chatKi;
+            }
+        };
+
         _engines.StateChanged += (_, _) => _ui.Post(_ => UpdateEngineState(), null);
         UpdateEngineState();
         _ = RunResourceLoopAsync(_shutdown.Token);
+        _ = chatList.InitializeAsync();
     }
 
     public string AppVersion { get; } = AppInfo.Version;
@@ -92,7 +103,11 @@ public sealed partial class MainViewModel : ObservableObject
     [NotifyCanExecuteChangedFor(nameof(UnloadCommand))]
     private bool _isModelLoaded;
 
-    partial void OnSelectedKiChanged(KiProfile? value) => Chat.EngineTest.Ki = value;
+    IReadOnlyList<KiProfile> IChatShell.Kis => Kis;
+
+    partial void OnSelectedKiChanged(KiProfile? value) => Chat.Session.Ki = value;
+
+    public void SetStyle(ChatStyle style) => Chat.Style = style;
 
     // ----------------------------------------------------------- Ressourcen
 
@@ -119,7 +134,7 @@ public sealed partial class MainViewModel : ObservableObject
 
     /// <summary>Knopf "Entladen": Gibt VRAM und RAM sofort frei, z.B. vor dem Gamen (Lektion 8).</summary>
     [RelayCommand(CanExecute = nameof(IsModelLoaded))]
-    private async Task UnloadAsync()
+    public async Task UnloadAsync()
     {
         try
         {

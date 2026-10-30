@@ -29,7 +29,9 @@ public sealed class EngineManager : IAsyncDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Lock _timerLock = new();
     private ITimer? _idleTimer;
-    private CancellationTokenSource? _activeRequest;
+
+    /// <summary>Alle laufenden Anfragen (z.B. eine Antwort und kurz danach noch eine Titel-Erzeugung).</summary>
+    private readonly HashSet<CancellationTokenSource> _activeRequests = [];
     private string? _loadedSignature;
 
     public EngineManager(IEnumerable<IInferenceBackend> backends, ILogger<EngineManager> logger, TimeProvider time)
@@ -47,6 +49,9 @@ public sealed class EngineManager : IAsyncDisposable
 
     /// <summary>Kann aus einem Hintergrund-Thread kommen.</summary>
     public event EventHandler? StateChanged;
+
+    /// <summary>Versteht die KI Bilder? Fragt die passende Engine.</summary>
+    public Task<bool> SupportsImagesAsync(KiProfile ki, CancellationToken ct) => GetBackend(ki.Engine).SupportsImagesAsync(ki, ct);
 
     public IInferenceBackend GetBackend(EngineKind kind) =>
         _backends.TryGetValue(kind, out var backend)
@@ -74,25 +79,27 @@ public sealed class EngineManager : IAsyncDisposable
     }
 
     /// <summary>
-    /// Stellt eine Frage und streamt die Antwort. Lädt das Modell, falls nötig.
+    /// Schickt die Anfrage an die passende Engine und streamt die Antwort. Lädt das Modell, falls nötig.
+    /// Die Nachrichten (Systemprompt, Verlauf, Frage) baut vorher der ChatService.
     /// </summary>
-    public async IAsyncEnumerable<ChatChunk> AskAsync(
-        KiProfile ki,
-        IReadOnlyList<ChatMessage> history,
-        string userText,
-        bool think,
+    public async IAsyncEnumerable<ChatChunk> StreamAsync(
+        ChatRequest chatRequest,
         IProgress<string>? progress,
         [EnumeratorCancellation] CancellationToken ct)
     {
+        var ki = chatRequest.Ki;
         await EnsureLoadedAsync(ki, progress, ct).ConfigureAwait(false);
         StopIdleTimer();
 
         using var request = CancellationTokenSource.CreateLinkedTokenSource(ct);
-        _activeRequest = request;
+        lock (_activeRequests)
+        {
+            _activeRequests.Add(request);
+        }
+
         SetState(EngineManagerState.Answering, $"{ki.DisplayName} antwortet …");
         try
         {
-            var chatRequest = new ChatRequest(ki, PromptBuilder.Build(ki.SystemPrompt, history, userText), think);
             await foreach (var chunk in GetBackend(ki.Engine).ChatStreamAsync(chatRequest, request.Token).ConfigureAwait(false))
             {
                 yield return chunk;
@@ -100,8 +107,15 @@ public sealed class EngineManager : IAsyncDisposable
         }
         finally
         {
-            _activeRequest = null;
-            if (State == EngineManagerState.Answering)
+            bool othersRunning;
+            lock (_activeRequests)
+            {
+                _activeRequests.Remove(request);
+                othersRunning = _activeRequests.Count > 0;
+            }
+
+            // Läuft z.B. noch eine Titel-Erzeugung, bleibt der Zustand "antwortet".
+            if (State == EngineManagerState.Answering && !othersRunning)
             {
                 SetState(EngineManagerState.Ready, $"{ki.DisplayName} bereit");
                 StartIdleTimer(ki);
@@ -112,7 +126,7 @@ public sealed class EngineManager : IAsyncDisposable
     /// <summary>Bricht eine laufende Antwort ab und entlädt das Modell (Knopf "Entladen").</summary>
     public async Task UnloadAsync(CancellationToken ct)
     {
-        CancelActiveRequest();
+        CancelActiveRequests();
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -188,15 +202,24 @@ public sealed class EngineManager : IAsyncDisposable
         SetState(EngineManagerState.Unloaded, "Modell entladen");
     }
 
-    private void CancelActiveRequest()
+    private void CancelActiveRequests()
     {
-        try
+        CancellationTokenSource[] running;
+        lock (_activeRequests)
         {
-            _activeRequest?.Cancel();
+            running = [.. _activeRequests];
         }
-        catch (ObjectDisposedException)
+
+        foreach (var request in running)
         {
-            // Die Anfrage war gerade fertig. Nichts zu tun.
+            try
+            {
+                request.Cancel();
+            }
+            catch (ObjectDisposedException)
+            {
+                // Die Anfrage war gerade fertig. Nichts zu tun.
+            }
         }
     }
 

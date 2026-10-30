@@ -43,10 +43,20 @@ public enum ChatRole
     Assistant,
 }
 
-public sealed record ChatMessage(ChatRole Role, string Content);
+/// <summary>Eine Nachricht an das Modell. Bilder als volle Dateipfade (nur wenn die KI Bilder versteht).</summary>
+public sealed record ChatMessage(ChatRole Role, string Content, IReadOnlyList<string>? ImagePaths = null)
+{
+    public bool HasImages => ImagePaths is { Count: > 0 };
+}
 
-/// <summary>Eine Anfrage an die Engine. Messages enthält schon den Systemprompt (siehe PromptBuilder).</summary>
-public sealed record ChatRequest(KiProfile Ki, IReadOnlyList<ChatMessage> Messages, bool Think);
+/// <summary>
+/// Eine Anfrage an die Engine. Messages enthält schon den Systemprompt (siehe ContextBudget).
+/// MaxTokens überschreibt die maximale Antwortlänge der KI, z.B. für kurze Hintergrund-Aufgaben.
+/// </summary>
+public sealed record ChatRequest(KiProfile Ki, IReadOnlyList<ChatMessage> Messages, bool Think, int? MaxTokens = null)
+{
+    public int EffectiveMaxTokens => MaxTokens ?? Ki.Parameters.MaxTokens;
+}
 
 /// <summary>
 /// Ein Stück der gestreamten Antwort: Text, Gedanken (Thinking) oder am Ende die Statistik.
@@ -60,14 +70,18 @@ public sealed record ChatChunk(string Text, string Thinking, bool IsDone, ChatSt
     public static ChatChunk Done(ChatStats stats) => new("", "", true, stats);
 }
 
-/// <summary>Statistik einer Antwort: Token, Tempo, Dauer, Engine.</summary>
+/// <summary>
+/// Statistik einer Antwort: Token, Tempo, Dauer, Engine.
+/// PromptTokens = neu gelesene Token. ContextTokens = alles, was danach im Kontext steht (auch aus dem Cache).
+/// </summary>
 public sealed record ChatStats(
     int PromptTokens,
     int CompletionTokens,
     double PromptTokensPerSecond,
     double TokensPerSecond,
     TimeSpan Duration,
-    EngineKind Engine);
+    EngineKind Engine,
+    int ContextTokens = 0);
 
 /// <summary>Fehler mit einer verständlichen Meldung auf Deutsch, die die App direkt anzeigen kann.</summary>
 public sealed class InferenceException(string message, Exception? inner = null) : Exception(message, inner);

@@ -2,6 +2,7 @@
 using System.Windows.Threading;
 using KiNexus.App.Services;
 using KiNexus.App.Views;
+using KiNexus.Core.Chats;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Settings;
@@ -33,6 +34,7 @@ public partial class App : Application
             var settings = await _services.GetRequiredService<ISettingsService>().LoadAsync(CancellationToken.None);
             _services.GetRequiredService<ThemeService>().ApplyAccent(settings.AccentColor);
             await _services.GetRequiredService<IKiRegistry>().LoadAsync(CancellationToken.None);
+            await _services.GetRequiredService<IChatRepository>().InitializeAsync(CancellationToken.None);
 
             MainWindow = _services.GetRequiredService<MainWindow>();
             MainWindow.Show();

@@ -21,6 +21,7 @@ public sealed class AppSettings
     /// <summary>Akzentfarbe als Hex-Wert, z.B. "#00E5FF".</summary>
     public string AccentColor { get; set; } = HexColor.DefaultAccent.ToString();
 
+    public ChatSettings Chat { get; set; } = new();
     public VoiceSettings Voice { get; set; } = new();
     public BackgroundTaskSettings BackgroundTasks { get; set; } = new();
     public OpenWebUiSettings OpenWebUi { get; set; } = new();
@@ -44,6 +45,19 @@ public sealed class PortSettings
     public int LlamaServer { get; set; } = DefaultLlamaServer;
     public int Ollama { get; set; } = DefaultOllama;
     public int OpenWebUi { get; set; } = DefaultOpenWebUi;
+}
+
+/// <summary>Einstellungen der Chat-Ansicht, die sich die App merkt.</summary>
+public sealed class ChatSettings
+{
+    /// <summary>Gedanken (Thinking) anzeigen oder verstecken.</summary>
+    public bool ShowThinking { get; set; } = true;
+
+    /// <summary>Seitenleiste mit den Chats offen?</summary>
+    public bool IsSidebarOpen { get; set; } = true;
+
+    /// <summary>Dieser Chat wird beim Start wieder geöffnet.</summary>
+    public long? LastChatId { get; set; }
 }
 
 public sealed class VoiceSettings

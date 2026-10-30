@@ -11,6 +11,7 @@ namespace KiNexus.Core.Inference;
 /// <list type="bullet">
 /// <item><see cref="Kind"/>: damit der EngineManager die passende Engine zu einer KI findet.</item>
 /// <item>Fortschritt beim Laden (<see cref="IProgress{T}"/>): Laden kann 20 Sekunden dauern, die App zeigt, was gerade passiert.</item>
+/// <item><see cref="SupportsImagesAsync"/> (M2): Der +-Knopf für Bilder ist nur aktiv, wenn die KI Bilder versteht.</item>
 /// </list>
 /// </remarks>
 public interface IInferenceBackend
@@ -31,4 +32,7 @@ public interface IInferenceBackend
 
     /// <summary>Streamt die Antwort Stück für Stück. Abbrechen über das CancellationToken.</summary>
     IAsyncEnumerable<ChatChunk> ChatStreamAsync(ChatRequest request, CancellationToken ct);
+
+    /// <summary>Versteht diese KI Bilder? (llama.cpp: Projektor vorhanden. Ollama: Fähigkeit "vision".)</summary>
+    Task<bool> SupportsImagesAsync(KiProfile ki, CancellationToken ct);
 }
