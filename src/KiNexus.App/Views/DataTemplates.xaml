@@ -57,6 +57,14 @@
         <ContentControl Content="{Binding Placeholder}" Focusable="False" />
     </DataTemplate>
 
+    <!-- Feineinstellungen und System-Prompt (M6). -->
+    <DataTemplate DataType="{x:Type vm:TuningViewModel}">
+        <views:TuningView />
+    </DataTemplate>
+    <DataTemplate DataType="{x:Type vm:SystemPromptViewModel}">
+        <views:SystemPromptView />
+    </DataTemplate>
+
     <!-- Create-Hub (M3). -->
     <DataTemplate DataType="{x:Type vm:CreateHubViewModel}">
         <views:CreateHubView />

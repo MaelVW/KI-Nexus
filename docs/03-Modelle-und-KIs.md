@@ -10,6 +10,7 @@ Mehrere KIs können dasselbe Grundmodell nutzen, ohne dass es doppelt Platz brau
 - Zwei Grundmodelle, aus Ollama übernommen per Hardlink: `models/gemma4-26b/` und `models/qwen3.5-9b/`.
 - Im **Create-Hub** (Tab ganz rechts, `Strg + 5`) erstellst, importierst und löschst du KIs und Modelle. Details unten.
 - Fehlt einer KI die Modell-Datei, bietet der Hinweis über dem Chat weiterhin „Aus Ollama übernehmen“ an.
+- Seit M6: Systemprompt und Parameter änderst du in den Tabs „System-Prompt“ und „Feineinstellungen“ (unten beschrieben).
 
 ## Create-Hub
 
@@ -98,6 +99,53 @@ Klappt es nicht, schlägt die App vor, dasselbe Modell als GGUF von Hugging Face
 
 Ins Internet geht die App nur, wenn du suchst oder herunterlädst.
 
+## System-Prompt-Tab
+
+Tab „System-Prompt“ (`Strg + 4`). Links deine KIs, in der Mitte der Editor, rechts die Versionen.
+
+- **Token-Schätzung** über dem Editor, z.B. „ca. 94 Token“. Das Modell liest den Systemprompt bei jeder Frage mit. Ein langer Prompt kostet also bei jeder Antwort Zeit und Kontext.
+- **Vorlage einfügen:** Allgemein, Schule, Programmieren, Kurz und knapp. Die Vorlage kommt an die Stelle des Cursors (oder ersetzt den markierten Text).
+- **Testen** öffnet einen kurzen Test-Chat unter dem Editor. Er nutzt den Prompt aus dem Editor, auch wenn er noch nicht gespeichert ist. Thinking ist dabei aus. Nichts davon wird gespeichert, weder der Prompt noch der Test-Chat. Unten steht, wie schnell die KI geschrieben hat.
+- **Speichern** schreibt den Prompt in `kis/<id>.json` und merkt sich die Fassung in `data/chats.db` (Tabelle `system_prompt_versions`). Beim allerersten Speichern merkt sich die App auch den bisherigen Prompt. Der neue Prompt gilt ab der nächsten Frage, auch in alten Chats. Das Modell muss dafür nicht neu laden.
+- **Versionen:** die letzten 10 Fassungen, die neueste oben. Darunter steht, was sich gegenüber der älteren Fassung geändert hat („+ neue Zeile“ oder „− entfernte Zeile“). Mit der Maus darüber siehst du den ganzen Text. Der Pfeil-Knopf holt die Fassung in den Editor. Erst „Speichern“ übernimmt sie.
+- **Verwerfen** stellt den gespeicherten Prompt wieder her. Wechselst du mit ungespeicherten Änderungen die KI, fragt die App zuerst nach.
+
+### Eigenes Ollama-Modell pro KI
+
+Bei Ollama-KIs erstellt die App beim Speichern ein **eigenes Ollama-Modell** über die API (`POST /api/create`). Es heisst wie die KI, z.B. `mael-ki-ollama`, und besteht aus dem Grundmodell (`gemma4:26b`), dem Systemprompt und deinen Werten (Temperatur usw., Kontextlänge). Das Grundmodell bleibt unverändert, Ollama speichert nur die kleinen Zusatzdaten.
+Wozu: So gibt es die KI mit ihrem Prompt auch in Open WebUI und mit `ollama run mael-ki-ollama`. Der Chat in KI-Nexus nutzt weiterhin das Grundmodell und schickt den Prompt bei jeder Frage mit.
+Läuft Ollama beim Speichern nicht, bleibt die KI trotzdem gespeichert. Starte dann Ollama und klick auf „Ollama-Modell aktualisieren“ (oben rechts im Tab).
+
+## Feineinstellungen-Tab
+
+Tab „Feineinstellungen“ (`Strg + 2`). Pro KI, jede Einstellung mit einer kurzen Erklärung darunter und mehr im Tooltip.
+
+| Gruppe | Einstellungen |
+|---|---|
+| **Antwort-Stil** | Temperatur (0–2), top_p (0–1), top_k (0–1000), min_p (0–1), Wiederholungs-Strafe (0.5–2), Themen-Strafe (presence, −2 bis 2). Leer = Standard. Rechts steht die Empfehlung des Herstellers. |
+| **Länge und Gedächtnis** | Kontextlänge (Auswahl bis zum Kontext aus dem Training des Modells), Max. Antwortlänge (16 bis Kontext − 256), Thinking als Standard |
+| **Engine** | GPU-Layer (leer = automatisch, `all` oder eine Zahl), MoE-Experten auf CPU (nur bei MoE-Modellen), Geladen halten (1 Minute bis 1 Stunde oder bis ich entlade), Draft-Modell (nur wenn es eins gibt) |
+
+- Ungültige Eingaben werden rot markiert, mit dem erlaubten Bereich. Dann ist „Speichern“ gesperrt.
+- **Auf Standard zurücksetzen** setzt die Empfehlungen des Herstellers ein (siehe unten), dazu Kontext 8192, Antwortlänge 2048, Thinking aus, GPU automatisch, 5 Minuten, Draft aus. Erst „Speichern“ übernimmt die Werte.
+- Kontextlänge, GPU-Layer, MoE und Draft wirken beim nächsten Laden. Ist die KI gerade geladen, lädt die App sie bei der nächsten Frage selbst neu. Alles andere gilt sofort ab der nächsten Frage.
+- Bei Ollama-KIs gibt es keine GPU-Layer, MoE- und Draft-Einstellungen: Ollama verteilt das Modell selbst. Beim Speichern wird das eigene Ollama-Modell aktualisiert (siehe oben).
+
+**Woher die Empfehlungen kommen:** zuerst aus dem Kopf der GGUF-Datei (`general.sampling.temp`, `top_p`, `top_k`, `min_p`, `penalty_repeat`). Kommt das Modell aus Ollama, ergänzt die App fehlende Werte aus den Ollama-Parametern (nur lesen). Gibt es nirgends eine Empfehlung, steht „leer = Standard der Engine“.
+
+### Speicher-Schätzung und Warnung
+
+Unter der Kontextlänge stehen die Ampel und die Schätzung, wie im Create-Hub: Datei (+ Projektor + Draft, wenn eingeschaltet) + Puffer für den Kontext (200 MB + 48 KB pro Token), verglichen mit dem VRAM (minus 1.2 GB Reserve) und 60 % des RAM. Es ist eine Schätzung, keine Messung.
+
+| Warnung | Wann | Beispiel Mael-KI (gemma4, 15.9 GB) |
+|---|---|---|
+| keine | passt wie mit dem Standard-Kontext | bis 65536 Token (ca. 20.2 GB) |
+| gelb: „passt nicht mehr ganz auf die Grafikkarte“ | Ampel ist schlechter als bei 8192 Token | (gemma4 ist immer teils im RAM) |
+| gelb: „Speicher wird knapp“ | über 85 % von VRAM + nutzbarem RAM | 131072 Token: ca. 23.2 von 25.6 GB |
+| rot: „Zu wenig Speicher“ | mehr als VRAM + nutzbarer RAM | 262144 Token: ca. 29.2 von 25.6 GB |
+
+Die Warnung hält dich nicht vom Speichern ab. Sie sagt nur, dass das Laden scheitern oder Windows sehr langsam werden kann.
+
 ## Grundmodelle (`models/`, nicht in Git)
 
 Pro Modell ein Unterordner:
@@ -164,6 +212,10 @@ Format wie im Bauplan, Kapitel 9. Der **Dateiname ist die Id**. Steht in der Dat
 | `engineOptions.gpuLayers` | `auto` = llama.cpp verteilt selbst |
 | `engineOptions.cpuMoeLayers` | `null` = automatisch |
 | `engineOptions.keepAliveMinutes` | nach so vielen Minuten ohne Frage entladen (0 = nie) |
+| `baseModel.draftPath` | Draft-Modell (nur llama.cpp), setzt der Feineinstellungen-Tab |
+| `engineOptions.useDraftModel` | Draft nutzen (Standard `false`). Wirkt nur mit `draftPath` |
+
+Ändern kannst du alles bequem in den Tabs „System-Prompt“ und „Feineinstellungen“ (siehe oben). Von Hand in der Datei geht auch, dann aber nur bei geschlossener App.
 
 ### Sampling-Werte der vier KIs
 

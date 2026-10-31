@@ -20,7 +20,16 @@ public interface IChatRepository
 
     /// <summary>Löscht diese Nachricht und alle späteren im selben Chat (für "neu erzeugen" und "bearbeiten").</summary>
     Task DeleteMessagesFromAsync(long chatId, long messageId, CancellationToken ct);
+
+    /// <summary>Speichert eine Fassung des Systemprompts. Behalten werden die neuesten <paramref name="keep"/>.</summary>
+    Task AddPromptVersionAsync(string kiId, string content, int keep, CancellationToken ct);
+
+    /// <summary>Die gespeicherten Fassungen einer KI, die neueste zuerst.</summary>
+    Task<IReadOnlyList<PromptVersion>> GetPromptVersionsAsync(string kiId, CancellationToken ct);
 }
+
+/// <summary>Eine gespeicherte Fassung eines Systemprompts (Tabelle system_prompt_versions).</summary>
+public sealed record PromptVersion(long Id, string KiId, string Content, DateTimeOffset CreatedAt);
 
 /// <summary>
 /// Speichert Chats in data/chats.db (SQLite, eine Datei, kein Server nötig).
@@ -268,6 +277,51 @@ public sealed class ChatRepository(string databasePath, ILogger<ChatRepository> 
         command.Parameters.AddWithValue("$chat", chatId);
         command.Parameters.AddWithValue("$id", messageId);
         await command.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task AddPromptVersionAsync(string kiId, string content, int keep, CancellationToken ct)
+    {
+        await using var connection = await OpenAsync(ct).ConfigureAwait(false);
+        await using var transaction = (SqliteTransaction)await connection.BeginTransactionAsync(ct).ConfigureAwait(false);
+        await using (var insert = connection.CreateCommand())
+        {
+            insert.Transaction = transaction;
+            insert.CommandText = "INSERT INTO system_prompt_versions (ki_id, content, created_at) VALUES ($ki, $content, $created);";
+            insert.Parameters.AddWithValue("$ki", kiId);
+            insert.Parameters.AddWithValue("$content", content);
+            insert.Parameters.AddWithValue("$created", Format(DateTimeOffset.Now));
+            await insert.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+
+        await using (var trim = connection.CreateCommand())
+        {
+            trim.Transaction = transaction;
+            trim.CommandText = """
+                DELETE FROM system_prompt_versions
+                WHERE ki_id = $ki AND id NOT IN (SELECT id FROM system_prompt_versions WHERE ki_id = $ki ORDER BY id DESC LIMIT $keep);
+                """;
+            trim.Parameters.AddWithValue("$ki", kiId);
+            trim.Parameters.AddWithValue("$keep", keep);
+            await trim.ExecuteNonQueryAsync(ct).ConfigureAwait(false);
+        }
+
+        await transaction.CommitAsync(ct).ConfigureAwait(false);
+    }
+
+    public async Task<IReadOnlyList<PromptVersion>> GetPromptVersionsAsync(string kiId, CancellationToken ct)
+    {
+        await using var connection = await OpenAsync(ct).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = "SELECT id, ki_id, content, created_at FROM system_prompt_versions WHERE ki_id = $ki ORDER BY id DESC;";
+        command.Parameters.AddWithValue("$ki", kiId);
+        var versions = new List<PromptVersion>();
+        await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            versions.Add(new PromptVersion(reader.GetInt64(0), reader.GetString(1), reader.GetString(2), Parse(reader.GetString(3))));
+        }
+
+        return versions;
     }
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken ct)

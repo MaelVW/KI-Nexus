@@ -50,6 +50,24 @@ public class EngineManagerTests
     }
 
     [Fact]
+    public async Task EnsureLoaded_DraftSwitch_LoadsAgain_ButPromptDoesNot()
+    {
+        var (manager, llama, _, _) = Create();
+        var ki = Ki("a", EngineKind.LlamaCpp);
+        ki.BaseModel.DraftPath = "models/a/draft.gguf";
+
+        await manager.EnsureLoadedAsync(ki, null, Ct);
+        ki.SystemPrompt = "Neuer Prompt";
+        ki.Parameters.Temperature = 0.3;
+        await manager.EnsureLoadedAsync(ki, null, Ct);
+        Assert.Equal(1, llama.LoadCount);
+
+        ki.EngineOptions.UseDraftModel = true;
+        await manager.EnsureLoadedAsync(ki, null, Ct);
+        Assert.Equal(2, llama.LoadCount);
+    }
+
+    [Fact]
     public async Task Ask_SendsSystemPromptAndQuestion_AndStreamsChunks()
     {
         var (manager, llama, _, _) = Create();

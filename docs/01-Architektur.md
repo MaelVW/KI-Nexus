@@ -48,7 +48,22 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M5)
+## Wichtige Klassen (Stand M6)
+
+### Neu in M6: System-Prompt und Feineinstellungen
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `SystemPromptService` | Core | Prompt speichern (Kopie der KI), jede Fassung in `system_prompt_versions` (die letzten 10), Token schätzen, Änderung zur älteren Fassung beschreiben. |
+| `IChatRepository.AddPromptVersionAsync`, `GetPromptVersionsAsync` | Core | Fassungen schreiben und kürzen (in einer Transaktion), neueste zuerst lesen. |
+| `ModelFactsProvider`, `ModelFacts`, `SamplingDefaults` | Engines | Grösse, Kontext aus dem Training, Schichten, MoE und Draft des Grundmodells. Empfehlungen aus der GGUF-Datei (`general.sampling.*`), ergänzt mit den Ollama-Parametern (nur lesen). |
+| `ParameterText` | Engines | Zahlen für Eingabefelder: immer mit Punkt, Komma geht auch, leer = Standard. |
+| `OllamaProtocol.BuildCreateRequest`, `OllamaBackend.CreateModelAsync` | Engines | Eigenes Ollama-Modell pro KI über `POST /api/create` (Name = Id der KI). |
+| `KiEditorTabViewModel`, `KiListPanel` | App | Gemeinsame Grundlage der zwei Tabs: KI-Liste links, Schutz vor ungespeicherten Änderungen, „Ollama-Modell aktualisieren“. |
+| `SystemPromptViewModel`, `SystemPromptView` | App | Editor, Vorlagen (an der Cursor-Stelle), Versionen, kurzer Test-Chat. |
+| `TuningViewModel`, `SettingFieldViewModel`, `TuningView` | App | Feineinstellungen mit Prüfung jedes Felds, Ampel und Speicher-Warnung, Draft-Schalter. |
+
+`EngineManager.LoadSignature` enthält jetzt auch den Draft: Schaltet man ihn um, lädt die App das Modell bei der nächsten Frage neu. Ein geänderter Systemprompt oder andere Sampling-Werte laden nicht neu.
 
 ### Neu in M5: Alternate Launch
 

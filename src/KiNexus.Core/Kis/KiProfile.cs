@@ -44,6 +44,9 @@ public sealed class BaseModelRef
 
     /// <summary>Name in Ollama, z.B. "gemma4:26b". Nur bei Ollama-KIs.</summary>
     public string? OllamaName { get; set; }
+
+    /// <summary>Kleines Hilfsmodell für schnelleres Schreiben (Draft), falls das Grundmodell eins hat. Nur llama.cpp.</summary>
+    public string? DraftPath { get; set; }
 }
 
 /// <summary>
@@ -72,6 +75,12 @@ public sealed class EngineOptions
 
     /// <summary>Wie lange das Modell nach der letzten Frage geladen bleibt. 0 = bis zum Entladen.</summary>
     public int KeepAliveMinutes { get; set; } = 5;
+
+    /// <summary>
+    /// Draft-Modell nutzen (spekulatives Dekodieren): schreibt schneller, braucht aber mehr VRAM. Standard aus.
+    /// Wirkt nur, wenn <see cref="BaseModelRef.DraftPath"/> gesetzt ist.
+    /// </summary>
+    public bool UseDraftModel { get; set; }
 }
 
 public sealed class KiVoiceOptions

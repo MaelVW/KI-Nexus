@@ -12,10 +12,14 @@ public sealed record OllamaInstalledModel(string Name, IReadOnlyList<OllamaLayer
     public const string ModelType = "application/vnd.ollama.image.model";
     public const string ProjectorType = "application/vnd.ollama.image.projector";
     public const string DraftType = "application/vnd.ollama.image.draft";
+    public const string ParamsType = "application/vnd.ollama.image.params";
 
     public OllamaLayer? Model => Find(ModelType);
     public OllamaLayer? Projector => Find(ProjectorType);
     public OllamaLayer? Draft => Find(DraftType);
+
+    /// <summary>Die Parameter aus dem Modelfile (JSON, z.B. temperature, top_k).</summary>
+    public OllamaLayer? Params => Find(ParamsType);
 
     private OllamaLayer? Find(string mediaType) => Layers.FirstOrDefault(l => l.MediaType == mediaType);
 }

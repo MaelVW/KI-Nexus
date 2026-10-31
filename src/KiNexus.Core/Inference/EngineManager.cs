@@ -167,7 +167,8 @@ public sealed class EngineManager : IAsyncDisposable
     /// </summary>
     internal static string LoadSignature(KiProfile ki) => string.Join("|",
         ki.Id, ki.Engine, ki.BaseModel.Path, ki.BaseModel.MmprojPath, ki.BaseModel.OllamaName,
-        ki.Parameters.ContextLength, ki.EngineOptions.GpuLayers, ki.EngineOptions.CpuMoeLayers, ki.LoraAdapterPath);
+        ki.Parameters.ContextLength, ki.EngineOptions.GpuLayers, ki.EngineOptions.CpuMoeLayers, ki.LoraAdapterPath,
+        ki.EngineOptions.UseDraftModel, ki.BaseModel.DraftPath);
 
     private async Task LoadCoreAsync(KiProfile ki, IProgress<string>? progress, CancellationToken ct)
     {

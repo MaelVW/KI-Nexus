@@ -34,6 +34,34 @@ public class OllamaTests
     }
 
     [Fact]
+    public void CreateRequest_OwnModel_FromBaseModelWithPromptAndParameters()
+    {
+        var ki = Ki();
+        ki.SystemPrompt = "Antworte auf Deutsch.";
+
+        var body = OllamaProtocol.BuildCreateRequest(ki);
+
+        // Name = Id der KI. Das Grundmodell bleibt, wie es ist.
+        Assert.Equal("qwen-schnell-ollama", body["model"]!.GetValue<string>());
+        Assert.Equal("qwen3.5:9b", body["from"]!.GetValue<string>());
+        Assert.Equal("Antworte auf Deutsch.", body["system"]!.GetValue<string>());
+        Assert.False(body["stream"]!.GetValue<bool>());
+        var parameters = body["parameters"]!;
+        Assert.Equal(20, parameters["top_k"]!.GetValue<int>());
+        Assert.Equal(1.5, parameters["presence_penalty"]!.GetValue<double>());
+        Assert.Equal(8192, parameters["num_ctx"]!.GetValue<int>());
+        Assert.Null(parameters["min_p"]);
+    }
+
+    [Fact]
+    public void CreateRequest_WithoutPrompt_SendsNoSystem()
+    {
+        var body = OllamaProtocol.BuildCreateRequest(Ki());
+
+        Assert.Null(body["system"]);
+    }
+
+    [Fact]
     public void ParseStreamLine_ReadsTextAndFinalStats()
     {
         var part = OllamaProtocol.ParseStreamLine("""{"model":"qwen3.5:9b","message":{"role":"assistant","content":"Hoi","thinking":""},"done":false}""");

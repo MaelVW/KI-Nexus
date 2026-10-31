@@ -57,6 +57,12 @@ public static class LlamaServerArguments
             args.AddRange(["--n-cpu-moe", cpuMoe.ToString(CultureInfo.InvariantCulture)]);
         }
 
+        // Draft (spekulatives Dekodieren): Messung in docs/02-Engines.md. Braucht ca. 0.5 GB mehr VRAM.
+        if (ki.EngineOptions.UseDraftModel && !string.IsNullOrWhiteSpace(ki.BaseModel.DraftPath))
+        {
+            args.AddRange(["-md", paths.Resolve(ki.BaseModel.DraftPath), "--spec-type", "draft-mtp"]);
+        }
+
         if (!string.IsNullOrWhiteSpace(ki.LoraAdapterPath))
         {
             args.AddRange(["--lora", paths.Resolve(ki.LoraAdapterPath)]);

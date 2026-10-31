@@ -22,6 +22,9 @@ public class GgufReaderTests
         Assert.True(meta.IsMoe);
         Assert.Equal(1.0, meta.Temperature);
         Assert.Equal(64, meta.TopK);
+        Assert.Equal(0.05, meta.MinP);
+        Assert.Equal(1.1, meta.RepeatPenalty);
+        Assert.Equal(30, meta.BlockCount);
         Assert.True(meta.HasChatTemplate);
     }
 

@@ -6,6 +6,26 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.2.0] – 2026-10-31 – Meilenstein 6: System-Prompt und Feineinstellungen
+
+### Neu
+
+- **System-Prompt-Tab:** KI-Liste, Editor mit Token-Schätzung, Vorlagen zum Einfügen an der Cursor-Stelle, Speichern und Verwerfen.
+- **Versionen:** Die App merkt sich die letzten 10 Fassungen pro KI (`system_prompt_versions` in `data/chats.db`), beim ersten Speichern auch den bisherigen Prompt. Die Liste zeigt, was sich geändert hat. Eine alte Fassung holt man mit einem Klick in den Editor.
+- **Kurzer Test** im Tab: Test-Chat mit dem Prompt aus dem Editor, auch ungespeichert. Thinking aus, nichts wird gespeichert, mit Stopp.
+- **Eigenes Ollama-Modell pro KI:** Beim Speichern einer Ollama-KI erstellt die App über `POST /api/create` ein Modell mit dem Namen der KI (z.B. `mael-ki-ollama` = `gemma4:26b` + Prompt + Werte). Das Grundmodell bleibt unverändert. Knopf „Ollama-Modell aktualisieren“, falls Ollama beim Speichern nicht lief.
+- **Feineinstellungen-Tab:** Temperatur, top_p, top_k, min_p, Wiederholungs- und Themen-Strafe, Kontextlänge, Antwortlänge, Thinking, GPU-Layer, MoE-Experten auf CPU, Geladen halten. Jede Einstellung mit Erklärung und Tooltip, jede Eingabe wird geprüft.
+- **Speicher-Schätzung mit Warnung:** Ampel und Schätzung zur gewählten Kontextlänge. Warnung, wenn der Speicher knapp wird oder nicht reicht.
+- **Auf Standard zurücksetzen:** Empfehlungen des Herstellers aus der GGUF-Datei (`general.sampling.*`), ergänzt mit den Ollama-Parametern.
+- **Draft-Modell als Schalter** (Standard aus), nur wenn das Modell einen Draft hat. llama-server bekommt dann `-md … --spec-type draft-mtp`.
+- Warnung beim KI-Wechsel mit ungespeicherten Änderungen.
+- 313 Unit-Tests (vorher 280).
+
+### Geändert
+
+- Der GGUF-Leser liest auch `min_p`, `penalty_repeat` und die Anzahl Schichten.
+- Ändert man Draft, Kontext oder GPU-Werte einer geladenen KI, lädt die App sie bei der nächsten Frage neu. Ein neuer Systemprompt braucht kein Neuladen.
+
 ## [1.1.0] – 2026-10-31 – Meilenstein 5: Alternate Launch
 
 ### Neu

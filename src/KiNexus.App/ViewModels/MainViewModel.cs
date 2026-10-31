@@ -37,6 +37,8 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         ChatSessionViewModel session,
         ChatListViewModel chatList,
         CreateHubViewModel createHub,
+        TuningViewModel tuning,
+        SystemPromptViewModel systemPrompt,
         ConversationViewModel conversation,
         OpenWebUiViewModel openWebUi,
         ILogger<MainViewModel> logger)
@@ -54,12 +56,10 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         Tabs =
         [
             Chat,
-            new PlaceholderTabViewModel("tuning", "Feineinstellungen", Glyphs.Tuning, 6,
-                "Temperatur, Kontextlänge, GPU-Layer und mehr. Pro KI einstellbar, mit einer kurzen Erklärung zu jedem Wert."),
+            tuning,
             new PlaceholderTabViewModel("training", "Training", Glyphs.Training, 8,
                 "Eigene KIs mit LoRA nachtrainieren. Mit 8 GB VRAM geht das für kleine Modelle bis ca. 4B Parameter."),
-            new PlaceholderTabViewModel("systemPrompt", "System-Prompt", Glyphs.Edit, 6,
-                "Den Systemprompt deiner KIs bearbeiten, testen und alte Fassungen wiederherstellen."),
+            systemPrompt,
             createHub,
         ];
         createHub.Shell = this;
@@ -71,6 +71,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
 
         Kis = new ObservableCollection<KiProfile>(KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder));
         SelectedKi = kis.Find(settings.Current.DefaultKiId) ?? Kis.FirstOrDefault();
+        (_selectedTab as KiEditorTabViewModel)?.Activate(SelectedKi);
 
         // Öffnet man einen alten Chat, wechselt die Kopfleiste zur KI dieses Chats.
         session.ChatOpened += (_, _) =>
@@ -157,6 +158,9 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         {
             _ = hub.RefreshPageAsync();
         }
+
+        // Feineinstellungen und System-Prompt öffnen mit der KI aus der Kopfleiste.
+        (value as KiEditorTabViewModel)?.Activate(SelectedKi);
     }
 
     // ----------------------------------------------------------- Ressourcen

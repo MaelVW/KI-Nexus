@@ -14,7 +14,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | M3 | Create-Hub: Übersicht mit Ampel, neue KI, löschen, GGUF-Import, Ollama-Import, Hugging Face | ✅ fertig (v0.4.0) |
 | M4 | Gespräch-Stil: Spracherkennung (Whisper), Stimme (Piper), Orb, Mitschrift, Push-to-Talk und Freihändig | ✅ fertig (v1.0.0) |
 | M5 | Alternate Launch: Open WebUI per Knopf starten und stoppen | ✅ fertig (v1.1.0) |
-| M6–M10 | Feineinstellungen und System-Prompt, Gespräch-Feinschliff, Training, Server, Chatraum | offen |
+| M6 | System-Prompt-Tab (Versionen, Test) und Feineinstellungen-Tab (Speicher-Warnung, Draft-Schalter) | ✅ fertig (v1.2.0) |
+| M7–M10 | Gespräch-Feinschliff, Training, Server, Chatraum | offen |
 
 ## Ordner
 
@@ -57,7 +58,7 @@ Beim Start passiert der Reihe nach:
 6. Das Hauptfenster öffnet sich mit dem zuletzt benutzten Chat.
 7. Ein Modell wird erst geladen, wenn du die erste Frage stellst.
 
-## Bedienung (Stand M5)
+## Bedienung (Stand M6)
 
 | Was | Wo |
 |---|---|
@@ -69,6 +70,8 @@ Beim Start passiert der Reihe nach:
 | Chatten | Chat-Tab, Stil Simpel oder Terminal. Details: [04-Chat-und-Stile.md](04-Chat-und-Stile.md) |
 | Sprechen | Chat-Tab, Stil Gespräch. Einmal `scripts\setup-voice.ps1` ausführen. Details: [05-Sprache.md](05-Sprache.md) |
 | KIs und Modelle verwalten | Create-Hub-Tab: Übersicht, Neue KI, Importieren, Hugging Face. Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) |
+| Systemprompt ändern, testen, alte Fassung zurückholen | System-Prompt-Tab (`Strg + 4`). Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md#system-prompt-tab) |
+| Temperatur, Kontextlänge, GPU-Layer, Draft … | Feineinstellungen-Tab (`Strg + 2`), mit Speicher-Warnung. Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md#feineinstellungen-tab) |
 
 | Taste | Wirkung |
 |---|---|

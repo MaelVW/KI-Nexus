@@ -83,6 +83,18 @@ Alle Chats stehen in `data\chats.db`. Zum Sichern genügt es, diese Datei und de
 | „Das ist nur ein Bild-Projektor (mmproj)“ | Nur die mmproj-Datei wurde hineingezogen | Modell-Datei und mmproj zusammen hineinziehen |
 | Grundmodell löschen gibt keinen Platz frei | Das Modell ist ein Hardlink auf Ollama | Normal: Die Daten gehören auch Ollama. Platz wird erst frei, wenn auch Ollama das Modell löscht |
 | Angefangene Downloads tauchen nach dem Neustart wieder auf | Gewollt: Sie stehen pausiert in der Liste | „Fortsetzen“ oder „Abbrechen“ (löscht die halbe Datei in `models\.downloads\`) |
+| „llama-server ist beim Laden abgestürzt“, im Log `failed to read tensor info` oder `tensor name … is too long` | Die GGUF-Datei ist kein Sprachmodell, z.B. ein Video- oder Bildmodell (Architektur `ltxv`, `flux`, `wan` …). Solche Dateien sind für Programme wie ComfyUI gedacht | Mit KI-Nexus nicht nutzbar. Die Architektur steht in `models\<name>\model.json` (`architecture`). Grundmodell im Create-Hub löschen, um Platz zu sparen |
+
+## System-Prompt und Feineinstellungen
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „Speichern“ bleibt grau | Nichts geändert, oder ein Feld ist rot (ungültig) | Den roten Hinweis lesen und den Wert korrigieren. Leer heisst „Standard“ |
+| „Das Ollama-Modell … konnte nicht erstellt werden: Ollama läuft nicht“ | Ollama war beim Speichern aus | Die KI ist trotzdem gespeichert. Ollama-App starten, dann „Ollama-Modell aktualisieren“ |
+| Rote Speicher-Warnung bei der Kontextlänge | Das Modell plus Kontext ist grösser als VRAM + nutzbarer RAM | Kleinere Kontextlänge wählen. 8192 reicht für normale Chats |
+| Nach dem Einschalten des Drafts: Laden scheitert oder „out of memory“ | Der Draft braucht ca. 0.5 GB mehr VRAM, `--fit` rechnet ihn nicht mit | Draft wieder ausschalten (Feineinstellungen → Engine) |
+| Geänderte Kontextlänge wirkt nicht | Das Modell war schon geladen | Normal: Die App lädt bei der nächsten Frage neu. Sonst Power-Knopf (Entladen) und nochmals fragen |
+| Eine alte Fassung fehlt in „Versionen“ | Es bleiben nur die letzten 10 | Wichtige Prompts zusätzlich als Datei aufheben |
 
 ## Sprache (Gespräch-Stil)
 

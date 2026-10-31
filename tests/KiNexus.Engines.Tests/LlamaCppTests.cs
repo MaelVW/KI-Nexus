@@ -43,6 +43,30 @@ public class LlamaCppTests
     }
 
     [Fact]
+    public void Arguments_Draft_OnlyWhenSwitchedOn()
+    {
+        var ki = Ki();
+        ki.BaseModel.DraftPath = "models/gemma4-26b/draft.gguf";
+
+        Assert.DoesNotContain("-md", LlamaServerArguments.Build(ki, Paths, 8090, "log.txt"));
+
+        ki.EngineOptions.UseDraftModel = true;
+        var args = LlamaServerArguments.Build(ki, Paths, 8090, "log.txt");
+
+        AssertPair(args, "-md", @"C:\Projekt\models\gemma4-26b\draft.gguf");
+        AssertPair(args, "--spec-type", "draft-mtp");
+    }
+
+    [Fact]
+    public void Arguments_DraftSwitchWithoutFile_IsIgnored()
+    {
+        var ki = Ki();
+        ki.EngineOptions.UseDraftModel = true;
+
+        Assert.DoesNotContain("-md", LlamaServerArguments.Build(ki, Paths, 8090, "log.txt"));
+    }
+
+    [Fact]
     public void Arguments_WithoutModelPath_GiveClearError()
     {
         var ki = Ki();

@@ -159,6 +159,27 @@ public sealed class OllamaBackend : IInferenceBackend, IDisposable
     }
 
     /// <summary>
+    /// Legt das eigene Ollama-Modell der KI an oder überschreibt es (POST /api/create), z.B. "mael-ki-ollama".
+    /// Das Grundmodell bleibt unverändert. Gibt den Namen des Modells zurück.
+    /// </summary>
+    public async Task<string> CreateModelAsync(KiProfile ki, CancellationToken ct)
+    {
+        if (await TryGetVersionAsync(ct).ConfigureAwait(false) is null)
+        {
+            throw new InferenceException("Ollama läuft nicht. Starte die Ollama-App, dann speichere nochmals.");
+        }
+
+        var name = OllamaProtocol.OwnModelName(ki);
+        using (await PostAsync("api/create", OllamaProtocol.BuildCreateRequest(ki), ct).ConfigureAwait(false))
+        {
+        }
+
+        _visionCache.TryRemove(name, out _);
+        _logger.LogInformation("Ollama-Modell {Name} aus {From} erstellt.", name, ki.BaseModel.OllamaName);
+        return name;
+    }
+
+    /// <summary>
     /// Löscht ein Modell über die Ollama-API (DELETE /api/delete). Ollama räumt seine Dateien selbst auf,
     /// die App fasst sie nicht an. Ein Hardlink in models/ behält seine Daten.
     /// </summary>

@@ -41,6 +41,22 @@ public static class OllamaProtocol
         ["keep_alive"] = 0,
     };
 
+    private static void AddIfSet(JsonObject target, string name, double? value)
+    {
+        if (value is { } number)
+        {
+            target[name] = number;
+        }
+    }
+
+    private static void AddIfSet(JsonObject target, string name, int? value)
+    {
+        if (value is { } number)
+        {
+            target[name] = number;
+        }
+    }
+
     public static OllamaStreamEvent? ParseStreamLine(string? line)
     {
         if (string.IsNullOrWhiteSpace(line))
@@ -66,6 +82,40 @@ public static class OllamaProtocol
         var isDone = root.TryGetProperty("done", out var done) && done.GetBoolean();
         return new OllamaStreamEvent(text, thinking, isDone, isDone ? ParseStats(root) : null);
     }
+
+    /// <summary>
+    /// Anfrage an POST /api/create: ein eigenes Ollama-Modell für eine KI, z.B. "mael-ki-ollama" = gemma4:26b + Systemprompt
+    /// (Bauplan 8.4). Das Grundmodell bleibt unverändert. So gibt es die KI auch in Open WebUI.
+    /// </summary>
+    public static JsonObject BuildCreateRequest(KiProfile ki)
+    {
+        var parameters = new JsonObject();
+        var p = ki.Parameters;
+        AddIfSet(parameters, "temperature", p.Temperature);
+        AddIfSet(parameters, "top_p", p.TopP);
+        AddIfSet(parameters, "top_k", p.TopK);
+        AddIfSet(parameters, "min_p", p.MinP);
+        AddIfSet(parameters, "repeat_penalty", p.RepeatPenalty);
+        AddIfSet(parameters, "presence_penalty", p.PresencePenalty);
+        parameters["num_ctx"] = p.ContextLength;
+
+        var body = new JsonObject
+        {
+            ["model"] = OwnModelName(ki),
+            ["from"] = RequireName(ki),
+            ["parameters"] = parameters,
+            ["stream"] = false,
+        };
+        if (!string.IsNullOrWhiteSpace(ki.SystemPrompt))
+        {
+            body["system"] = ki.SystemPrompt;
+        }
+
+        return body;
+    }
+
+    /// <summary>Name des eigenen Ollama-Modells einer KI: die Id der KI, z.B. "mael-ki-ollama".</summary>
+    public static string OwnModelName(KiProfile ki) => ki.Id;
 
     /// <summary>Anfrage an DELETE /api/delete.</summary>
     public static JsonObject BuildDeleteRequest(string model) => new() { ["model"] = model };

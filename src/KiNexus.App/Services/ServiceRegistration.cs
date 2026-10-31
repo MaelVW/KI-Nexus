@@ -10,6 +10,7 @@ using KiNexus.Core.Paths;
 using KiNexus.Core.Processes;
 using KiNexus.Core.Resources;
 using KiNexus.Core.Settings;
+using KiNexus.Engines;
 using KiNexus.Engines.HuggingFace;
 using KiNexus.Engines.LlamaCpp;
 using KiNexus.Engines.Ollama;
@@ -49,6 +50,9 @@ public static class ServiceRegistration
         AddChats(services, paths);
 
         services.AddSingleton<CreateHubViewModel>();
+        services.AddSingleton<KiEditorServices>();
+        services.AddSingleton<TuningViewModel>();
+        services.AddSingleton<SystemPromptViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddTransient<SettingsViewModel>();
@@ -67,6 +71,7 @@ public static class ServiceRegistration
 
         services.AddSingleton(_ => new OllamaModelStore(OllamaModelStore.DefaultDirectory()));
         services.AddSingleton<OllamaImporter>();
+        services.AddSingleton<ModelFactsProvider>();
 
         // Aus Ollamas Ordnern wird nie verschoben (Bauplan: Ollama-Dateien nie verändern).
         services.AddSingleton(provider => new ModelImporter(
@@ -114,6 +119,7 @@ public static class ServiceRegistration
         services.AddSingleton<IChatRepository>(provider => new ChatRepository(paths.ChatDatabaseFile, provider.GetRequiredService<ILogger<ChatRepository>>()));
         services.AddSingleton(_ => new AttachmentStore(paths.AttachmentsDirectory));
         services.AddSingleton<ChatService>();
+        services.AddSingleton<SystemPromptService>();
         services.AddSingleton<KiReadinessViewModel>();
         services.AddSingleton<ChatSessionViewModel>();
         services.AddSingleton<ChatListViewModel>();

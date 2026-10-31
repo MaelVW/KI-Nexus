@@ -14,7 +14,10 @@ public sealed record GgufMetadata(
     double? Temperature,
     double? TopP,
     int? TopK,
-    bool HasChatTemplate)
+    bool HasChatTemplate,
+    double? MinP = null,
+    double? RepeatPenalty = null,
+    int? BlockCount = null)
 {
     /// <summary>Mixture of Experts: Das Modell hat viele "Experten", pro Wort rechnen nur wenige.</summary>
     public bool IsMoe => ExpertCount is > 1;
@@ -53,7 +56,10 @@ public static class GgufReader
             Temperature: AsDouble(values.GetValueOrDefault("general.sampling.temp")),
             TopP: AsDouble(values.GetValueOrDefault("general.sampling.top_p")),
             TopK: AsInt(values.GetValueOrDefault("general.sampling.top_k")),
-            HasChatTemplate: values.ContainsKey("tokenizer.chat_template"));
+            HasChatTemplate: values.ContainsKey("tokenizer.chat_template"),
+            MinP: AsDouble(values.GetValueOrDefault("general.sampling.min_p")),
+            RepeatPenalty: AsDouble(values.GetValueOrDefault("general.sampling.penalty_repeat")),
+            BlockCount: AsInt(values.GetValueOrDefault($"{architecture}.block_count")));
     }
 
     /// <summary>

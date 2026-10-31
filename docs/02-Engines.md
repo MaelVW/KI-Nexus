@@ -137,12 +137,14 @@ Der RAM-Bedarf (ca. 15 GB zusätzlich) ist bei 16 GB Modell und 8 GB VRAM nicht 
 - **Lektion 2 („Windows lagert heimlich aus“):** Die 13.6 GB „gemeinsamer GPU-Speicher“ bei Ollama sind kein Auslagern. Es ist „gepinnter“ RAM: normaler Arbeitsspeicher, den die GPU direkt lesen darf. Darin liegen die MoE-Experten, die nicht in die 8 GB passen. llama.cpp mit `-lm none` macht genau dasselbe (13.2 GB). Mit mmap ist dieser Wert klein, dafür ist alles langsamer.
 - **Lektion 3 („Ollama schätzt falsch“):** Bestätigt. `ollama ps` zeigte für gemma4 1.4 GB VRAM, tatsächlich waren 7.3 GB belegt. Die App misst selbst über NVML (die Mess-Bibliothek des NVIDIA-Treibers).
 
-## Der Draft von gemma4 (noch nicht eingeschaltet)
+## Der Draft von gemma4 (Schalter, Standard aus)
 
-llama.cpp kann den Draft nutzen: `-md draft.gguf --spec-type draft-mtp`. Gemessen: Schreiben 41–55 statt 40 Token/s, 37–67 % der vorgeschlagenen Wörter werden übernommen.
+llama.cpp kann den Draft nutzen: `-md draft.gguf --spec-type draft-mtp`. Gemessen in M1: Schreiben 41–55 statt 40 Token/s, 37–67 % der vorgeschlagenen Wörter werden übernommen.
 Er ist **nicht Standard**, weil `--fit` den Speicher des Drafts nicht mitrechnen kann (Meldung im Log).
 In M2 gemessen: Beim Beschreiben eines Bildes belegt gemma4 **7.0 von 8.0 GB** VRAM (ohne Draft). Der Draft braucht ca. 0.5 GB mehr. Dann bliebe zu wenig Reserve, und bei grösseren Bildern oder längerem Kontext droht „out of memory“.
-Entscheid: Der Draft bleibt aus. In M6 (Feineinstellungen) kann man ihn pro KI einschalten, mit Warnung.
+
+**Seit M6** gibt es dafür einen Schalter im Feineinstellungen-Tab („Draft-Modell nutzen“). Er erscheint nur, wenn im Modell-Ordner ein Draft liegt (`draftFile` in `model.json`). Eingeschaltet schreibt die App `baseModel.draftPath` und `engineOptions.useDraftModel: true` in die KI und lädt das Modell bei der nächsten Frage neu.
+Geprüft in M6 (am Akku, darum keine Tempo-Messung): llama-server startet mit `-md …\draft.gguf --spec-type draft-mtp`, die Antwort stimmt, VRAM 6.7 von 8.0 GB (ohne Bild). Eine Tempo-Messung am Netzteil steht noch aus.
 
 ## Bilder
 
