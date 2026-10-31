@@ -413,11 +413,38 @@ public sealed partial class ChatSessionViewModel : ObservableObject
         }
     }
 
+    /// <summary>Gesprächsmodus, der für einen noch nicht gespeicherten Chat gewählt wurde.</summary>
+    private VoiceMode? _pendingVoiceMode;
+
+    /// <summary>
+    /// Den Gesprächsmodus für diesen Chat merken (Bauplan 8.2, ab M7). Gibt es den Chat noch nicht,
+    /// wird der Modus gespeichert, sobald der Chat entsteht.
+    /// </summary>
+    public async Task SaveVoiceModeAsync(VoiceMode mode)
+    {
+        if (Chat is not { } chat)
+        {
+            _pendingVoiceMode = mode;
+            return;
+        }
+
+        if (chat.VoiceMode != mode.ToString())
+        {
+            Chat = await _chats.UpdateChatAsync(chat with { VoiceMode = mode.ToString() }, CancellationToken.None);
+        }
+    }
+
     private async Task<ChatRecord> EnsureChatAsync(KiProfile ki)
     {
         if (Chat is null)
         {
             Chat = await _chats.CreateChatAsync(ki, ThinkEnabled, CancellationToken.None);
+            if (_pendingVoiceMode is { } mode)
+            {
+                Chat = await _chats.UpdateChatAsync(Chat with { VoiceMode = mode.ToString() }, CancellationToken.None);
+                _pendingVoiceMode = null;
+            }
+
             ChatSaved?.Invoke(this, Chat);
             await RememberLastChatAsync(Chat.Id);
         }
@@ -580,6 +607,7 @@ public sealed partial class ChatSessionViewModel : ObservableObject
 
     private void ResetTransientState()
     {
+        _pendingVoiceMode = null;
         ErrorText = "";
         StatusText = "";
         ContextHint = "";

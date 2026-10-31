@@ -79,6 +79,15 @@ public sealed class VoiceSettings
 
     /// <summary>Im Gespräch "Antworte kurz und so, wie man spricht." an den Systemprompt hängen.</summary>
     public bool ShortSpokenAnswers { get; set; } = true;
+
+    /// <summary>Sprechtempo für Piper: 1 = normal, grösser = ruhiger und langsamer. Gilt für KIs ohne eigenes Tempo.</summary>
+    public double LengthScale { get; set; } = 1.0;
+
+    /// <summary>Freihändig: Sprichst du, während die KI antwortet, hört sie auf (Unterbrechen). Am besten mit Kopfhörern.</summary>
+    public bool BargeIn { get; set; } = true;
+
+    /// <summary>Freihändig: Beim Öffnen des Gesprächs gleich zuhören (sonst erst nach einem Klick auf den Orb).</summary>
+    public bool AutoListen { get; set; } = true;
 }
 
 public sealed class BackgroundTaskSettings

@@ -25,6 +25,25 @@ public class VoiceProtocolTests
         Assert.Equal("""{"type":"stop_listening","transcribe":true}""", VoiceProtocol.StopListening(true).ToJsonString());
         Assert.Equal("""{"type":"speak","id":7,"text":"Hallo"}""", VoiceProtocol.Speak(7, "Hallo").ToJsonString());
         Assert.Equal("""{"type":"resume"}""", VoiceProtocol.Resume().ToJsonString());
+        Assert.Equal("""{"type":"watch"}""", VoiceProtocol.Watch().ToJsonString());
+        Assert.Equal("""{"type":"voice","voicePath":"C:\\v.onnx","speakerId":110,"lengthScale":1.1}""",
+            VoiceProtocol.ChangeVoice(@"C:\v.onnx", 110, 1.1).ToJsonString());
+    }
+
+    [Fact]
+    public void Configure_SendsSpeakerAndTempo()
+    {
+        var json = VoiceProtocol.Configure(new VoiceWorkerOptions("w", "v", "cpu", null, 800, SpeakerId: 120, LengthScale: 1.25)).ToJsonString();
+
+        Assert.Contains("\"speakerId\":120", json, StringComparison.Ordinal);
+        Assert.Contains("\"lengthScale\":1.25", json, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Parse_BargeInAndVoiceChanged()
+    {
+        Assert.IsType<VoiceBargeIn>(VoiceProtocol.Parse("""{"type":"barge_in"}"""));
+        Assert.Equal(new VoiceChanged(16000, 950), VoiceProtocol.Parse("""{"type":"voice_changed","sampleRate":16000,"loadMs":950}"""));
     }
 
     [Fact]
@@ -74,6 +93,21 @@ public class VoiceInstallationTests
         var installation = VoiceInstallation.For(new AppPaths(root.Path), root.Combine("models"));
 
         Assert.Contains("setup-voice.ps1", installation.Problem(new VoiceSettings()), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void MultiSpeakerVoice_OffersChosenSpeakers()
+    {
+        using var root = new TempDirectory();
+        var installation = Install(root, whisper: ["small"], voices: ["de_DE-mls-medium", "de_DE-ramona-low"]);
+
+        Assert.Equal(["de_DE-mls-medium#110", "de_DE-mls-medium#120", "de_DE-ramona-low"], installation.Voices());
+        Assert.Equal("de_DE-mls-medium#110", installation.ChooseVoice("de_DE-mls-medium#110"));
+        Assert.EndsWith(Path.Combine("piper", "de_DE-mls-medium.onnx"), installation.VoicePath("de_DE-mls-medium#110"), StringComparison.Ordinal);
+        Assert.Equal(110, VoiceInstallation.SpeakerId("de_DE-mls-medium#110"));
+        Assert.Null(VoiceInstallation.SpeakerId("de_DE-ramona-low"));
+        Assert.Equal("Ramona (weiblich, jung)", VoiceInstallation.DisplayName("de_DE-ramona-low"));
+        Assert.Equal("de_DE-neu-low", VoiceInstallation.DisplayName("de_DE-neu-low"));
     }
 
     [Fact]

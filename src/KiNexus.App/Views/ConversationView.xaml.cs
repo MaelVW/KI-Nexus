@@ -43,6 +43,10 @@ public partial class ConversationView : UserControl
         {
             // Fokus, damit die Push-to-Talk-Taste ankommt. Erst nach dem Umschalten, sonst greift er nicht.
             _ = Dispatcher.BeginInvoke(() => Focus(), System.Windows.Threading.DispatcherPriority.Input);
+            if (ViewModel is { } shown)
+            {
+                await shown.OnShownAsync();
+            }
         }
         else if (ViewModel is { } vm)
         {

@@ -6,7 +6,17 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.3.0] – 2026-10-31 – Meilenstein 7: Gespräch-Feinschliff
+
 ### Neu
+
+- **Standard-Modus pro KI:** Feineinstellungen → Gespräch → „Gespräch startet mit“ (Push-to-Talk oder Freihändig).
+- **Modus pro Chat:** Der Schalter im Gesprächsfenster gilt für den Chat und wird gespeichert (`chats.voice_mode`).
+- **Freihändig startet von selbst**, sobald der Gespräch-Stil sichtbar wird (abschaltbar).
+- **Unterbrechen durch Sprechen** (Freihändig): Sprichst du dazwischen, hört die KI sofort auf, und deine neue Frage wird aufgenommen. Mit Echo-Prüfung für Lautsprecher (abschaltbar).
+- **Weibliche Stimme:** Ramona (jung) als neue Standardstimme, dazu Kerstin und zwei ausgesuchte Sprecherinnen aus `de_DE-mls-medium`. Hörproben in `models\voice\samples\`.
+- **Sprechtempo** (Schneller, Normal, Ruhig, Langsam) in den Einstellungen und pro KI. Stimme und Tempo wechseln ohne Neustart der Sprache.
+- Draft-Messung am Netzteil: 47–48 statt 37–41 Token/s, 0.5 GB mehr VRAM (docs/02-Engines.md).
 
 - **Warnung bei Bild- und Video-Modellen:** GGUF gibt es auch für Modelle, mit denen man nicht chatten kann (z.B. LTX-Video oder FLUX für ComfyUI). Die Hugging-Face-Suche erkennt sie an Architektur, Art und Schlagwörtern („kein Chat-Modell“) und fragt vor dem Download nach. Der Import lehnt sie ab. In der Übersicht steht eine rote Zeile, der Assistent „Neue KI“ zeigt sie nicht, und über dem Chat erscheint ein Hinweis.
 

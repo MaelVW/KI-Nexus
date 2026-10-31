@@ -36,6 +36,8 @@ MIN_SPEECH_MS = 300          # Kürzeres (Husten, Klick) wird nicht erkannt
 MAX_UTTERANCE_S = 30         # Whisper verarbeitet höchstens 30 Sekunden am Stück
 LEVEL_INTERVAL_S = 0.08      # so oft geht die Lautstärke an die App (für den Orb)
 TTS_THREADS = 4              # Piper braucht wenig. Mehr Threads würden der KI (llama.cpp) die CPU wegnehmen.
+BARGE_THRESHOLD = 0.7        # Unterbrechen: strenger als sonst, damit Geräusche die KI nicht stoppen
+BARGE_FRAMES = 12            # so viele Sprach-Stücke hintereinander (ca. 0.4 s), bis die KI aufhört zu sprechen
 
 # Whisper-Stücke, denen es selbst nicht traut, fallen weg (sonst "erfindet" es Text aus Rauschen oder fernen Stimmen).
 MIN_AVG_LOGPROB = -1.0
@@ -239,6 +241,8 @@ class Listener:
         self._mic: Microphone | None = None
         self._mode: str | None = None
         self._paused = False
+        self._watching = False
+        self._barge_frames = 0
         self._recording: list[np.ndarray] = []
         self._pre_roll: collections.deque = collections.deque(maxlen=PRE_ROLL_FRAMES)
         self._in_speech = False
@@ -291,16 +295,29 @@ class Listener:
 
     def _do_pause(self) -> None:
         self._paused = True
+        self._watching = False
         self._reset_utterance()
 
     def _do_resume(self) -> None:
         self._paused = False
+        self._watching = False
         self._reset_utterance()
         self.vad.reset()
         # Was während der Pause aufgenommen wurde (z.B. die eigene Stimme der KI), wird verworfen.
         self._drop_queued_audio()
         if self._mode is not None:
             self._channel.send("listening", mode=self._mode, microphone=self._mic.device_name if self._mic else None)
+
+    def _do_watch(self) -> None:
+        """Freihändig, während die KI antwortet: Spricht der Mensch, soll die KI aufhören (Unterbrechen)."""
+        if self._mode != "handsFree":
+            return
+        self._drop_queued_audio()
+        self._reset_utterance()
+        self.vad.reset()
+        self._paused = False
+        self._watching = True
+        self._barge_frames = 0
 
     def _do_file(self, path: str) -> None:
         self._recognize(read_wav(path))
@@ -310,6 +327,9 @@ class Listener:
             return
         self._send_level(frame)
         if self._paused:
+            return
+        if self._watching:
+            self._watch(frame)
             return
         if self._mode == "pushToTalk":
             self._recording.append(frame)
@@ -351,6 +371,21 @@ class Listener:
         self._paused = True
         self._recognize(audio)
 
+    def _watch(self, frame: np.ndarray) -> None:
+        """Wie der Anfang von _hands_free, aber strenger. Sonst stoppt jedes Geräusch (oder die KI selbst) die Antwort."""
+        probability = self.vad(frame)
+        self._pre_roll.append(frame)
+        self._barge_frames = self._barge_frames + 1 if probability >= BARGE_THRESHOLD else 0
+        if self._barge_frames < BARGE_FRAMES:
+            return
+        # Ab hier zählt es als neue Frage: Die Aufnahme beginnt mit dem, was schon gesagt wurde.
+        self._watching = False
+        self._in_speech = True
+        self._recording = list(self._pre_roll)
+        self._silence_ms = 0
+        self._channel.send("barge_in")
+        self._channel.send("speech_start")
+
     # -- Hilfen
 
     def _recognize(self, audio: np.ndarray) -> None:
@@ -382,6 +417,7 @@ class Listener:
             self._channel.send("level", value=round(min(1.0, rms * 8), 3))
 
     def _reset_utterance(self) -> None:
+        self._barge_frames = 0
         self._recording = []
         self._pre_roll.clear()
         self._in_speech = False
@@ -416,21 +452,24 @@ class Speaker:
         self._work: queue.Queue = queue.Queue()
         self._generation = 0
         self.voice = None
+        self.config = None
         threading.Thread(target=self._run, name="speaker", daemon=True).start()
 
     @property
     def sample_rate(self) -> int:
         return self.voice.config.sample_rate if self.voice else 22050
 
-    def load(self, voice_path: str) -> None:
+    def load(self, voice_path: str, speaker_id: int | None = None, length_scale: float | None = None) -> None:
+        """Lädt eine Stimme. speaker_id nur bei Stimmen mit mehreren Sprechern, length_scale > 1 = ruhiger und langsamer."""
         import onnxruntime
-        from piper import PiperVoice
+        from piper import PiperVoice, SynthesisConfig
         voice = PiperVoice.load(voice_path)
         # Piper nimmt sonst alle Kerne. Mit wenigen Threads bleibt die CPU frei für die KI, die gleichzeitig schreibt.
         options = onnxruntime.SessionOptions()
         options.intra_op_num_threads = TTS_THREADS
         options.inter_op_num_threads = 1
         voice.session = onnxruntime.InferenceSession(voice_path, sess_options=options, providers=["CPUExecutionProvider"])
+        self.config = SynthesisConfig(speaker_id=speaker_id, length_scale=length_scale)
         self.voice = voice
 
     def say(self, speech_id: int, text: str) -> None:
@@ -452,7 +491,7 @@ class Speaker:
                 continue
             try:
                 cancelled = False
-                for chunk in self.voice.synthesize(text):
+                for chunk in self.voice.synthesize(text, syn_config=self.config):
                     if generation != self._generation:
                         cancelled = True
                         break
@@ -482,9 +521,25 @@ def configure(message: dict, listener: Listener, speaker: Speaker, channel: Chan
         log(traceback.format_exc())
         channel.send("error", message=f"Spracherkennung auf der GPU geht nicht ({error}). Ich nehme die CPU.", fatal=False)
         listener.recognizer = Recognizer(message["whisperPath"], "cpu", threads)
-    speaker.load(message["voicePath"])
+    speaker.load(message["voicePath"], _optional_int(message.get("speakerId")), _optional_float(message.get("lengthScale")))
     channel.send("ready", device=listener.recognizer.device, sampleRate=speaker.sample_rate,
                  loadMs=int((time.perf_counter() - started) * 1000))
+
+
+def _optional_int(value) -> int | None:
+    return None if value is None else int(value)
+
+
+def _optional_float(value) -> float | None:
+    return None if value is None else float(value)
+
+
+def change_voice(message: dict, speaker: Speaker, channel: Channel) -> None:
+    """Andere Stimme ohne Neustart, z.B. wenn die nächste KI eine eigene Stimme hat. Dauert ca. 1 Sekunde."""
+    started = time.perf_counter()
+    speaker.stop()
+    speaker.load(message["voicePath"], _optional_int(message.get("speakerId")), _optional_float(message.get("lengthScale")))
+    channel.send("voice_changed", sampleRate=speaker.sample_rate, loadMs=int((time.perf_counter() - started) * 1000))
 
 
 def main() -> int:
@@ -523,6 +578,10 @@ def main() -> int:
                 listener.post("pause")
             elif kind == "resume":
                 listener.post("resume")
+            elif kind == "watch":
+                listener.post("watch")
+            elif kind == "voice":
+                change_voice(message, speaker, channel)
             elif kind == "speak":
                 speaker.say(int(message["id"]), str(message["text"]))
             elif kind == "stop_speaking":

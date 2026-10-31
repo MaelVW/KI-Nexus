@@ -11,6 +11,29 @@ public sealed record VoiceInstallation(string PythonExe, string WorkerScript, st
 {
     public const string DefaultVoice = "de_DE-thorsten-high";
 
+    /// <summary>Weibliche Stimme, jung und ruhig (gemessen: ca. 205 Hz, sauberstes Signal der deutschen Frauenstimmen).</summary>
+    public const string FemaleVoice = "de_DE-ramona-low";
+
+    /// <summary>
+    /// Stimmen mit vielen Sprechern: nur ausgewählte Sprecherinnen anbieten. Ausgesucht nach Tonhöhe (jung),
+    /// ruhiger Sprechmelodie und sauberem Klang (siehe docs/05-Sprache.md).
+    /// </summary>
+    private static readonly Dictionary<string, int[]> ChosenSpeakers = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["de_DE-mls-medium"] = [110, 120],
+    };
+
+    /// <summary>Namen für die Auswahl. Unbekannte Stimmen zeigen ihren Dateinamen.</summary>
+    private static readonly Dictionary<string, string> Names = new(StringComparer.OrdinalIgnoreCase)
+    {
+        ["de_DE-thorsten-high"] = "Thorsten (männlich, beste Qualität)",
+        ["de_DE-thorsten-medium"] = "Thorsten (männlich, mittel)",
+        ["de_DE-ramona-low"] = "Ramona (weiblich, jung)",
+        ["de_DE-kerstin-low"] = "Kerstin (weiblich, tiefer)",
+        ["de_DE-mls-medium#110"] = "Sprecherin 110 (weiblich, jung, ruhig)",
+        ["de_DE-mls-medium#120"] = "Sprecherin 120 (weiblich, ruhig)",
+    };
+
     public static VoiceInstallation For(AppPaths paths, string modelsDirectory) => new(
         Path.Combine(paths.Root, "python", ".venv", "Scripts", "python.exe"),
         Path.Combine(paths.Root, "python", "voice", "worker.py"),
@@ -18,7 +41,16 @@ public sealed record VoiceInstallation(string PythonExe, string WorkerScript, st
 
     public string WhisperPath(string model) => Path.Combine(VoiceModelsDirectory, "whisper-" + model);
 
-    public string VoicePath(string voice) => Path.Combine(VoiceModelsDirectory, "piper", voice + ".onnx");
+    /// <summary>Datei der Stimme. "de_DE-mls-medium#110" (Sprecherin 110) liegt in de_DE-mls-medium.onnx.</summary>
+    public string VoicePath(string voice) => Path.Combine(VoiceModelsDirectory, "piper", FileName(voice) + ".onnx");
+
+    /// <summary>Sprecher-Nummer bei Stimmen mit vielen Sprechern ("…#110"), sonst null.</summary>
+    public static int? SpeakerId(string voice) =>
+        voice.IndexOf('#') is var hash and > 0 && int.TryParse(voice[(hash + 1)..], out var id) ? id : null;
+
+    public static string DisplayName(string voice) => Names.TryGetValue(voice, out var name) ? name : voice;
+
+    private static string FileName(string voice) => voice.IndexOf('#') is var hash and > 0 ? voice[..hash] : voice;
 
     /// <summary>Eingerichtete Whisper-Modelle, z.B. "large-v3-turbo" und "small".</summary>
     public IReadOnlyList<string> WhisperModels() =>
@@ -39,6 +71,7 @@ public sealed record VoiceInstallation(string PythonExe, string WorkerScript, st
                 .Where(f => File.Exists(f + ".json"))
                 .Select(Path.GetFileNameWithoutExtension)
                 .OfType<string>()
+                .SelectMany(name => ChosenSpeakers.TryGetValue(name, out var speakers) ? speakers.Select(s => $"{name}#{s}") : [name])
                 .Order(StringComparer.OrdinalIgnoreCase)
                 .ToList()
             : [];

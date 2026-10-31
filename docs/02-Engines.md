@@ -144,7 +144,15 @@ Er ist **nicht Standard**, weil `--fit` den Speicher des Drafts nicht mitrechnen
 In M2 gemessen: Beim Beschreiben eines Bildes belegt gemma4 **7.0 von 8.0 GB** VRAM (ohne Draft). Der Draft braucht ca. 0.5 GB mehr. Dann bliebe zu wenig Reserve, und bei grösseren Bildern oder längerem Kontext droht „out of memory“.
 
 **Seit M6** gibt es dafür einen Schalter im Feineinstellungen-Tab („Draft-Modell nutzen“). Er erscheint nur, wenn im Modell-Ordner ein Draft liegt (`draftFile` in `model.json`). Eingeschaltet schreibt die App `baseModel.draftPath` und `engineOptions.useDraftModel: true` in die KI und lädt das Modell bei der nächsten Frage neu.
-Geprüft in M6 (am Akku, darum keine Tempo-Messung): llama-server startet mit `-md …\draft.gguf --spec-type draft-mtp`, die Antwort stimmt, VRAM 6.7 von 8.0 GB (ohne Bild). Eine Tempo-Messung am Netzteil steht noch aus.
+Geprüft in M6: llama-server startet mit `-md …\draft.gguf --spec-type draft-mtp`, die Antwort stimmt.
+Gemessen am 31.10.2026 am Netzteil, in der App (System-Prompt-Tab → Testen, „Erkläre in etwa 200 Wörtern, wie ein Computer funktioniert.“, je zwei Läufe):
+
+| Mael-KI (gemma4) | Schreiben | VRAM |
+|---|---|---|
+| ohne Draft | 36.5 und 40.5 Token/s | 6.2 GB |
+| mit Draft | 47.2 und 48.5 Token/s | 6.7 GB |
+
+Der Draft bringt also ca. 20–30 % mehr Tempo für 0.5 GB VRAM. Er bleibt trotzdem Standard aus: Mit einem Bild im Chat wären es ca. 7.5 von 8 GB.
 
 ## Bilder
 

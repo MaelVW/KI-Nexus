@@ -77,6 +77,18 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
     private DateTime _drainedSince = DateTime.MaxValue;
     private string _voiceSignature;
 
+    /// <summary>Der Modus wird gerade aus dem Chat oder der KI übernommen (nicht vom Menschen umgeschaltet).</summary>
+    private bool _applyingMode;
+
+    /// <summary>Stimme und Tempo, die der Worker gerade geladen hat, z.B. "de_DE-ramona-low|1.1".</summary>
+    private string? _loadedVoice;
+
+    /// <summary>Was die KI in dieser Antwort schon gesagt hat. Damit erkennt die App ihr eigenes Echo.</summary>
+    private readonly List<string> _spokenThisTurn = [];
+
+    /// <summary>Die nächste Mitschrift kommt von einem Unterbrechen.</summary>
+    private bool _bargedIn;
+
     public ConversationViewModel(
         ChatSessionViewModel session, VoiceWorker worker, PcmPlayer player, ISettingsService settings, AppPaths paths,
         ILogger<ConversationViewModel> logger)
@@ -97,10 +109,14 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         {
             if (e.PropertyName == nameof(ChatSessionViewModel.Ki))
             {
-                Mode = Session.Ki?.Voice.DefaultMode ?? VoiceMode.PushToTalk;
+                ApplyMode(ResolveMode());
+                _ = UpdateVoiceAsync();
             }
         };
-        _mode = session.Ki?.Voice.DefaultMode ?? VoiceMode.PushToTalk;
+
+        // Ein anderer Chat: dessen Modus, sonst der Standard der KI.
+        Session.ChatOpened += (_, _) => ApplyMode(ResolveMode());
+        _mode = ResolveMode();
 
         // Neue Einstellungen (Mikrofon, Stimme, Modell): Der Worker startet beim nächsten Gebrauch neu.
         _voiceSignature = VoiceSignature(settings.Current.Voice);
@@ -161,7 +177,9 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
     };
 
     public string ModeHint => IsHandsFree
-        ? "Freihändig: Sprich einfach. Nach einer kurzen Pause antwortet die KI. Esc unterbricht sie."
+        ? _settings.Current.Voice.BargeIn
+            ? "Freihändig: Sprich einfach. Nach einer kurzen Pause antwortet die KI. Sprich dazwischen oder drück Esc, um sie zu unterbrechen."
+            : "Freihändig: Sprich einfach. Nach einer kurzen Pause antwortet die KI. Esc unterbricht sie."
         : $"Push-to-Talk: {PushToTalkKeyText} gedrückt halten (oder den Orb), sprechen, loslassen. Esc unterbricht die KI.";
 
     public string StateText => State switch
@@ -252,6 +270,26 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         await FinishTurnAsync();
     }
 
+    /// <summary>
+    /// Freihändig: Du sprichst, während die KI antwortet. Antwort und Stimme stoppen sofort. Der Worker nimmt
+    /// schon auf, darum geht es ohne "resume" direkt mit deiner neuen Frage weiter.
+    /// </summary>
+    private async Task BargeInAsync()
+    {
+        _interrupted = true;
+        _bargedIn = true;
+        Session.Stop();
+        _pendingSpeech.Clear();
+        _player.Clear();
+        await _worker.TrySendAsync(VoiceProtocol.StopSpeaking());
+        DetachAnswer();
+        _answer = null;
+        _answerComplete = true;
+        Level = 0;
+        State = ConversationState.Hearing;
+        InfoText = "Unterbrochen. Ich höre zu …";
+    }
+
     /// <summary>Beim Verlassen des Stils oder "Entladen": Mikrofon zu, Worker beenden (gibt ca. 2 GB RAM frei).</summary>
     public async Task ShutdownAsync()
     {
@@ -265,6 +303,27 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
     }
 
     public ValueTask DisposeAsync() => new(ShutdownAsync());
+
+    /// <summary>
+    /// Der Gespräch-Stil wird sichtbar. Im Modus Freihändig startet das Gespräch von selbst (Bauplan M7),
+    /// ausser es ist in den Einstellungen abgeschaltet.
+    /// </summary>
+    public async Task OnShownAsync()
+    {
+        if (!IsHandsFree || !_settings.Current.Voice.AutoListen)
+        {
+            return;
+        }
+
+        if (State == ConversationState.Off)
+        {
+            await EnsureStartedAsync();
+        }
+        else if (State == ConversationState.Ready)
+        {
+            await StartHandsFreeAsync();
+        }
+    }
 
     /// <summary>Wechsel zu einem anderen Stil: Mikrofon zu. Der Worker bleibt geladen, der Chat ist derselbe.</summary>
     public async Task OnHiddenAsync()
@@ -283,6 +342,7 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         OnPropertyChanged(nameof(PushToTalkKeyText));
         OnPropertyChanged(nameof(ModeHint));
         OnPropertyChanged(nameof(StateText));
+        _ = UpdateVoiceAsync();
         var signature = VoiceSignature(saved.Voice);
         if (signature != _voiceSignature)
         {
@@ -295,11 +355,37 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         }
     }
 
+    // Die Stimme ist nicht dabei: Sie wechselt ohne Neustart (UpdateVoiceAsync).
     private static string VoiceSignature(VoiceSettings voice) =>
-        string.Join("|", voice.Microphone, voice.Voice, voice.WhisperModel, voice.SpeechRecognitionDevice, voice.SilenceMs);
+        string.Join("|", voice.Microphone, voice.WhisperModel, voice.SpeechRecognitionDevice, voice.SilenceMs);
+
+    /// <summary>Modus des Chats (falls gespeichert), sonst der Standard der KI (Feineinstellungen → Gespräch).</summary>
+    private VoiceMode ResolveMode() =>
+        Session.Chat?.VoiceMode is { } saved && Enum.TryParse<VoiceMode>(saved, ignoreCase: true, out var mode)
+            ? mode
+            : Session.Ki?.Voice.DefaultMode ?? VoiceMode.PushToTalk;
+
+    private void ApplyMode(VoiceMode mode)
+    {
+        _applyingMode = true;
+        try
+        {
+            Mode = mode;
+        }
+        finally
+        {
+            _applyingMode = false;
+        }
+    }
 
     partial void OnModeChanged(VoiceMode value)
     {
+        // Im Gesprächsfenster umgeschaltet: Das gilt ab jetzt für diesen Chat.
+        if (!_applyingMode)
+        {
+            _ = Session.SaveVoiceModeAsync(value);
+        }
+
         if (State is ConversationState.Off or ConversationState.Starting or ConversationState.Error)
         {
             return;
@@ -351,13 +437,17 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         InfoText = "Das dauert beim ersten Mal ca. 10 Sekunden.";
         try
         {
+            var (speaker, lengthScale) = VoiceFor(installation, Session.Ki);
             var options = new VoiceWorkerOptions(
                 installation.WhisperPath(voice.WhisperModel),
-                installation.VoicePath(installation.ChooseVoice(voice.Voice)),
+                installation.VoicePath(speaker),
                 voice.SpeechRecognitionDevice == ComputeDevice.Gpu ? "gpu" : "cpu",
                 voice.Microphone,
-                voice.SilenceMs);
+                voice.SilenceMs,
+                SpeakerId: VoiceInstallation.SpeakerId(speaker),
+                LengthScale: lengthScale);
             var ready = await _worker.StartAsync(installation, options, CancellationToken.None);
+            _loadedVoice = VoiceKey(speaker, lengthScale);
             _player.Open(ready.SampleRate);
             _timer.Start();
             InfoText = "";
@@ -377,6 +467,36 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
             State = ConversationState.Error;
             return false;
         }
+    }
+
+    /// <summary>Die Stimme der KI (Feineinstellungen → Gespräch), sonst die aus den Einstellungen.</summary>
+    private (string Voice, double? LengthScale) VoiceFor(VoiceInstallation installation, KiProfile? ki)
+    {
+        var wanted = ki?.Voice.Voice is { Length: > 0 } own ? own : _settings.Current.Voice.Voice;
+        return (installation.ChooseVoice(wanted), ki?.Voice.LengthScale ?? _settings.Current.Voice.LengthScale);
+    }
+
+    private static string VoiceKey(string voice, double? lengthScale) =>
+        voice + "|" + (lengthScale ?? 1).ToString(System.Globalization.CultureInfo.InvariantCulture);
+
+    /// <summary>Andere KI oder neue Einstellungen: Hat sie eine andere Stimme, lädt der Worker sie (ca. 1 s, ohne Neustart).</summary>
+    private async Task UpdateVoiceAsync()
+    {
+        if (!_worker.IsRunning || State is ConversationState.Off or ConversationState.Starting or ConversationState.Error)
+        {
+            return;
+        }
+
+        var installation = VoiceInstallation.For(_paths, _paths.Resolve(_settings.Current.Paths.Models));
+        var (voice, lengthScale) = VoiceFor(installation, Session.Ki);
+        var key = VoiceKey(voice, lengthScale);
+        if (key == _loadedVoice)
+        {
+            return;
+        }
+
+        _loadedVoice = key;
+        await _worker.TrySendAsync(VoiceProtocol.ChangeVoice(installation.VoicePath(voice), VoiceInstallation.SpeakerId(voice), lengthScale));
     }
 
     private async Task StartHandsFreeAsync()
@@ -424,6 +544,12 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
             case VoiceSpeakDone done:
                 _pendingSpeech.Remove(done.Id);
                 break;
+            case VoiceBargeIn when IsHandsFree && State is ConversationState.Thinking or ConversationState.Speaking:
+                _ = BargeInAsync();
+                break;
+            case VoiceChanged changed:
+                _player.Open(changed.SampleRate);
+                break;
             case VoiceError error:
                 ErrorText = error.Message;
                 if (error.Fatal)
@@ -457,6 +583,17 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
             return;
         }
 
+        // Nach dem Unterbrechen: Hat das Mikrofon nur die KI selbst gehört (Lautsprecher)? Dann nicht als Frage nehmen.
+        var afterBargeIn = _bargedIn;
+        _bargedIn = false;
+        if (afterBargeIn && SpeechText.LooksLikeEcho(text, _spokenThisTurn))
+        {
+            _logger.LogInformation("Unterbrechen durch Echo verworfen: '{Text}'.", text);
+            InfoText = "Das war wohl die Stimme der KI selbst. Mit Lautsprechern: Kopfhörer nutzen oder „Unterbrechen durch Sprechen“ ausschalten.";
+            await BackToListeningAsync();
+            return;
+        }
+
         if (Session.IsBusy || Session.Ki is null)
         {
             InfoText = Session.Ki is null ? "Wähle zuerst eine KI." : "Die KI ist noch beschäftigt.";
@@ -481,6 +618,13 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         _firstSpeechIdOfTurn = _nextSpeechId;
         _drainedSince = DateTime.MaxValue;
         _interrupted = false;
+        _spokenThisTurn.Clear();
+
+        // Freihändig: Während die KI antwortet, hört der Worker mit. Sprichst du dazwischen, hört sie auf.
+        if (IsHandsFree && _settings.Current.Voice.BargeIn)
+        {
+            await _worker.TrySendAsync(VoiceProtocol.Watch());
+        }
 
         var suffix = _settings.Current.Voice.ShortSpokenAnswers ? SpeechText.ConversationHint : null;
         await Session.AskSpokenAsync(text, suffix);
@@ -551,6 +695,7 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
 
     private async Task SpeakAsync(string sentence)
     {
+        _spokenThisTurn.Add(sentence);
         var id = _nextSpeechId++;
         _pendingSpeech.Add(id);
         await _worker.TrySendAsync(VoiceProtocol.Speak(id, sentence));

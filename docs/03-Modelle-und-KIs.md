@@ -131,6 +131,7 @@ Tab „Feineinstellungen“ (`Strg + 2`). Pro KI, jede Einstellung mit einer kur
 |---|---|
 | **Antwort-Stil** | Temperatur (0–2), top_p (0–1), top_k (0–1000), min_p (0–1), Wiederholungs-Strafe (0.5–2), Themen-Strafe (presence, −2 bis 2). Leer = Standard. Rechts steht die Empfehlung des Herstellers. |
 | **Länge und Gedächtnis** | Kontextlänge (Auswahl bis zum Kontext aus dem Training des Modells), Max. Antwortlänge (16 bis Kontext − 256), Thinking als Standard |
+| **Gespräch** (ab M7) | Gespräch startet mit (Push-to-Talk oder Freihändig), Stimme, Sprechtempo. Details: [05-Sprache.md](05-Sprache.md) |
 | **Engine** | GPU-Layer (leer = automatisch, `all` oder eine Zahl), MoE-Experten auf CPU (nur bei MoE-Modellen), Geladen halten (1 Minute bis 1 Stunde oder bis ich entlade), Draft-Modell (nur wenn es eins gibt) |
 
 - Ungültige Eingaben werden rot markiert, mit dem erlaubten Bereich. Dann ist „Speichern“ gesperrt.

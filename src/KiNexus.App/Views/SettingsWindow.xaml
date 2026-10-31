@@ -306,6 +306,8 @@
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
                             <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
                         </Grid.RowDefinitions>
 
                         <TextBlock Grid.ColumnSpan="2" Text="Sprache" Style="{StaticResource Text.SectionTitle}" />
@@ -317,8 +319,15 @@
                                   SelectedValuePath="Value" SelectedValue="{Binding Microphone}" AutomationProperties.Name="Mikrofon" />
 
                         <TextBlock Grid.Row="3" Text="Stimme" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
-                        <ComboBox Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" ItemsSource="{Binding VoiceChoices}" DisplayMemberPath="Name"
-                                  SelectedValuePath="Value" SelectedValue="{Binding VoiceName}" AutomationProperties.Name="Stimme" />
+                        <StackPanel Grid.Row="3" Grid.Column="1" Margin="0,12,0,0">
+                            <ComboBox ItemsSource="{Binding VoiceChoices}" DisplayMemberPath="Name"
+                                      SelectedValuePath="Value" SelectedValue="{Binding VoiceName}" AutomationProperties.Name="Stimme" />
+                            <ComboBox Margin="0,8,0,0" Width="220" HorizontalAlignment="Left" ItemsSource="{Binding TempoChoices}" DisplayMemberPath="Name"
+                                      SelectedValuePath="Value" SelectedValue="{Binding Tempo}" AutomationProperties.Name="Sprechtempo"
+                                      ToolTip="Sprechtempo. Ruhig und Langsam klingen gelassener." />
+                            <TextBlock Style="{StaticResource Text.Hint}"
+                                       Text="Gilt für alle KIs ohne eigene Stimme. Eine eigene Stimme und das Sprechtempo stellst du pro KI unter Feineinstellungen → Gespräch ein. Hörproben: models\voice\samples\" />
+                        </StackPanel>
 
                         <TextBlock Grid.Row="4" Text="Spracherkennung" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
                         <ComboBox Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" ItemsSource="{Binding WhisperChoices}" DisplayMemberPath="Name"
@@ -352,6 +361,19 @@
                         <CheckBox Grid.Row="8" Grid.Column="1" Margin="0,14,0,0" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShortSpokenAnswers}"
                                   AutomationProperties.Name="Kurze Antworten im Gespräch">
                             <TextBlock TextWrapping="Wrap" Text="Im Gespräch kurz antworten (hängt &quot;Antworte kurz und so, wie man spricht.&quot; an den Systemprompt)" />
+                        </CheckBox>
+
+                        <StackPanel Grid.Row="9" Grid.Column="1" Margin="0,14,0,0">
+                            <CheckBox Style="{StaticResource ToggleSwitch}" IsChecked="{Binding BargeIn}" AutomationProperties.Name="Unterbrechen durch Sprechen">
+                                <TextBlock TextWrapping="Wrap" Text="Unterbrechen durch Sprechen (Freihändig): Sprichst du, während die KI antwortet, hört sie auf" />
+                            </CheckBox>
+                            <TextBlock Style="{StaticResource Text.Hint}"
+                                       Text="Am besten mit Kopfhörern. Mit Lautsprechern kann das Mikrofon die KI selbst hören. Die App erkennt das meistens und hört dann einfach weiter zu." />
+                        </StackPanel>
+
+                        <CheckBox Grid.Row="10" Grid.Column="1" Margin="0,14,0,0" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding AutoListen}"
+                                  AutomationProperties.Name="Freihändig gleich zuhören">
+                            <TextBlock TextWrapping="Wrap" Text="Freihändig: Beim Öffnen des Gesprächs gleich zuhören (sonst erst nach einem Klick auf den Orb)" />
                         </CheckBox>
                     </Grid>
                 </Border>

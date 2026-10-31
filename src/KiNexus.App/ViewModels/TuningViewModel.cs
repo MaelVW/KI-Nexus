@@ -6,8 +6,10 @@ using KiNexus.Core;
 using KiNexus.Core.Inference;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Models;
+using KiNexus.Core.Paths;
 using KiNexus.Core.Resources;
 using KiNexus.Engines;
+using KiNexus.Engines.Voice;
 using Microsoft.Extensions.Logging;
 
 namespace KiNexus.App.ViewModels;
@@ -24,6 +26,24 @@ public sealed record KeepAliveChoice(int Minutes, string Label)
         60 => new(60, "1 Stunde"),
         _ => new(minutes, $"{minutes} Minuten"),
     };
+}
+
+/// <summary>Eine Wahl bei "Gespräch startet mit".</summary>
+public sealed record VoiceModeChoice(VoiceMode Mode, string Label)
+{
+    public override string ToString() => Label;
+}
+
+/// <summary>Eine Stimme zur Auswahl. Id null = die Stimme aus den Einstellungen.</summary>
+public sealed record VoiceChoice(string? Id, string Label)
+{
+    public override string ToString() => Label;
+}
+
+/// <summary>Sprechtempo für Piper. Scale null = normal (1.0), grösser = ruhiger.</summary>
+public sealed record TempoChoice(double? Scale, string Label)
+{
+    public override string ToString() => Label;
 }
 
 /// <summary>
@@ -49,6 +69,7 @@ public sealed partial class TuningViewModel : KiEditorTabViewModel
     private readonly ModelFactsProvider _factsProvider;
     private readonly IResourceMonitor _resources;
     private readonly EngineManager _engines;
+    private readonly VoiceInstallation _voices;
     private readonly Dictionary<string, ModelFacts> _factsCache = [];
     private ModelFacts _facts = ModelFacts.Unknown;
     private string _factsKey = "";
@@ -58,9 +79,10 @@ public sealed partial class TuningViewModel : KiEditorTabViewModel
     private bool _loading;
 
     public TuningViewModel(KiEditorServices services, ModelFactsProvider factsProvider, IResourceMonitor resources, EngineManager engines,
-        ILogger<TuningViewModel> logger)
+        AppPaths paths, ILogger<TuningViewModel> logger)
         : base("tuning", "Feineinstellungen", Glyphs.Tuning, services, logger)
     {
+        _voices = VoiceInstallation.For(paths, paths.Resolve(services.Settings.Current.Paths.Models));
         _factsProvider = factsProvider;
         _resources = resources;
         _engines = engines;
@@ -124,6 +146,51 @@ public sealed partial class TuningViewModel : KiEditorTabViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(DraftHint))]
     private bool _useDraft;
+
+    // ----------------------------------------------------------- Gespräch (ab M7)
+
+    public IReadOnlyList<VoiceModeChoice> VoiceModeChoices { get; } =
+    [
+        new(Core.Kis.VoiceMode.PushToTalk, "Push-to-Talk (Taste halten)"),
+        new(Core.Kis.VoiceMode.HandsFree, "Freihändig (einfach sprechen)"),
+    ];
+
+    [ObservableProperty] private VoiceModeChoice? _voiceMode;
+
+    [ObservableProperty] private IReadOnlyList<VoiceChoice> _voiceChoices = [];
+
+    [ObservableProperty] private VoiceChoice? _voice;
+
+    public IReadOnlyList<TempoChoice> TempoChoices { get; } =
+    [
+        new(null, "Wie in den Einstellungen"),
+        new(0.9, "Schneller"),
+        new(1.0, "Normal"),
+        new(1.1, "Ruhig"),
+        new(1.25, "Langsam"),
+    ];
+
+    [ObservableProperty] private TempoChoice? _tempo;
+
+    partial void OnVoiceModeChanged(VoiceModeChoice? value) => Changed();
+
+    partial void OnVoiceChanged(VoiceChoice? value) => Changed();
+
+    partial void OnTempoChanged(TempoChoice? value) => Changed();
+
+    /// <summary>Stimmen, die in models/voice/piper/ liegen. Fehlt die gespeicherte, bleibt sie trotzdem wählbar.</summary>
+    private IReadOnlyList<VoiceChoice> BuildVoiceChoices(string? current)
+    {
+        var global = _voices.ChooseVoice(SettingsService.Current.Voice.Voice);
+        var choices = new List<VoiceChoice> { new(null, $"Wie in den Einstellungen ({VoiceInstallation.DisplayName(global)})") };
+        choices.AddRange(_voices.Voices().Select(v => new VoiceChoice(v, VoiceInstallation.DisplayName(v))));
+        if (current is { Length: > 0 } && choices.All(c => c.Id != current))
+        {
+            choices.Add(new VoiceChoice(current, current + " (fehlt)"));
+        }
+
+        return choices;
+    }
 
     // ----------------------------------------------------------- Anzeige
 
@@ -241,6 +308,11 @@ public sealed partial class TuningViewModel : KiEditorTabViewModel
             KeepAlive = keepAlive;
             UseDraft = engine.UseDraftModel;
 
+            VoiceMode = VoiceModeChoices.First(c => c.Mode == ki.Voice.DefaultMode);
+            VoiceChoices = BuildVoiceChoices(ki.Voice.Voice);
+            Voice = VoiceChoices.First(c => c.Id == (string.IsNullOrWhiteSpace(ki.Voice.Voice) ? null : ki.Voice.Voice));
+            Tempo = TempoChoices.FirstOrDefault(c => c.Scale == ki.Voice.LengthScale) ?? TempoChoices[0];
+
             _savedSnapshot = Snapshot();
         }
         finally
@@ -350,6 +422,9 @@ public sealed partial class TuningViewModel : KiEditorTabViewModel
         CpuMoe.Text = "";
         KeepAlive = KeepAliveChoices.FirstOrDefault(c => c.Minutes == 5);
         UseDraft = false;
+        VoiceMode = VoiceModeChoices[0];
+        Voice = VoiceChoices.FirstOrDefault();
+        Tempo = TempoChoices[0];
         ShowStatus($"Standardwerte eingesetzt ({defaults.Source}). Noch nicht gespeichert.");
     }
 
@@ -389,12 +464,16 @@ public sealed partial class TuningViewModel : KiEditorTabViewModel
             }
         }
 
+        ki.Voice.DefaultMode = VoiceMode?.Mode ?? ki.Voice.DefaultMode;
+        ki.Voice.Voice = Voice?.Id;
+        ki.Voice.LengthScale = Tempo?.Scale;
         return ki;
     }
 
     private string Snapshot() => string.Join("|",
         Temperature.Text.Trim(), TopP.Text.Trim(), TopK.Text.Trim(), MinP.Text.Trim(), RepeatPenalty.Text.Trim(), PresencePenalty.Text.Trim(),
-        ContextLength, MaxTokens.Text.Trim(), ThinkByDefault, GpuLayers.Text.Trim().ToLowerInvariant(), CpuMoe.Text.Trim(), KeepAlive?.Minutes, UseDraft);
+        ContextLength, MaxTokens.Text.Trim(), ThinkByDefault, GpuLayers.Text.Trim().ToLowerInvariant(), CpuMoe.Text.Trim(), KeepAlive?.Minutes, UseDraft,
+        VoiceMode?.Mode, Voice?.Id, Tempo?.Scale);
 
     private void Changed()
     {

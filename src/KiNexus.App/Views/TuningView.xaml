@@ -170,6 +170,60 @@
                         </StackPanel>
                     </Border>
 
+                    <!-- Gespräch (ab M7) -->
+                    <Border Style="{StaticResource GroupCard}">
+                        <StackPanel>
+                            <TextBlock Text="Gespräch" Style="{StaticResource Text.SectionTitle}" Margin="0,0,0,4" AutomationProperties.HeadingLevel="Level3" />
+                            <TextBlock Style="{StaticResource Text.Hint}" Margin="0,0,0,16"
+                                       Text="Für den Gespräch-Stil im Chat. Schaltest du den Modus im Gesprächsfenster um, merkt sich die App das für diesen Chat." />
+
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="250" />
+                                    <ColumnDefinition Width="300" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,16,0" Background="Transparent"
+                                            ToolTip="Push-to-Talk: Du hältst eine Taste, solange du sprichst. Freihändig: Die App erkennt selbst, wann du fertig bist, und hört beim Öffnen gleich zu.">
+                                    <TextBlock Text="Gespräch startet mit" Style="{StaticResource Text.Label}" FontWeight="SemiBold" />
+                                    <TextBlock Text="Standard-Modus dieser KI, solange ein Chat keinen eigenen hat." Style="{StaticResource Text.Hint}" />
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" VerticalAlignment="Top" ItemsSource="{Binding VoiceModeChoices}" SelectedItem="{Binding VoiceMode}"
+                                          AutomationProperties.Name="Gespräch startet mit" AutomationProperties.AutomationId="TuningVoiceMode" />
+                            </Grid>
+
+                            <Grid Margin="0,0,0,14">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="250" />
+                                    <ColumnDefinition Width="300" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,16,0" Background="Transparent"
+                                            ToolTip="Hörproben aller Stimmen liegen in models\voice\samples\. Eine andere Stimme lädt die App ohne Neustart (ca. 1 Sekunde).">
+                                    <TextBlock Text="Stimme" Style="{StaticResource Text.Label}" FontWeight="SemiBold" />
+                                    <TextBlock Text="Mit welcher Stimme diese KI spricht." Style="{StaticResource Text.Hint}" />
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" VerticalAlignment="Top" ItemsSource="{Binding VoiceChoices}" SelectedItem="{Binding Voice}"
+                                          AutomationProperties.Name="Stimme" AutomationProperties.AutomationId="TuningVoice" />
+                            </Grid>
+
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="250" />
+                                    <ColumnDefinition Width="300" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Margin="0,0,16,0" Background="Transparent"
+                                            ToolTip="Ruhig und Langsam lassen die Stimme gelassener klingen. Schneller spart Zeit bei langen Antworten.">
+                                    <TextBlock Text="Sprechtempo" Style="{StaticResource Text.Label}" FontWeight="SemiBold" />
+                                    <TextBlock Text="Wie schnell die Stimme spricht." Style="{StaticResource Text.Hint}" />
+                                </StackPanel>
+                                <ComboBox Grid.Column="1" VerticalAlignment="Top" ItemsSource="{Binding TempoChoices}" SelectedItem="{Binding Tempo}"
+                                          AutomationProperties.Name="Sprechtempo" AutomationProperties.AutomationId="TuningTempo" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
                     <!-- Engine -->
                     <Border Style="{StaticResource GroupCard}">
                         <StackPanel>

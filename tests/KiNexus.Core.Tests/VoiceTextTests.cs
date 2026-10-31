@@ -58,6 +58,22 @@ public class SpeechTextTests
     {
         Assert.Equal(expected, SpeechText.IsLikelyHallucination(text));
     }
+
+    [Theory]
+    [InlineData("Ein Compiler übersetzt den Programmcode.", true)]
+    [InlineData("übersetzt den Programmcode, den ein Mensch", true)]
+    [InlineData("Stopp, erklär mir lieber Python.", false)]
+    [InlineData("Halt!", false)]
+    public void Echo_OfTheOwnVoice_IsDetected(string transcript, bool expected)
+    {
+        string[] spoken = ["Ein Compiler übersetzt den Programmcode, den ein Mensch geschrieben hat.", "Er wandelt ihn um."];
+
+        Assert.Equal(expected, SpeechText.LooksLikeEcho(transcript, spoken));
+    }
+
+    [Fact]
+    public void Echo_WithoutSpokenText_IsNeverAnEcho() =>
+        Assert.False(SpeechText.LooksLikeEcho("Ein Compiler übersetzt den Programmcode.", []));
 }
 
 public class SentenceSplitterTests

@@ -40,6 +40,8 @@ public abstract partial class KiEditorTabViewModel : TabViewModel
 
     protected ILogger Logger { get; }
 
+    protected ISettingsService SettingsService => _services.Settings;
+
     public ObservableCollection<KiProfile> Kis { get; }
 
     [ObservableProperty]

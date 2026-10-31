@@ -47,7 +47,7 @@ public sealed partial class SettingsViewModel : ObservableObject
         _logger = logger;
         KiChoices = [new KiChoice("", "Erste in der Liste"), .. KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder).Select(k => new KiChoice(k.Id, $"{k.DisplayName} ({k.EngineLabel})"))];
         _voice = VoiceInstallation.For(paths, paths.Resolve(settings.Current.Paths.Models));
-        VoiceChoices = [.. _voice.Voices().Select(v => new SettingChoice(v, v))];
+        VoiceChoices = [.. _voice.Voices().Select(v => new SettingChoice(v, VoiceInstallation.DisplayName(v)))];
         WhisperChoices = [.. _voice.WhisperModels().Select(m => new SettingChoice(m, WhisperLabel(m)))];
         LoadFrom(settings.Current);
         VoiceSetupHint = _voice.Problem(settings.Current.Voice) ?? "";
@@ -91,6 +91,15 @@ public sealed partial class SettingsViewModel : ObservableObject
         new("F10", "F10"),
     ];
 
+    /// <summary>Sprechtempo (length_scale von Piper). Grösser = ruhiger.</summary>
+    public IReadOnlyList<SettingChoice> TempoChoices { get; } =
+    [
+        new("0.9", "Schneller"),
+        new("1", "Normal"),
+        new("1.1", "Ruhig"),
+        new("1.25", "Langsam"),
+    ];
+
     public IReadOnlyList<SettingChoice> SilenceChoices { get; } =
     [
         new("500", "0.5 Sekunden (schnell, unterbricht dich eher)"),
@@ -105,7 +114,10 @@ public sealed partial class SettingsViewModel : ObservableObject
     [ObservableProperty] private ComputeDevice _speechRecognitionDevice;
     [ObservableProperty] private string _pushToTalkKey = "";
     [ObservableProperty] private string _silenceMs = "";
+    [ObservableProperty] private string _tempo = "";
     [ObservableProperty] private bool _shortSpokenAnswers;
+    [ObservableProperty] private bool _bargeIn;
+    [ObservableProperty] private bool _autoListen;
 
     /// <summary>Was für die Sprache noch fehlt (z.B. "setup-voice.ps1 ausführen"). Leer = alles da.</summary>
     [ObservableProperty]
@@ -246,6 +258,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         PushToTalkKey = PushToTalkKeyChoices.Any(c => c.Value == voice.PushToTalkKey) ? voice.PushToTalkKey : "Space";
         SilenceMs = SilenceChoices.FirstOrDefault(c => c.Value == ToText(voice.SilenceMs))?.Value ?? "800";
         ShortSpokenAnswers = voice.ShortSpokenAnswers;
+        Tempo = TempoChoices.FirstOrDefault(c => c.Value == voice.LengthScale.ToString(CultureInfo.InvariantCulture))?.Value ?? "1";
+        BargeIn = voice.BargeIn;
+        AutoListen = voice.AutoListen;
     }
 
     private void ApplyTo(AppSettings settings)
@@ -271,6 +286,9 @@ public sealed partial class SettingsViewModel : ObservableObject
         settings.Voice.PushToTalkKey = PushToTalkKey;
         settings.Voice.SilenceMs = int.Parse(SilenceMs, CultureInfo.InvariantCulture);
         settings.Voice.ShortSpokenAnswers = ShortSpokenAnswers;
+        settings.Voice.LengthScale = double.Parse(Tempo.Length == 0 ? "1" : Tempo, CultureInfo.InvariantCulture);
+        settings.Voice.BargeIn = BargeIn;
+        settings.Voice.AutoListen = AutoListen;
     }
 
     private void Validate()

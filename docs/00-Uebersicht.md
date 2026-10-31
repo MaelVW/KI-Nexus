@@ -15,7 +15,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | M4 | Gespräch-Stil: Spracherkennung (Whisper), Stimme (Piper), Orb, Mitschrift, Push-to-Talk und Freihändig | ✅ fertig (v1.0.0) |
 | M5 | Alternate Launch: Open WebUI per Knopf starten und stoppen | ✅ fertig (v1.1.0) |
 | M6 | System-Prompt-Tab (Versionen, Test) und Feineinstellungen-Tab (Speicher-Warnung, Draft-Schalter) | ✅ fertig (v1.2.0) |
-| M7–M10 | Gespräch-Feinschliff, Training, Server, Chatraum | offen |
+| M7 | Gespräch-Feinschliff: Modus pro KI und pro Chat, Freihändig startet von selbst, Unterbrechen durch Sprechen, weibliche Stimme | ✅ fertig (v1.3.0) |
+| M8–M10 | Training, Server, Chatraum | offen |
 
 ## Ordner
 
@@ -68,7 +69,7 @@ Beim Start passiert der Reihe nach:
 | Modell entladen | Power-Symbol in der Kopfleiste. Es leuchtet, solange ein Modell geladen ist. |
 | Open WebUI | Weltkugel in der Kopfleiste (Alternate Launch): starten, im Browser öffnen, stoppen, Log. Details: [07-Open-WebUI.md](07-Open-WebUI.md) |
 | Chatten | Chat-Tab, Stil Simpel oder Terminal. Details: [04-Chat-und-Stile.md](04-Chat-und-Stile.md) |
-| Sprechen | Chat-Tab, Stil Gespräch. Einmal `scripts\setup-voice.ps1` ausführen. Details: [05-Sprache.md](05-Sprache.md) |
+| Sprechen | Chat-Tab, Stil Gespräch. Einmal `scripts\setup-voice.ps1` ausführen. Modus, Stimme und Tempo pro KI: Feineinstellungen → Gespräch. Details: [05-Sprache.md](05-Sprache.md) |
 | KIs und Modelle verwalten | Create-Hub-Tab: Übersicht, Neue KI, Importieren, Hugging Face. Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) |
 | Systemprompt ändern, testen, alte Fassung zurückholen | System-Prompt-Tab (`Strg + 4`). Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md#system-prompt-tab) |
 | Temperatur, Kontextlänge, GPU-Layer, Draft … | Feineinstellungen-Tab (`Strg + 2`), mit Speicher-Warnung. Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md#feineinstellungen-tab) |

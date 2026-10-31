@@ -11,6 +11,14 @@ Die Spracherkennung (Whisper) und die Sprachausgabe (Piper) laufen lokal in eine
 - Sprachausgabe: **Piper** mit der Stimme **de_DE-thorsten-high**. Wiedergabe in der App mit NAudio.
 - Unterbrechen per Stimme (Freihändig) kommt in **M7**. In M4 unterbrichst du mit `Esc`, dem Knopf „Unterbrechen“ oder (bei Push-to-Talk) einfach mit der Taste.
 
+## Stand M7
+
+- **Standard-Modus pro KI:** Feineinstellungen → Gespräch → „Gespräch startet mit“: Push-to-Talk oder Freihändig.
+- **Modus pro Chat:** Schaltest du im Gesprächsfenster um, merkt sich die App das für diesen Chat (Spalte `voice_mode` in `chats`). Öffnest du den Chat wieder, gilt sein Modus. Ein Chat ohne eigenen Modus nimmt den der KI.
+- **Freihändig startet von selbst:** Öffnest du den Gespräch-Stil im Modus Freihändig, lädt die App die Sprache und hört gleich zu. Abschaltbar: Zahnrad → Sprache.
+- **Unterbrechen durch Sprechen (Freihändig):** Sprichst du, während die KI denkt oder spricht, hört sie sofort auf, und deine neue Frage wird aufgenommen. Abschaltbar: Zahnrad → Sprache.
+- **Weibliche Stimme:** Ramona (jung) ist jetzt die Standardstimme, im Tempo „Ruhig“. Weitere Stimmen und das Sprechtempo gibt es pro KI. Siehe „Stimmen“ unten.
+
 ## Einrichten (einmal)
 
 ```powershell
@@ -34,6 +42,23 @@ Andere Varianten:
 Deutsche Piper-Stimmen (Stand Oktober 2026): thorsten (low, medium, high), thorsten_emotional, kerstin, ramona, karlsson, pavoque, eva_k, mls.
 Fehlt etwas, zeigen der Gespräch-Stil und die Einstellungen genau den Befehl, der es nachlädt.
 
+## Stimmen
+
+Eingerichtet sind (in `models\voice\piper\`, Hörproben in `models\voice\samples\`):
+
+| Stimme | Name in der Auswahl | Gemessen | Lizenz der Aufnahmen |
+|---|---|---|---|
+| `de_DE-thorsten-high` | Thorsten (männlich, beste Qualität) | 118 Hz, 22 kHz | CC0 |
+| `de_DE-ramona-low` | Ramona (weiblich, jung) | 205 Hz, sauberstes Signal der Frauenstimmen, 16 kHz | M-AILABS (siehe Modellkarte) |
+| `de_DE-kerstin-low` | Kerstin (weiblich, tiefer) | 170 Hz, ruhig, 16 kHz | CC0 |
+| `de_DE-mls-medium#110` | Sprecherin 110 (weiblich, jung, ruhig) | 214 Hz, ruhige Melodie, 22 kHz | CC-BY 4.0 |
+| `de_DE-mls-medium#120` | Sprecherin 120 (weiblich, ruhig) | 204 Hz, 22 kHz | CC-BY 4.0 |
+
+**So wurde ausgesucht** (Wunsch: weiblich, jung, gelassen): Für jede Stimme und alle 236 Sprecher von `de_DE-mls-medium` hat ein Skript denselben Satz erzeugt und gemessen: die mittlere Tonhöhe (jung klingt eher höher, ca. 190–240 Hz), wie stark die Melodie schwankt (gelassen = wenig), das Tempo und wie sauber das Signal ist. Gewonnen hat Ramona. Mit dem Tempo „Ruhig“ (`length_scale` 1.1) spricht sie etwas langsamer. Die zwei MLS-Sprecherinnen sind die ruhigsten und saubersten jungen Frauenstimmen aus `mls`. Hören musst du selbst: Die Messung sagt nichts über den Klang.
+`eva_k` (nur „x_low“, 16 kHz, rauscht) wurde getestet und wieder gelöscht.
+
+**Stimme wählen:** Zahnrad → Sprache → Stimme (für alle KIs) und Sprechtempo. Pro KI: Feineinstellungen → Gespräch → Stimme und Sprechtempo („Wie in den Einstellungen“ = die allgemeine). Eine andere Stimme lädt der Worker ohne Neustart (ca. 1 s, Befehl `voice`). Stimmen mit vielen Sprechern stehen als `<stimme>#<nummer>` in den Einstellungen.
+
 ## Bedienung
 
 | Was | Wie |
@@ -41,7 +66,7 @@ Fehlt etwas, zeigen der Gespräch-Stil und die Einstellungen genau den Befehl, d
 | Starten | Klick auf den Orb oder Push-to-Talk-Taste. Beim ersten Mal lädt die App Whisper und Piper (ca. 8–10 s). |
 | **Push-to-Talk** | Leertaste (oder den Orb mit der Maus) gedrückt halten, sprechen, loslassen. |
 | **Freihändig** | Einfach sprechen. Nach 0.8 s Stille (einstellbar) gilt der Satz als fertig. Klick auf den Orb oder Leertaste: pausieren / weiter. |
-| Unterbrechen | `Esc`, Knopf „Unterbrechen“, oder bei Push-to-Talk die Taste drücken (die KI verstummt, du kannst gleich sprechen). |
+| Unterbrechen | `Esc`, Knopf „Unterbrechen“, bei Push-to-Talk die Taste drücken, oder freihändig einfach dazwischen sprechen (ca. 0.4 s deutliche Sprache). |
 | Freigeben | Power-Symbol „Entladen“ beendet auch den Sprach-Worker (ca. 2 GB RAM). |
 
 Der **Orb** zeigt den Zustand:
@@ -75,9 +100,27 @@ Die **Mitschrift** unter dem Orb ist der normale Chat. Du kannst jederzeit in de
 | `voice.pushToTalkKey` | `Space` | Leertaste, `RightCtrl`, `F8`, `F9`, `F10` |
 | `voice.silenceMs` | `800` | Freihändig: so viel Stille beendet einen Satz (300–3000) |
 | `voice.shortSpokenAnswers` | `true` | Zusatz „Antworte kurz …“ an den Systemprompt |
+| `voice.lengthScale` | `1.0` | Sprechtempo: 0.9 schneller, 1.1 ruhig, 1.25 langsam (gilt für KIs ohne eigenes Tempo) |
+| `voice.bargeIn` | `true` | Freihändig: Dazwischensprechen unterbricht die KI |
+| `voice.autoListen` | `true` | Freihändig: beim Öffnen des Gesprächs gleich zuhören |
 
-Neue Einstellungen gelten ab dem nächsten Start der Sprache (die App beendet den Worker beim Speichern, ein Klick auf den Orb startet ihn neu).
-Pro KI gibt es in `kis/<id>.json` schon `voice.defaultMode` (`pushToTalk` oder `handsFree`). Damit startet der Schalter. Die Oberfläche dafür kommt in M7.
+Mikrofon, Whisper-Modell, Gerät und Sprechpause gelten ab dem nächsten Start der Sprache (die App beendet den Worker beim Speichern, ein Klick auf den Orb startet ihn neu). Stimme und Tempo wechseln ohne Neustart.
+
+Pro KI in `kis/<id>.json`:
+
+| Schlüssel | Bedeutung |
+|---|---|
+| `voice.defaultMode` | `pushToTalk` oder `handsFree`: damit startet ein Chat ohne eigenen Modus |
+| `voice.voice` | eigene Stimme, z.B. `de_DE-ramona-low`. `null` = die aus den Einstellungen |
+| `voice.lengthScale` | eigenes Tempo. `null` = das aus den Einstellungen |
+
+## Unterbrechen durch Sprechen (ab M7)
+
+Im Modus Freihändig schickt die App beim Start jeder Antwort `watch` an den Worker. Er hört dann mit einem strengeren Massstab zu als sonst: Erst wenn die Sprech-Wahrscheinlichkeit von Silero-VAD ca. 0.4 s lang (12 Stücke à 32 ms) über 0.7 liegt, meldet er `barge_in`. Die App stoppt sofort die Antwort und die Stimme. Der Worker nimmt schon auf, deine neue Frage geht also ohne Lücke weiter (die ersten 0.3 s sind im Vorlauf dabei).
+
+**Echo:** Ohne Kopfhörer hört das Mikrofon die KI selbst. Dann würde sie sich selbst unterbrechen. Die App prüft darum die Mitschrift nach einem Unterbrechen: Stammen mindestens 70 % der Wörter aus dem, was die KI gerade gesagt hat, ist es ihr Echo. Die Frage wird verworfen, die App zeigt einen Hinweis und hört weiter zu. Am besten geht Unterbrechen mit Kopfhörern. Mit Lautsprechern kannst du es im Zahnrad ausschalten.
+
+Geprüft: Ein Testskript schickt Stücke einer WAV-Datei durch den Worker (ohne Mikrofon). Sprache löst `barge_in` aus. Stille, Rauschen und ein kurzer Laut (0.13 s) lösen nichts aus. Mit deiner Stimme ist es noch nicht getestet.
 
 ## Messwerte (31.10.2026, Core Ultra 9 275HX, am Netzteil)
 
@@ -136,7 +179,9 @@ App → Worker:
 
 | `type` | Felder | Wirkung |
 |---|---|---|
-| `configure` | `whisperPath`, `voicePath`, `device`, `microphone`, `silenceMs`, `threads` | Modelle laden. Antwort: `ready` |
+| `configure` | `whisperPath`, `voicePath`, `device`, `microphone`, `silenceMs`, `threads`, `speakerId`, `lengthScale` | Modelle laden. Antwort: `ready` |
+| `voice` | `voicePath`, `speakerId`, `lengthScale` | Andere Stimme laden (ca. 1 s). Antwort: `voice_changed` (`sampleRate`, `loadMs`) |
+| `watch` | – | Freihändig während der Antwort: auf Unterbrechen achten. Meldet `barge_in` |
 | `listen` | `mode`: `pushToTalk` oder `handsFree` | Mikrofon öffnen |
 | `stop_listening` | `transcribe` | Mikrofon zu. Push-to-Talk mit `transcribe: true`: erkennen |
 | `pause` / `resume` | – | Freihändig: kurz nicht zuhören / weiter |
@@ -146,14 +191,14 @@ App → Worker:
 | `list_microphones` | – | Antwort: `microphones` |
 | `shutdown` | – | Worker beenden |
 
-Worker → App: `hello`, `ready` (`device`, `sampleRate`, `loadMs`), `listening` (`mode`, `microphone`), `speech_start`, `speech_end`, `transcribing`, `transcript` (`text`, `audioMs`, `tookMs`, `reason`: „zu kurz“ / „zu leise“), `level` (0–1), `audio` (`id`, `pcm`), `speak_done` (`id`, `cancelled`), `stopped`, `microphones`, `error` (`message`, `fatal`).
+Worker → App: `hello`, `ready` (`device`, `sampleRate`, `loadMs`), `listening` (`mode`, `microphone`), `speech_start`, `speech_end`, `transcribing`, `transcript` (`text`, `audioMs`, `tookMs`, `reason`: „zu kurz“ / „zu leise“), `level` (0–1), `audio` (`id`, `pcm`), `speak_done` (`id`, `cancelled`), `stopped`, `barge_in`, `voice_changed`, `microphones`, `error` (`message`, `fatal`).
 
 `python worker.py --list-microphones` gibt nur die Mikrofone aus (für die Einstellungen, ohne Whisper zu laden).
 
 ## Bekannte Grenzen
 
 - **Freihändig hört alle Stimmen im Raum.** Redet jemand anders oder läuft ein Video, antwortet die KI darauf. Getestet: Ein Gespräch im Raum löste mehrere Antworten aus. In solchen Momenten Push-to-Talk nehmen. (Ein Aktivierungswort wäre eine Idee für später.)
-- **Unterbrechen per Stimme** (die KI verstummt, wenn du freihändig dazwischen sprichst) kommt in M7. Dafür braucht es Echo-Unterdrückung, sonst unterbricht sich die KI mit ihrer eigenen Stimme.
+- **Unterbrechen per Stimme** hat keine echte Echo-Unterdrückung. Mit Lautsprechern kann sich die KI selbst unterbrechen. Die Echo-Prüfung fängt das meistens ab, aber die Antwort ist dann trotzdem gestoppt. Mit Kopfhörern gibt es das Problem nicht.
 - **Bluetooth-Kopfhörer als Mikrofon** (JBL Tune 520BT „Hands-Free“) schalten in den Telefon-Modus: Das Mikrofon geht, aber die Musik klingt dann dumpf. Besser: Laptop-Mikrofon oder ein USB-Headset.
 - Whisper turbo braucht auf der CPU ca. 3 s pro Satz. Ist dir das zu langsam: Zahnrad → Sprache → small.
 

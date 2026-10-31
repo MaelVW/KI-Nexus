@@ -35,6 +35,12 @@ public sealed record VoiceSpeakDone(int Id, bool Cancelled) : VoiceEvent;
 
 public sealed record VoiceStopped : VoiceEvent;
 
+/// <summary>Freihändig: Du sprichst, während die KI antwortet. Sie soll aufhören (Unterbrechen).</summary>
+public sealed record VoiceBargeIn : VoiceEvent;
+
+/// <summary>Eine andere Stimme ist geladen (Befehl "voice"). Die Abtastrate kann sich ändern.</summary>
+public sealed record VoiceChanged(int SampleRate, int LoadMs) : VoiceEvent;
+
 public sealed record VoiceMicrophones(IReadOnlyList<string> Items, string? Default) : VoiceEvent;
 
 /// <summary>Ein Fehler. Fatal heisst: Der Worker kann so nicht weiterarbeiten (z.B. Modell fehlt).</summary>
@@ -46,7 +52,10 @@ public sealed record VoiceExited(int ExitCode) : VoiceEvent;
 public sealed record VoiceUnknown(string Type) : VoiceEvent;
 
 /// <summary>Einstellungen für den Worker (Befehl "configure").</summary>
-public sealed record VoiceWorkerOptions(string WhisperPath, string VoicePath, string Device, string? Microphone, int SilenceMs, int Threads = 0);
+/// <param name="SpeakerId">Nur bei Stimmen mit mehreren Sprechern (z.B. de_DE-mls-medium).</param>
+/// <param name="LengthScale">Sprechtempo von Piper: 1 = normal, grösser = ruhiger und langsamer.</param>
+public sealed record VoiceWorkerOptions(string WhisperPath, string VoicePath, string Device, string? Microphone, int SilenceMs, int Threads = 0,
+    int? SpeakerId = null, double? LengthScale = null);
 
 /// <summary>
 /// Übersetzt zwischen der App und dem Sprach-Worker (python/voice/worker.py). JSON Lines: eine Nachricht pro Zeile.
@@ -63,7 +72,21 @@ public static class VoiceProtocol
         ["microphone"] = options.Microphone,
         ["silenceMs"] = options.SilenceMs,
         ["threads"] = options.Threads,
+        ["speakerId"] = options.SpeakerId,
+        ["lengthScale"] = options.LengthScale,
     };
+
+    /// <summary>Andere Stimme laden, ohne den Worker neu zu starten (ca. 1 s).</summary>
+    public static JsonObject ChangeVoice(string voicePath, int? speakerId, double? lengthScale) => new()
+    {
+        ["type"] = "voice",
+        ["voicePath"] = voicePath,
+        ["speakerId"] = speakerId,
+        ["lengthScale"] = lengthScale,
+    };
+
+    /// <summary>Freihändig, während die KI antwortet: zuhören, ob der Mensch sie unterbricht.</summary>
+    public static JsonObject Watch() => Simple("watch");
 
     /// <summary>Mikrofon öffnen. mode: "pushToTalk" (bis stop_listening) oder "handsFree" (VAD erkennt das Ende).</summary>
     public static JsonObject Listen(string mode) => new() { ["type"] = "listen", ["mode"] = mode };
@@ -106,6 +129,8 @@ public static class VoiceProtocol
             "audio" => new VoiceAudio(Int(root, "id"), Convert.FromBase64String(Text(root, "pcm") ?? "")),
             "speak_done" => new VoiceSpeakDone(Int(root, "id"), root.TryGetProperty("cancelled", out var c) && c.ValueKind == JsonValueKind.True),
             "stopped" => new VoiceStopped(),
+            "barge_in" => new VoiceBargeIn(),
+            "voice_changed" => new VoiceChanged(Int(root, "sampleRate", 22050), Int(root, "loadMs")),
             "microphones" => new VoiceMicrophones(
                 root.TryGetProperty("items", out var items) ? items.EnumerateArray().Select(i => i.GetString()).OfType<string>().ToList() : [],
                 Text(root, "default")),

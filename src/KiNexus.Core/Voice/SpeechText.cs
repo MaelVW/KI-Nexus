@@ -65,6 +65,30 @@ public static partial class SpeechText
             || lower.Contains("copyright", StringComparison.Ordinal);
     }
 
+    /// <summary>
+    /// Hat das Mikrofon die KI selbst gehört (Lautsprecher statt Kopfhörer)? Ja, wenn fast alle Wörter der Mitschrift
+    /// in dem vorkommen, was die KI gerade gesagt hat.
+    /// </summary>
+    public static bool LooksLikeEcho(string transcript, IEnumerable<string> spoken)
+    {
+        var heard = Words(transcript);
+        if (heard.Count < 2)
+        {
+            return false;
+        }
+
+        var said = spoken.SelectMany(Words).ToHashSet(StringComparer.Ordinal);
+        return heard.Count(said.Contains) >= heard.Count * 0.7;
+    }
+
+    /// <summary>Wörter ab 3 Buchstaben, klein und ohne Satzzeichen.</summary>
+    private static List<string> Words(string text)
+    {
+        var letters = string.Concat(text.ToLowerInvariant().Replace("ß", "ss", StringComparison.Ordinal)
+            .Select(c => char.IsLetterOrDigit(c) ? c : ' '));
+        return [.. letters.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(word => word.Length >= 3)];
+    }
+
     /// <summary>Überschrift, Zitat, Aufzählung und Tabelle: nur der Inhalt bleibt.</summary>
     private static string CleanLine(string line)
     {

@@ -85,7 +85,14 @@ public sealed class EngineOptions
 
 public sealed class KiVoiceOptions
 {
+    /// <summary>Mit diesem Modus startet das Gespräch, solange ein Chat keinen eigenen hat.</summary>
     public VoiceMode DefaultMode { get; set; } = VoiceMode.PushToTalk;
+
+    /// <summary>Eigene Stimme der KI, z.B. "de_DE-ramona-low". Null = die Stimme aus den Einstellungen.</summary>
+    public string? Voice { get; set; }
+
+    /// <summary>Sprechtempo für Piper: 1 = normal, grösser = ruhiger und langsamer. Null = das Tempo aus den Einstellungen.</summary>
+    public double? LengthScale { get; set; }
 }
 
 public enum VoiceMode
