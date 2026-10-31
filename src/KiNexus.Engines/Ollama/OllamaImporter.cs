@@ -54,6 +54,9 @@ public sealed class OllamaImporter(OllamaModelStore store, ModelLibrary library,
             License = metadata.License,
             IsMoe = metadata.IsMoe,
             SizeBytes = modelLayer.Size + (model.Projector?.Size ?? 0),
+            Temperature = metadata.Temperature,
+            TopP = metadata.TopP,
+            TopK = metadata.TopK,
             ImportedAt = DateTimeOffset.Now,
         };
         ModelLibrary.WriteManifest(folder, manifest);

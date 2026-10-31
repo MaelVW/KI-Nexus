@@ -6,6 +6,31 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [0.4.0] – 2026-10-31 – Meilenstein 3: Create-Hub
+
+### Neu
+
+- **Create-Hub** als Tab mit vier Bereichen: Übersicht, Neue KI, Importieren, Hugging Face.
+- **Übersicht**: Meine KIs, Grundmodelle (Grösse, Quantisierung, Bilder, Lizenz, Herkunft, welche KIs es nutzen) und Ollama-Modelle (nur wenn Ollama läuft). Knöpfe: Chatten, Neue KI daraus, Ladetest, Ordner öffnen, Löschen.
+- **Ampel** pro Modell: passt in VRAM / teils im RAM / zu gross. Ehrlich als Schätzung bezeichnet, die Zahlen stehen im Tooltip (`FitEstimator`).
+- **Assistent „Neue KI“** in 4 Schritten: Grundmodell, Name und Beschreibung, Systemprompt mit Vorlagen (Allgemein, Schule, Programmieren, Kurz und knapp), Parameter (Standard, Genau, Kreativ) mit Kontextlänge und Thinking. Speichert `kis/<id>.json` und bietet einen Test-Chat an.
+- **Löschen** mit Rückfrage: KIs, Grundmodelle (mit Warnung, wenn KIs das Modell nutzen) und Ollama-Modelle (über die Ollama-API, mit Hinweis auf Open WebUI). Geladene Modelle werden vorher entladen.
+- **GGUF-Import** per Drag & Drop oder Datei-Dialog, optional mit `mmproj`. Rückfrage „Kopieren oder verschieben?“, Fortschritt, geteilte Modelle. Aus dem Ollama-Ordner wird nie verschoben.
+- **Aus Ollama übernehmen** im Create-Hub, danach automatisch ein **Ladetest** mit llama.cpp. Schlägt er fehl: Vorschlag, das Modell von Hugging Face zu laden.
+- **Hugging Face**: Suche (nur GGUF, mit Downloads, Likes, Datum, Lizenz, Hinweis „gesperrt“ und „kein Chat-Modell“), Quantisierungen mit Grösse, Ampel und Empfehlung (Q4_K_M), Projektor wählbar.
+- **Download** mit Fortschritt, Tempo und Restzeit, Pause und Fortsetzen (HTTP-Range), SHA-256-Prüfung, Platz-Prüfung, automatischer Wiederholung bei hängender Verbindung. Angefangene Downloads überleben einen Neustart.
+- **Hugging-Face-Token** für gesperrte Modelle, verschlüsselt mit Windows DPAPI (`data/hf-token.bin`).
+- Knopf **„Auf Hugging Face öffnen“** öffnet das Modell im Browser.
+- `model.json` enthält jetzt die Sampling-Empfehlung des Herstellers aus der GGUF-Datei (`temperature`, `topP`, `topK`).
+- 213 Unit-Tests (vorher 159).
+
+### Geändert
+
+- Die KI-Auswahl in der Kopfleiste aktualisiert sich sofort, wenn eine KI dazukommt oder gelöscht wird.
+- Screenreader lesen die Chat-Titel in der Seitenleiste vor (vorher stand dort der Klassenname).
+
+## [0.3.0] – 2026-10-30 – Meilenstein 2: Chat
+
 ## [0.3.0] – 2026-10-30 – Meilenstein 2: Chat
 
 ### Neu

@@ -39,4 +39,5 @@ public static class Glyphs
     public const string Sidebar = "\uE700";
     public const string Lightbulb = "\uEA80";
     public const string Warning = "\uE7BA";
+    public const string Download = "\uE896";
 }

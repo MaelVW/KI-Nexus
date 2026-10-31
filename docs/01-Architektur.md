@@ -48,7 +48,32 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M2)
+## Wichtige Klassen (Stand M3)
+
+### Neu in M3: Create-Hub
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `FitEstimator`, `FitEstimate` | Core | Die Ampel: Passt ein Modell in VRAM, braucht es RAM oder ist es zu gross? Mit Erklärung. |
+| `KiIds` | Core | Macht aus einem Namen eine Id (= Dateiname in `kis/`), z.B. „Schul KI“ → `schul-ki`. |
+| `KiTemplates` | Core | Vorlagen für Systemprompt, Parameter und Kontextlänge im Assistenten. |
+| `KiRegistry` | Core | Neu: `SaveAsync`, `DeleteAsync` und das Ereignis `Changed` (die KI-Auswahl in der Kopfleiste aktualisiert sich). |
+| `ModelImporter` | Core | GGUF-Datei prüfen, kopieren oder verschieben (mit Fortschritt), `model.json` schreiben. Nie aus Ollamas Ordner verschieben. |
+| `ModelLibrary` | Core | Neu: Ordner anlegen, `model.json` aus dem GGUF-Kopf schreiben, Modell löschen (nur innerhalb von `models/`). |
+| `SecretStore` | Core | Speichert den Hugging-Face-Token verschlüsselt mit Windows DPAPI. |
+| `EngineManager.TestLoadAsync` | Core | Ladetest: kurz laden, sofort entladen. |
+| `HuggingFaceClient` | Engines | Suche, Dateiliste und Download bei huggingface.co. Token nur, wenn gespeichert. |
+| `HuggingFaceProtocol` | Engines | Antworten lesen, Dateien nach Quantisierung gruppieren, Empfehlung (Q4_K_M) markieren. |
+| `ModelDownloader`, `DownloadJob` | Engines | Downloads mit Pause/Fortsetzen (HTTP-Range), Hänger-Schutz, SHA-256-Prüfung, Neustart-fest. |
+| `OllamaBackend.DeleteModelAsync` | Engines | Ollama-Modell über die API löschen. |
+| `CreateHubViewModel` | App | Der Tab: Bereiche, Meldungs-Balken, Ladetest, Ampel-Berechnung für alle Bereiche. |
+| `CreateHubOverviewViewModel` | App | Übersicht: KIs, Grundmodelle, Ollama-Modelle, Löschen. |
+| `NewKiWizardViewModel` | App | Assistent „Neue KI“ in 4 Schritten. |
+| `ImportViewModel` | App | GGUF-Import und Übernahme aus Ollama. |
+| `HuggingFaceViewModel`, `DownloadItemViewModel` | App | Suche, Dateien mit Ampel, Downloads, Token. |
+| `ChoiceDialog` | App | Rückfrage mit zwei Wegen (Kopieren / Verschieben). |
+
+Das Hauptfenster gibt dem Create-Hub über `IChatShell.OpenChatWith(ki)` die Möglichkeit, eine KI zu wählen und einen Test-Chat zu öffnen.
 
 ### Neu in M2: Chat
 
@@ -249,6 +274,7 @@ Kapitel 12, Punkt 10 im Bauplan.
 | Microsoft.Data.Sqlite | 10.0.14 (Chat-Datenbank) |
 | Markdig | 1.4.2 (Markdown lesen). 1.5.1 war beim Einbau erst 2 Tage alt, darum die bewährte 1.4er-Reihe. |
 | AvalonEdit | 6.3.1.120 (Codeblöcke mit Syntax-Farben) |
+| System.Security.Cryptography.ProtectedData | 10.0.14 (Hugging-Face-Token mit DPAPI verschlüsseln) |
 | llama.cpp | b11960 = v0.8.0 (CUDA 13.4), siehe [02-Engines.md](02-Engines.md) |
 
 Alle Versionen stehen an einem Ort: `Directory.Packages.props` (Central Package Management).

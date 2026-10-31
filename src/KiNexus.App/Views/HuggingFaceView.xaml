@@ -1,0 +1,221 @@
+<UserControl x:Class="KiNexus.App.Views.HuggingFaceView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:app="clr-namespace:KiNexus.App"
+             xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+             xmlns:conv="clr-namespace:KiNexus.App.Converters"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:HuggingFaceViewModel}">
+
+    <!-- Hugging Face: links Suche und Treffer, rechts die Dateien des gewählten Modells, unten Downloads und Token. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:NullToVisibilityConverter x:Key="NullToVisibility" />
+
+        <Style x:Key="Badge" TargetType="Border">
+            <Setter Property="CornerRadius" Value="10" />
+            <Setter Property="Padding" Value="8,1" />
+            <Setter Property="Margin" Value="8,0,0,0" />
+            <Setter Property="BorderThickness" Value="1" />
+            <Setter Property="VerticalAlignment" Value="Center" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid Margin="24,16,24,16">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" MinHeight="200" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="5*" MinWidth="320" />
+            <ColumnDefinition Width="16" />
+            <ColumnDefinition Width="6*" MinWidth="360" />
+        </Grid.ColumnDefinitions>
+
+        <!-- Suche -->
+        <Grid Grid.Row="0" Grid.ColumnSpan="3" Margin="0,0,0,8">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*" />
+                <ColumnDefinition Width="Auto" />
+                <ColumnDefinition Width="Auto" />
+            </Grid.ColumnDefinitions>
+            <TextBox x:Name="QueryBox" Text="{Binding Query, UpdateSourceTrigger=PropertyChanged}" KeyDown="OnQueryKeyDown"
+                     AutomationProperties.Name="Suchbegriff für Hugging Face" AutomationProperties.AutomationId="HfQuery" />
+            <Button Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource Button.Primary}" Command="{Binding SearchCommand}"
+                    AutomationProperties.AutomationId="HfSearch">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Search}" />
+                    <TextBlock Text="Suchen" Margin="8,0,0,0" />
+                </StackPanel>
+            </Button>
+            <Button Grid.Column="2" Margin="8,0,0,0" Command="{Binding OpenOnHuggingFaceCommand}" AutomationProperties.AutomationId="HfOpenWeb"
+                    ToolTip="Öffnet den Browser. Eine heruntergeladene GGUF-Datei kannst du danach in die App ziehen.">
+                <StackPanel Orientation="Horizontal">
+                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Launch}" />
+                    <TextBlock Text="Auf Hugging Face öffnen" Margin="8,0,0,0" />
+                </StackPanel>
+            </Button>
+        </Grid>
+
+        <!-- Treffer -->
+        <DockPanel Grid.Row="1" Grid.Column="0">
+            <TextBlock DockPanel.Dock="Top" Text="{Binding SearchInfo}" Style="{StaticResource Text.Hint}" Margin="0,0,0,8"
+                       AutomationProperties.AutomationId="HfSearchInfo" AutomationProperties.LiveSetting="Polite" />
+            <ListBox ItemsSource="{Binding Results}" SelectedItem="{Binding SelectedResult}" Style="{StaticResource ListBox.Plain}"
+                     ItemContainerStyle="{StaticResource ListBoxItem.Card}" AutomationProperties.Name="Suchergebnisse"
+                     AutomationProperties.AutomationId="HfResults">
+                <ListBox.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:HfResultRow}">
+                        <StackPanel AutomationProperties.Name="{Binding Model.Id}">
+                            <StackPanel Orientation="Horizontal">
+                                <TextBlock Text="{Binding Name}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                <Border Style="{StaticResource Badge}" BorderBrush="{StaticResource Brush.Warning}"
+                                        Visibility="{Binding IsGated, Converter={StaticResource BoolToVisibility}}" ToolTip="Gesperrt: braucht Bedingungen + Token">
+                                    <TextBlock Text="gesperrt" Foreground="{StaticResource Brush.Warning}" FontSize="{StaticResource FontSize.Small}" />
+                                </Border>
+                                <Border Style="{StaticResource Badge}" BorderBrush="{StaticResource Brush.Border}"
+                                        Visibility="{Binding IsNotChat, Converter={StaticResource BoolToVisibility}}"
+                                        ToolTip="{Binding Model.PipelineTag, StringFormat='Art: {0}. Zum Chatten nicht geeignet.'}">
+                                    <TextBlock Text="kein Chat-Modell" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
+                                </Border>
+                            </StackPanel>
+                            <TextBlock Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" TextTrimming="CharacterEllipsis">
+                                <Run Text="{Binding Author, Mode=OneWay}" /><Run Text=" · " /><Run Text="{Binding DownloadsText, Mode=OneWay}" /><Run Text=" Downloads · " /><Run Text="{Binding LikesText, Mode=OneWay}" /><Run Text=" Likes · " /><Run Text="{Binding DateText, Mode=OneWay}" />
+                            </TextBlock>
+                            <TextBlock Text="{Binding LicenseText}" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
+                        </StackPanel>
+                    </DataTemplate>
+                </ListBox.ItemTemplate>
+            </ListBox>
+        </DockPanel>
+
+        <!-- Dateien des gewählten Modells -->
+        <Border Grid.Row="1" Grid.Column="2" Style="{StaticResource Card}" Padding="16">
+            <DockPanel>
+                <TextBlock DockPanel.Dock="Top" Style="{StaticResource Text.SectionTitle}" Margin="0,0,0,6" TextTrimming="CharacterEllipsis"
+                           Text="{Binding SelectedResult.Model.Id, FallbackValue='Kein Modell gewählt', TargetNullValue='Kein Modell gewählt'}" />
+                <TextBlock DockPanel.Dock="Top" Text="Lade die Dateiliste …" Style="{StaticResource Text.Muted}"
+                           Visibility="{Binding IsLoadingFiles, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock DockPanel.Dock="Top" Text="{Binding FilesInfo}" Style="{StaticResource Text.Hint}" Margin="0,0,0,10"
+                           AutomationProperties.AutomationId="HfFilesInfo" />
+                <CheckBox DockPanel.Dock="Bottom" Margin="0,10,0,0" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding IncludeProjector}"
+                          Visibility="{Binding HasProjector, Converter={StaticResource BoolToVisibility}}" AutomationProperties.Name="Bild-Projektor mitladen">
+                    <TextBlock Text="{Binding ProjectorText}" TextWrapping="Wrap" />
+                </CheckBox>
+                <ItemsControl ItemsSource="{Binding Options}" Focusable="False" AutomationProperties.Name="Quantisierungen">
+                    <ItemsControl.Template>
+                        <ControlTemplate TargetType="ItemsControl">
+                            <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+                                <ItemsPresenter />
+                            </ScrollViewer>
+                        </ControlTemplate>
+                    </ItemsControl.Template>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate DataType="{x:Type vm:HfOptionRow}">
+                            <Grid Margin="0,0,6,8" AutomationProperties.Name="{Binding Label}">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="80" />
+                                    <ColumnDefinition Width="160" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Label}" FontFamily="{StaticResource Font.Mono}" FontWeight="SemiBold" />
+                                    <Border Style="{StaticResource Badge}" BorderBrush="{DynamicResource Brush.AccentDim}" Background="{DynamicResource Brush.AccentSoft}"
+                                            Visibility="{Binding IsRecommended, Converter={StaticResource BoolToVisibility}}">
+                                        <TextBlock Text="Empfohlen" Foreground="{DynamicResource Brush.Accent}" FontSize="{StaticResource FontSize.Small}" />
+                                    </Border>
+                                    <TextBlock Text="{Binding PartsText}" Style="{StaticResource Text.Muted}" Margin="8,0,0,0" FontSize="{StaticResource FontSize.Small}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding SizeText}" VerticalAlignment="Center" />
+                                <ContentControl Grid.Column="2" Content="{Binding Fit}" Focusable="False" VerticalAlignment="Center" />
+                                <Button Grid.Column="3" Command="{Binding DataContext.DownloadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}" AutomationProperties.Name="{Binding Label, StringFormat='{}{0} herunterladen'}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Download}" />
+                                        <TextBlock Text="Laden" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </DockPanel>
+        </Border>
+
+        <!-- Downloads -->
+        <StackPanel Grid.Row="2" Grid.ColumnSpan="3" Margin="0,14,0,0" Visibility="{Binding HasDownloads, Converter={StaticResource BoolToVisibility}}">
+            <TextBlock Text="Downloads" Style="{StaticResource Text.SectionTitle}" Margin="0,0,0,8" />
+            <ItemsControl ItemsSource="{Binding Downloads}" Focusable="False" AutomationProperties.Name="Downloads">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:DownloadItemViewModel}">
+                        <Border Background="{StaticResource Brush.Surface}" CornerRadius="{StaticResource Radius.Normal}" Padding="16,10" Margin="0,0,0,8"
+                                AutomationProperties.Name="{Binding Title}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <DockPanel>
+                                        <TextBlock DockPanel.Dock="Right" Text="{Binding StateText}" Margin="12,0,0,0" AutomationProperties.AutomationId="DownloadState">
+                                            <TextBlock.Style>
+                                                <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Muted}">
+                                                    <Style.Triggers>
+                                                        <DataTrigger Binding="{Binding IsError}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource Brush.Error}" />
+                                                        </DataTrigger>
+                                                        <DataTrigger Binding="{Binding IsCompleted}" Value="True">
+                                                            <Setter Property="Foreground" Value="{StaticResource Brush.Success}" />
+                                                        </DataTrigger>
+                                                    </Style.Triggers>
+                                                </Style>
+                                            </TextBlock.Style>
+                                        </TextBlock>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                    <ProgressBar Value="{Binding Fraction, Mode=OneWay}" Margin="0,8,0,6" AutomationProperties.Name="Download-Fortschritt" />
+                                    <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" TextWrapping="Wrap"
+                                               AutomationProperties.AutomationId="DownloadProgress" />
+                                </StackPanel>
+                                <StackPanel Grid.Column="1" Orientation="Horizontal" Margin="16,0,0,0" VerticalAlignment="Center">
+                                    <Button Content="Pause" Command="{Binding PauseCommand}" Margin="0,0,8,0" />
+                                    <Button Content="Fortsetzen" Command="{Binding ResumeCommand}" Margin="0,0,8,0" />
+                                    <Button Content="Abbrechen" Command="{Binding CancelCommand}" Margin="0,0,8,0" />
+                                    <Button Content="Neue KI daraus" Style="{StaticResource Button.Primary}" Command="{Binding CreateKiCommand}" Margin="0,0,8,0"
+                                            Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="DownloadCreateKi" />
+                                    <Button Style="{StaticResource Button.Icon}" Content="{x:Static app:Glyphs.Close}" Command="{Binding DismissCommand}"
+                                            ToolTip="Aus der Liste entfernen" AutomationProperties.Name="Aus der Liste entfernen"
+                                            Visibility="{Binding IsCompleted, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+
+        <!-- Token für gesperrte Modelle -->
+        <Border Grid.Row="3" Grid.ColumnSpan="3" Margin="0,10,0,0" Style="{StaticResource Card}" Padding="16,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="260" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="*" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="Hugging-Face-Token" Style="{StaticResource Text.Label}" Margin="0,0,12,0" />
+                <PasswordBox Grid.Column="1" x:Name="TokenBox" AutomationProperties.Name="Hugging-Face-Token" />
+                <Button Grid.Column="2" Content="Speichern" Margin="8,0,0,0" Click="OnSaveTokenClick" />
+                <Button Grid.Column="3" Content="Löschen" Margin="8,0,0,0" Command="{Binding DeleteTokenCommand}"
+                        Visibility="{Binding HasToken, Converter={StaticResource BoolToVisibility}}" />
+                <TextBlock Grid.Column="4" Text="{Binding TokenStatus}" Style="{StaticResource Text.Hint}" Margin="12,0,0,0" VerticalAlignment="Center" />
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

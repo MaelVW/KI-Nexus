@@ -1,0 +1,93 @@
+<UserControl x:Class="KiNexus.App.Views.ImportView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:app="clr-namespace:KiNexus.App"
+             xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:ImportViewModel}">
+
+    <!-- Importieren: GGUF-Datei (Drag & Drop oder Datei-Dialog) und Ollama-Modelle per Hardlink. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+    </UserControl.Resources>
+
+    <ScrollViewer VerticalScrollBarVisibility="Auto" Padding="24,16,18,24">
+        <StackPanel Margin="0,0,6,0" MaxWidth="1000">
+
+            <!-- GGUF-Datei -->
+            <TextBlock Text="GGUF-Datei" Style="{StaticResource Text.SectionTitle}" />
+            <Border CornerRadius="{StaticResource Radius.Normal}" BorderThickness="1.5" Padding="24" Background="{StaticResource Brush.Surface}">
+                <Border.BorderBrush>
+                    <VisualBrush>
+                        <VisualBrush.Visual>
+                            <Rectangle StrokeDashArray="4 3" Stroke="{DynamicResource Brush.AccentDim}" StrokeThickness="1.5"
+                                       Width="{Binding ActualWidth, RelativeSource={RelativeSource AncestorType=Border}}"
+                                       Height="{Binding ActualHeight, RelativeSource={RelativeSource AncestorType=Border}}" RadiusX="8" RadiusY="8" />
+                        </VisualBrush.Visual>
+                    </VisualBrush>
+                </Border.BorderBrush>
+                <StackPanel HorizontalAlignment="Center">
+                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="28" Text="{x:Static app:Glyphs.Folder}" Foreground="{DynamicResource Brush.Accent}" />
+                    <TextBlock Margin="0,12,0,0" HorizontalAlignment="Center" FontWeight="SemiBold"
+                               Text="GGUF-Datei hierher ziehen (optional mit der mmproj-Datei für Bilder)" />
+                    <TextBlock Margin="0,6,0,0" HorizontalAlignment="Center" Style="{StaticResource Text.Muted}" TextWrapping="Wrap" TextAlignment="Center"
+                               Text="Danach fragt die App: kopieren oder verschieben? Bei geteilten Modellen (…-00001-of-00003) reicht der erste Teil." />
+                    <Button Margin="0,16,0,0" HorizontalAlignment="Center" Command="{Binding PickFilesCommand}" AutomationProperties.AutomationId="ImportPickFiles">
+                        <StackPanel Orientation="Horizontal">
+                            <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Folder}" />
+                            <TextBlock Text="Datei wählen …" Margin="8,0,0,0" />
+                        </StackPanel>
+                    </Button>
+                </StackPanel>
+            </Border>
+
+            <!-- Fortschritt -->
+            <StackPanel Margin="0,12,0,0" Visibility="{Binding IsImporting, Converter={StaticResource BoolToVisibility}}">
+                <TextBlock Text="{Binding ProgressText}" Margin="0,0,0,6" AutomationProperties.AutomationId="ImportProgressText" />
+                <ProgressBar Value="{Binding Progress}" AutomationProperties.Name="Fortschritt des Imports" />
+            </StackPanel>
+
+            <!-- Aus Ollama -->
+            <TextBlock Text="Aus Ollama übernehmen" Style="{StaticResource Text.SectionTitle}" Margin="0,28,0,6" />
+            <TextBlock Text="{Binding OllamaHint}" Style="{StaticResource Text.Hint}" Margin="0,0,0,10" />
+            <ItemsControl ItemsSource="{Binding OllamaModels}" Focusable="False" AutomationProperties.Name="Ollama-Modelle zum Übernehmen">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate DataType="{x:Type vm:OllamaImportRow}">
+                        <Border Background="{StaticResource Brush.Surface}" CornerRadius="{StaticResource Radius.Normal}" Padding="16,12" Margin="0,0,0,8"
+                                AutomationProperties.Name="{Binding Name}">
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="90" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center">
+                                    <TextBlock Text="{Binding Name}" FontWeight="SemiBold" />
+                                    <TextBlock Text="schon in models/ übernommen" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}"
+                                               Visibility="{Binding IsImported, Converter={StaticResource BoolToVisibility}}" />
+                                </StackPanel>
+                                <TextBlock Grid.Column="1" Text="{Binding SizeText}" VerticalAlignment="Center" />
+                                <TextBlock Grid.Column="2" Text="{Binding ImagesText, StringFormat='Bilder: {0}'}" Style="{StaticResource Text.Muted}" VerticalAlignment="Center" />
+                                <StackPanel Grid.Column="3" Orientation="Horizontal">
+                                    <Button Margin="8,0,0,0" ToolTip="Falls llama.cpp das Ollama-Modell nicht laden kann."
+                                            Command="{Binding DataContext.SearchOnHuggingFaceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='{}{0} auf Hugging Face suchen'}">
+                                        <TextBlock Text="Auf Hugging Face suchen" />
+                                    </Button>
+                                    <Button Margin="8,0,0,0"
+                                            Command="{Binding DataContext.ImportFromOllamaCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='{}{0} übernehmen'}">
+                                        <TextBlock Text="Übernehmen + Ladetest" />
+                                    </Button>
+                                </StackPanel>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </StackPanel>
+    </ScrollViewer>
+</UserControl>

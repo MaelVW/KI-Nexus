@@ -6,6 +6,13 @@ using Microsoft.Win32;
 
 namespace KiNexus.App.Services;
 
+/// <summary>Import einer Datei: kopieren (Original bleibt) oder verschieben (spart Platz).</summary>
+public enum ImportMode
+{
+    Copy,
+    Move,
+}
+
 /// <summary>Öffnet Dialoge. So brauchen ViewModels keine Fenster zu kennen.</summary>
 public interface IDialogService
 {
@@ -19,6 +26,12 @@ public interface IDialogService
 
     /// <summary>Fragt nach, z.B. vor dem Löschen. True = bestätigt.</summary>
     bool Confirm(string title, string message, string confirmText);
+
+    /// <summary>Lässt GGUF-Dateien wählen (Modell und optional mmproj). Leer, wenn abgebrochen.</summary>
+    IReadOnlyList<string> PickGgufFiles();
+
+    /// <summary>Fragt beim Import: kopieren oder verschieben? Null = abgebrochen.</summary>
+    ImportMode? AskCopyOrMove(string fileName, string sizeText);
 }
 
 public sealed class DialogService(IServiceProvider services) : IDialogService
@@ -57,5 +70,31 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
     {
         var dialog = new ConfirmDialog(title, message, confirmText) { Owner = Application.Current.MainWindow };
         return dialog.ShowDialog() == true;
+    }
+
+    public IReadOnlyList<string> PickGgufFiles()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "GGUF-Modell importieren (optional mit mmproj-Datei)",
+            Filter = "GGUF-Modelle (*.gguf)|*.gguf",
+            Multiselect = true,
+        };
+        return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileNames : [];
+    }
+
+    public ImportMode? AskCopyOrMove(string fileName, string sizeText)
+    {
+        var dialog = new ChoiceDialog(
+            "Kopieren oder verschieben?",
+            $"{fileName} ({sizeText}) kommt in den Ordner models/.\n\n"
+            + "Kopieren: Das Original bleibt, braucht aber doppelt Platz.\n"
+            + "Verschieben: Die Datei zieht um und ist danach nur noch in models/. Spart Platz.",
+            primaryText: "Kopieren",
+            secondaryText: "Verschieben")
+        {
+            Owner = Application.Current.MainWindow,
+        };
+        return dialog.ShowDialog() == true ? (dialog.ChoseSecondary ? ImportMode.Move : ImportMode.Copy) : null;
     }
 }

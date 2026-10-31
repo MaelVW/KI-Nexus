@@ -24,6 +24,9 @@ public sealed partial class ChatListItem(ChatRecord chat) : ObservableObject
 
     public string Title => Chat.Title;
 
+    /// <summary>Für Screenreader: Die Chat-Liste liest den Titel vor (statt des Klassennamens).</summary>
+    public override string ToString() => Title;
+
     /// <summary>"14:03" für heute, "Gestern", sonst das Datum.</summary>
     public string DateText
     {

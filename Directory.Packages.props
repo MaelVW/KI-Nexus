@@ -16,6 +16,8 @@
   <ItemGroup Label="Core und Engines">
     <PackageVersion Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.14" />
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
+    <!-- Windows DPAPI: Hugging-Face-Token verschlüsselt speichern. -->
+    <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
   </ItemGroup>
 
   <ItemGroup Label="Chat-Anzeige">

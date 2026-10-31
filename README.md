@@ -3,12 +3,14 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 0.3.0 (Meilenstein 2 – Chat).**
-> Chatten im Simpel- und im Terminal-Stil, mit Seitenleiste, Bildern, Markdown und Code-Farben. Die eigene Engine (llama.cpp) und Ollama laufen. Der Gespräch-Stil (Sprache) kommt in Meilenstein 4.
+> **Stand: Version 0.4.0 (Meilenstein 3 – Create-Hub).**
+> Chatten im Simpel- und im Terminal-Stil, mit Seitenleiste, Bildern, Markdown und Code-Farben. Im Create-Hub erstellst und löschst du KIs, importierst GGUF-Dateien und Ollama-Modelle und lädst Modelle von Hugging Face. Die eigene Engine (llama.cpp) und Ollama laufen. Der Gespräch-Stil (Sprache) kommt in Meilenstein 4.
 
 ![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
 
 ![Terminal-Stil von KI-Nexus](docs/bilder/terminal-m2.png)
+
+![Create-Hub mit Ampel](docs/bilder/create-hub-m3.png)
 
 ## Starten
 
@@ -17,6 +19,7 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 3. Beim ersten Mal baut das Skript die App. Das dauert etwa eine halbe Minute.
 4. Das Fenster vom Skript schliesst sich von selbst, und KI-Nexus öffnet sich.
 5. Fehlt einer KI die Modell-Datei, bietet ein Hinweis über dem Chat „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
+6. Neue Modelle und KIs: Tab **Create-Hub** (`Strg + 5`).
 
 ## Voraussetzungen
 

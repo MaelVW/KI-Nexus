@@ -158,6 +158,41 @@ public sealed class OllamaBackend : IInferenceBackend, IDisposable
         }
     }
 
+    /// <summary>
+    /// Löscht ein Modell über die Ollama-API (DELETE /api/delete). Ollama räumt seine Dateien selbst auf,
+    /// die App fasst sie nicht an. Ein Hardlink in models/ behält seine Daten.
+    /// </summary>
+    public async Task DeleteModelAsync(string model, CancellationToken ct)
+    {
+        if (_loadedModel is not null && string.Equals(_loadedModel, model, StringComparison.OrdinalIgnoreCase))
+        {
+            await UnloadAsync(ct).ConfigureAwait(false);
+        }
+
+        using var message = new HttpRequestMessage(HttpMethod.Delete, "api/delete") { Content = JsonContent.Create(OllamaProtocol.BuildDeleteRequest(model)) };
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(message, ct).ConfigureAwait(false);
+        }
+        catch (HttpRequestException ex)
+        {
+            throw new InferenceException("Ollama ist nicht erreichbar. Läuft die Ollama-App?", ex);
+        }
+
+        using (response)
+        {
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadAsStringAsync(ct).ConfigureAwait(false);
+                throw new InferenceException($"Ollama konnte {model} nicht löschen ({(int)response.StatusCode}): {error}");
+            }
+        }
+
+        _visionCache.TryRemove(model, out _);
+        _logger.LogInformation("Ollama-Modell {Model} über die API gelöscht.", model);
+    }
+
     public void Dispose() => _http.Dispose();
 
     /// <summary>Lektion 1: kurze, unsichtbare Anfrage nach dem Laden.</summary>

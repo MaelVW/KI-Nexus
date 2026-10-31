@@ -16,4 +16,7 @@ public interface IChatShell
     void SetStyle(ChatStyle style);
 
     Task UnloadAsync();
+
+    /// <summary>Wählt die KI, wechselt in den Chat-Tab und beginnt einen neuen Chat (z.B. Test-Chat nach "Neue KI").</summary>
+    void OpenChatWith(KiProfile ki);
 }

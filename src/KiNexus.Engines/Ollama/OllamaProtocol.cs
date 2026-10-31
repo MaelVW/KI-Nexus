@@ -67,6 +67,9 @@ public static class OllamaProtocol
         return new OllamaStreamEvent(text, thinking, isDone, isDone ? ParseStats(root) : null);
     }
 
+    /// <summary>Anfrage an DELETE /api/delete.</summary>
+    public static JsonObject BuildDeleteRequest(string model) => new() { ["model"] = model };
+
     /// <summary>Anfrage an /api/show: Darin steht unter "capabilities", ob das Modell Bilder versteht ("vision").</summary>
     public static JsonObject BuildShowRequest(string model) => new() { ["model"] = model };
 

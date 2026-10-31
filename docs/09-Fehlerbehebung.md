@@ -46,7 +46,7 @@ dotnet test --solution KI-Nexus.sln
 | Anzeichen | Ursache | Lösung |
 |---|---|---|
 | „llama.cpp ist nicht eingerichtet“ | `engines\llama.cpp` fehlt | `.\scripts\setup-engines.ps1` ausführen (oder `Start-KI-Nexus.bat`, es fragt nach) |
-| „Die Modell-Datei fehlt“ | Modell noch nicht in `models\` | Im Test-Feld „Aus Ollama übernehmen“ klicken. Ohne Ollama: ab M3 über den Create-Hub |
+| „Die Modell-Datei fehlt“ | Modell noch nicht in `models\` oder gelöscht | Im Hinweis über dem Chat „Aus Ollama übernehmen“ klicken. Oder im Create-Hub importieren bzw. von Hugging Face laden |
 | „Ollama läuft nicht“ | Ollama-App nicht gestartet | Ollama-App starten. llama.cpp-KIs gehen auch ohne Ollama |
 | „Port 8090 ist schon belegt“ | Ein anderer llama-server läuft noch | Im Task-Manager `llama-server.exe` beenden oder im Zahnrad einen anderen Port wählen |
 | „llama-server ist beim Laden abgestürzt“ | z.B. zu wenig Speicher oder kaputte Datei | Die letzte Meldung steht in der Fehlermeldung. Alles steht in `data\logs\llama-server.log` |
@@ -67,6 +67,22 @@ Das Log von llama-server (`data\logs\llama-server.log`) wird bei jedem Laden neu
 | „chats.db hat Version X, diese App kennt nur bis Y“ | Die Datenbank kommt von einer neueren App-Version | App aktualisieren (`git pull`). Die Datei nicht von Hand ändern. |
 
 Alle Chats stehen in `data\chats.db`. Zum Sichern genügt es, diese Datei und den Ordner `data\attachments\` zu kopieren (App vorher schliessen).
+
+## Create-Hub
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „Ladetest fehlgeschlagen“ nach „Aus Ollama übernehmen“ | Ollama nutzt manchmal eigene Formate, die llama.cpp nicht kennt | Knopf „Auf Hugging Face suchen“: dasselbe Modell als GGUF laden. Die KI über Ollama geht weiterhin |
+| „Kein Zugriff. Das Modell ist gesperrt (gated)“ | Das Modell braucht eine Zustimmung und einen Token | Auf huggingface.co die Bedingungen akzeptieren, einen Lese-Token erstellen und im Create-Hub speichern |
+| Suche geht plötzlich nicht mehr („Kein Zugriff“) | Ein ungültiger oder abgelaufener Token ist gespeichert | Token löschen oder einen neuen speichern |
+| „Hugging Face ist nicht erreichbar“ | Kein Internet | Verbindung prüfen. Angefangene Downloads mit „Fortsetzen“ weiterladen |
+| Download zeigt lange „Verbinde …“ oder bleibt stehen | Der Download-Server antwortet langsam oder die Verbindung hängt | Die App versucht es nach 30 s ohne Daten selbst nochmals (bis 5 Mal). Sonst „Pause“ und „Fortsetzen“ |
+| „Die Prüfsumme stimmt nicht“ | Datei beim Herunterladen beschädigt | Die App hat die Datei gelöscht. Nochmals herunterladen |
+| „Zu wenig Speicherplatz“ | Nach dem Download wären weniger als 2 GB frei | Platz schaffen, z.B. ein ungenutztes Grundmodell löschen |
+| „Aus dem Ollama-Ordner wird nie verschoben“ | Du hast eine Datei aus `.ollama` importiert und „Verschieben“ gewählt | „Kopieren“ wählen oder unter „Aus Ollama übernehmen“ (Hardlink, braucht keinen Platz) |
+| „Das ist nur ein Bild-Projektor (mmproj)“ | Nur die mmproj-Datei wurde hineingezogen | Modell-Datei und mmproj zusammen hineinziehen |
+| Grundmodell löschen gibt keinen Platz frei | Das Modell ist ein Hardlink auf Ollama | Normal: Die Daten gehören auch Ollama. Platz wird erst frei, wenn auch Ollama das Modell löscht |
+| Angefangene Downloads tauchen nach dem Neustart wieder auf | Gewollt: Sie stehen pausiert in der Liste | „Fortsetzen“ oder „Abbrechen“ (löscht die halbe Datei in `models\.downloads\`) |
 
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 

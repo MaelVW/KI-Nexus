@@ -21,6 +21,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
 
     private readonly ISettingsService _settings;
     private readonly IDialogService _dialogs;
+    private readonly IKiRegistry _kis;
     private readonly EngineManager _engines;
     private readonly IResourceMonitor _resources;
     private readonly ILogger<MainViewModel> _logger;
@@ -35,10 +36,12 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         IResourceMonitor resources,
         ChatSessionViewModel session,
         ChatListViewModel chatList,
+        CreateHubViewModel createHub,
         ILogger<MainViewModel> logger)
     {
         _settings = settings;
         _dialogs = dialogs;
+        _kis = kis;
         _engines = engines;
         _resources = resources;
         _logger = logger;
@@ -54,10 +57,14 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
                 "Eigene KIs mit LoRA nachtrainieren. Mit 8 GB VRAM geht das für kleine Modelle bis ca. 4B Parameter."),
             new PlaceholderTabViewModel("systemPrompt", "System-Prompt", Glyphs.Edit, 6,
                 "Den Systemprompt deiner KIs bearbeiten, testen und alte Fassungen wiederherstellen."),
-            new PlaceholderTabViewModel("createHub", "Create-Hub", Glyphs.Library, 3,
-                "KIs erstellen und löschen, Modelle importieren (GGUF, Ollama) und auf Hugging Face suchen."),
+            createHub,
         ];
+        createHub.Shell = this;
         _selectedTab = Tabs.FirstOrDefault(tab => tab.Id == settings.Current.Window.LastTab) ?? Chat;
+        if (_selectedTab == createHub)
+        {
+            _ = createHub.RefreshPageAsync();
+        }
 
         Kis = new ObservableCollection<KiProfile>(KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder));
         SelectedKi = kis.Find(settings.Current.DefaultKiId) ?? Kis.FirstOrDefault();
@@ -70,6 +77,9 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
                 SelectedKi = chatKi;
             }
         };
+
+        // Neue oder gelöschte KIs (Create-Hub) sofort in der Auswahl zeigen.
+        kis.Changed += (_, _) => _ui.Post(_ => RefreshKis(), null);
 
         _engines.StateChanged += (_, _) => _ui.Post(_ => UpdateEngineState(), null);
         UpdateEngineState();
@@ -108,6 +118,40 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     partial void OnSelectedKiChanged(KiProfile? value) => Chat.Session.Ki = value;
 
     public void SetStyle(ChatStyle style) => Chat.Style = style;
+
+    public void OpenChatWith(KiProfile ki)
+    {
+        SelectedKi = Kis.FirstOrDefault(k => k.Id == ki.Id) ?? SelectedKi;
+        SelectedTab = Chat;
+        if (!Chat.Session.IsBusy)
+        {
+            Chat.Session.StartNewChat();
+        }
+    }
+
+    /// <summary>Liste neu aufbauen. Die gewählte KI bleibt gewählt, wenn es sie noch gibt.</summary>
+    private void RefreshKis()
+    {
+        var selectedId = SelectedKi?.Id;
+        var sorted = KiRegistry.SortForDisplay(_kis.All, _settings.Current.EngineOrder);
+        Kis.Clear();
+        foreach (var ki in sorted)
+        {
+            Kis.Add(ki);
+        }
+
+        SelectedKi = Kis.FirstOrDefault(k => k.Id == selectedId)
+            ?? Kis.FirstOrDefault(k => k.Id == _settings.Current.DefaultKiId)
+            ?? Kis.FirstOrDefault();
+    }
+
+    partial void OnSelectedTabChanged(TabViewModel value)
+    {
+        if (value is CreateHubViewModel hub)
+        {
+            _ = hub.RefreshPageAsync();
+        }
+    }
 
     // ----------------------------------------------------------- Ressourcen
 

@@ -1,0 +1,117 @@
+<UserControl x:Class="KiNexus.App.Views.CreateHubView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:app="clr-namespace:KiNexus.App"
+             xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+             xmlns:views="clr-namespace:KiNexus.App.Views"
+             xmlns:conv="clr-namespace:KiNexus.App.Converters"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:CreateHubViewModel}"
+             AllowDrop="True" DragOver="OnDragOver" Drop="OnDrop">
+
+    <!-- Create-Hub: oben die vier Bereiche, darunter Meldungen und der gewählte Bereich. GGUF-Dateien kann man überall hinziehen. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:EnumEqualsConverter x:Key="EnumEquals" />
+
+        <DataTemplate DataType="{x:Type vm:CreateHubOverviewViewModel}">
+            <views:CreateHubOverviewView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:NewKiWizardViewModel}">
+            <views:NewKiWizardView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:ImportViewModel}">
+            <views:ImportView />
+        </DataTemplate>
+        <DataTemplate DataType="{x:Type vm:HuggingFaceViewModel}">
+            <views:HuggingFaceView />
+        </DataTemplate>
+    </UserControl.Resources>
+
+    <Grid Background="Transparent">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="Auto" />
+            <RowDefinition Height="*" />
+        </Grid.RowDefinitions>
+
+        <!-- Bereiche -->
+        <Border Grid.Row="0" Style="{StaticResource SegmentHost}" Margin="24,16,24,0" HorizontalAlignment="Left">
+            <StackPanel Orientation="Horizontal">
+                <RadioButton Style="{StaticResource SegmentButton}" GroupName="hubSection" AutomationProperties.AutomationId="HubOverview"
+                             IsChecked="{Binding Section, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:CreateHubSection.Overview}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Library}" />
+                        <TextBlock Text="Übersicht" Margin="8,0,0,0" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton Style="{StaticResource SegmentButton}" GroupName="hubSection" AutomationProperties.AutomationId="HubNewKi"
+                             IsChecked="{Binding Section, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:CreateHubSection.NewKi}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Add}" />
+                        <TextBlock Text="Neue KI" Margin="8,0,0,0" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton Style="{StaticResource SegmentButton}" GroupName="hubSection" AutomationProperties.AutomationId="HubImport"
+                             IsChecked="{Binding Section, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:CreateHubSection.Import}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Folder}" />
+                        <TextBlock Text="Importieren" Margin="8,0,0,0" />
+                    </StackPanel>
+                </RadioButton>
+                <RadioButton Style="{StaticResource SegmentButton}" GroupName="hubSection" AutomationProperties.AutomationId="HubHuggingFace"
+                             IsChecked="{Binding Section, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:CreateHubSection.HuggingFace}}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Search}" />
+                        <TextBlock Text="Hugging Face" Margin="8,0,0,0" />
+                    </StackPanel>
+                </RadioButton>
+            </StackPanel>
+        </Border>
+
+        <!-- Meldung (Erfolg oder Fehler), optional mit Knopf -->
+        <Border Grid.Row="1" Margin="24,12,24,0" Padding="14,10" CornerRadius="{StaticResource Radius.Normal}"
+                Background="{StaticResource Brush.Surface}" BorderThickness="1"
+                Visibility="{Binding HasNotice, Converter={StaticResource BoolToVisibility}}">
+            <Border.Style>
+                <Style TargetType="Border">
+                    <Setter Property="BorderBrush" Value="{StaticResource Brush.Success}" />
+                    <Style.Triggers>
+                        <DataTrigger Binding="{Binding NoticeIsError}" Value="True">
+                            <Setter Property="BorderBrush" Value="{StaticResource Brush.Error}" />
+                        </DataTrigger>
+                    </Style.Triggers>
+                </Style>
+            </Border.Style>
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Notice}" TextWrapping="Wrap" VerticalAlignment="Center" LineHeight="20"
+                           AutomationProperties.AutomationId="HubNotice" AutomationProperties.LiveSetting="Polite" />
+                <Button Grid.Column="1" Margin="12,0,0,0" Content="{Binding NoticeActionText}" Command="{Binding RunNoticeActionCommand}"
+                        AutomationProperties.AutomationId="HubNoticeAction"
+                        Visibility="{Binding HasNoticeAction, Converter={StaticResource BoolToVisibility}}" />
+                <Button Grid.Column="2" Margin="8,0,0,0" Style="{StaticResource Button.Icon}" Content="{x:Static app:Glyphs.Close}"
+                        Command="{Binding DismissNoticeCommand}" AutomationProperties.Name="Meldung schliessen" ToolTip="Schliessen" />
+            </Grid>
+        </Border>
+
+        <!-- Ladetest läuft -->
+        <Border Grid.Row="2" Margin="24,12,24,0" Padding="14,10" CornerRadius="{StaticResource Radius.Normal}"
+                Background="{DynamicResource Brush.AccentSoft}"
+                Visibility="{Binding IsBusy, Converter={StaticResource BoolToVisibility}}">
+            <StackPanel Orientation="Horizontal">
+                <TextBlock Style="{StaticResource Text.Icon}" Text="{x:Static app:Glyphs.Refresh}" Foreground="{DynamicResource Brush.Accent}" />
+                <TextBlock Margin="10,0,0,0" Text="{Binding BusyText}" VerticalAlignment="Center" AutomationProperties.AutomationId="HubBusy" />
+            </StackPanel>
+        </Border>
+
+        <ContentControl Grid.Row="3" Content="{Binding CurrentPage}" Focusable="False" />
+    </Grid>
+</UserControl>

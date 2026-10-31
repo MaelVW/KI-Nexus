@@ -9,18 +9,69 @@ public interface IKiRegistry
 {
     IReadOnlyList<KiProfile> All { get; }
 
+    /// <summary>Wird ausgelöst, wenn eine KI dazukommt, sich ändert oder gelöscht wird.</summary>
+    event EventHandler? Changed;
+
     Task<IReadOnlyList<KiProfile>> LoadAsync(CancellationToken ct);
 
     KiProfile? Find(string? id);
+
+    /// <summary>Speichert die KI als kis/&lt;id&gt;.json (neu oder überschreiben).</summary>
+    Task SaveAsync(KiProfile ki, CancellationToken ct);
+
+    Task DeleteAsync(string id, CancellationToken ct);
 }
 
 /// <summary>
-/// Liest alle KIs aus dem Ordner kis/ (eine JSON-Datei pro KI).
+/// Liest und schreibt die KIs im Ordner kis/ (eine JSON-Datei pro KI).
 /// Kaputte Dateien werden übersprungen und ins Log geschrieben.
 /// </summary>
 public sealed class KiRegistry(string directory, ILogger<KiRegistry> logger) : IKiRegistry
 {
     public IReadOnlyList<KiProfile> All { get; private set; } = [];
+
+    public event EventHandler? Changed;
+
+    public async Task SaveAsync(KiProfile ki, CancellationToken ct)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(ki.Id);
+        if (ki.Id != KiIds.Slug(ki.Id))
+        {
+            throw new ArgumentException($"Die Id \"{ki.Id}\" ist kein gültiger Dateiname.", nameof(ki));
+        }
+
+        var now = DateTimeOffset.Now;
+        if (ki.CreatedAt == default)
+        {
+            ki.CreatedAt = now;
+        }
+
+        ki.UpdatedAt = now;
+        Directory.CreateDirectory(directory);
+        var path = Path.Combine(directory, ki.Id + ".json");
+        await using (var stream = File.Create(path))
+        {
+            await JsonSerializer.SerializeAsync(stream, ki, JsonDefaults.Options, ct).ConfigureAwait(false);
+        }
+
+        All = [.. All.Where(k => !string.Equals(k.Id, ki.Id, StringComparison.OrdinalIgnoreCase)), ki];
+        logger.LogInformation("KI {Id} gespeichert.", ki.Id);
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public Task DeleteAsync(string id, CancellationToken ct)
+    {
+        var path = Path.Combine(directory, KiIds.Slug(id) + ".json");
+        if (File.Exists(path))
+        {
+            File.Delete(path);
+        }
+
+        All = [.. All.Where(k => !string.Equals(k.Id, id, StringComparison.OrdinalIgnoreCase))];
+        logger.LogInformation("KI {Id} gelöscht.", id);
+        Changed?.Invoke(this, EventArgs.Empty);
+        return Task.CompletedTask;
+    }
 
     public async Task<IReadOnlyList<KiProfile>> LoadAsync(CancellationToken ct)
     {

@@ -123,6 +123,16 @@ public sealed class EngineManager : IAsyncDisposable
         }
     }
 
+    /// <summary>
+    /// Ladetest: Kann die Engine dieses Modell laden? Lädt es kurz (mit kleinem Kontext) und entlädt es wieder.
+    /// Ein geladenes Modell wird dafür entladen.
+    /// </summary>
+    public async Task TestLoadAsync(KiProfile probe, IProgress<string>? progress, CancellationToken ct)
+    {
+        await EnsureLoadedAsync(probe, progress, ct).ConfigureAwait(false);
+        await UnloadAsync(ct).ConfigureAwait(false);
+    }
+
     /// <summary>Bricht eine laufende Antwort ab und entlädt das Modell (Knopf "Entladen").</summary>
     public async Task UnloadAsync(CancellationToken ct)
     {

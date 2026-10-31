@@ -1,7 +1,9 @@
 <ResourceDictionary xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
                     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
                     xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
-                    xmlns:views="clr-namespace:KiNexus.App.Views">
+                    xmlns:views="clr-namespace:KiNexus.App.Views"
+                    xmlns:conv="clr-namespace:KiNexus.App.Converters"
+                    xmlns:models="clr-namespace:KiNexus.Core.Models;assembly=KiNexus.Core">
 
     <!--
         Vorlagen: Welches ViewModel wird wie angezeigt?
@@ -53,6 +55,21 @@
 
     <DataTemplate DataType="{x:Type vm:PlaceholderTabViewModel}">
         <ContentControl Content="{Binding Placeholder}" Focusable="False" />
+    </DataTemplate>
+
+    <!-- Create-Hub (M3). -->
+    <DataTemplate DataType="{x:Type vm:CreateHubViewModel}">
+        <views:CreateHubView />
+    </DataTemplate>
+
+    <!-- Ampel: farbiger Punkt + kurzer Text, die Erklärung als Tooltip. Ist immer eine Schätzung. -->
+    <conv:FitLevelToBrushConverter x:Key="FitLevelToBrush" />
+    <DataTemplate DataType="{x:Type models:FitEstimate}">
+        <StackPanel Orientation="Horizontal" Background="Transparent" ToolTip="{Binding Explanation}"
+                    AutomationProperties.Name="{Binding Label, StringFormat='Ampel: {0}'}" AutomationProperties.HelpText="{Binding Explanation}">
+            <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding Level, Converter={StaticResource FitLevelToBrush}}" />
+            <TextBlock Margin="8,0,0,0" Text="{Binding Label}" VerticalAlignment="Center" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
+        </StackPanel>
     </DataTemplate>
 
     <!-- Chat-Tab: Seitenleiste + Chat (Simpel, Terminal; Gespräch kommt in M4). -->

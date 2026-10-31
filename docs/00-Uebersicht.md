@@ -11,7 +11,7 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | M0 | Gerüst: Solution, Ordner, Theme, Hauptfenster, Logging, Einstellungen, Startdatei | ✅ fertig (v0.1.0) |
 | M1 | Engines: llama.cpp und Ollama, Laden/Entladen, Streaming, Ressourcen-Anzeige, Ollama-Import | ✅ fertig (v0.2.0) |
 | M2 | Chat: Simpel- und Terminal-Stil, Seitenleiste, Bilder, Titel, Bewertung, Kontext | ✅ fertig (v0.3.0) |
-| M3 | Create-Hub | offen |
+| M3 | Create-Hub: Übersicht mit Ampel, neue KI, löschen, GGUF-Import, Ollama-Import, Hugging Face | ✅ fertig (v0.4.0) |
 | M4 | Gespräch-Stil (Sprache) | offen |
 | M5–M10 | Alternate Launch, System-Prompt, Feineinstellungen, Training, Server, Chatraum | offen |
 
@@ -23,12 +23,12 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | `KI-Nexus.sln` | Die Solution. Öffnen mit Visual Studio oder Rider. | ja |
 | `docs/` | Diese Doku, eine Datei pro System | ja |
 | `kis/` | Deine KIs, eine JSON-Datei pro KI | ja |
-| `models/` | Grundmodelle als GGUF, ein Ordner pro Modell | nein |
-| `data/` | `chats.db`, `settings.json`, angehängte Bilder, Logs, Cache | nein |
+| `models/` | Grundmodelle als GGUF, ein Ordner pro Modell. In `models/.downloads/` liegen angefangene Downloads. | nein |
+| `data/` | `chats.db`, `settings.json`, angehängte Bilder, Logs, Cache, `hf-token.bin` (verschlüsselt) | nein |
 | `engines/` | llama.cpp (später Piper). Wird von `scripts/setup-engines.ps1` gefüllt | nein |
 | `src/KiNexus.App/` | Die Oberfläche (WPF): Fenster, ViewModels, Theme | ja |
 | `src/KiNexus.Core/` | Logik ohne Oberfläche: Einstellungen, KIs, EngineManager, Prozesse, Messung | ja |
-| `src/KiNexus.Engines/` | Anbindung an llama.cpp und Ollama, Import aus Ollama | ja |
+| `src/KiNexus.Engines/` | Anbindung an llama.cpp, Ollama und Hugging Face, Import aus Ollama | ja |
 | `tests/` | Unit-Tests für Core und Engines | ja |
 | `python/` | Spracherkennung (M4) und Training (M8) | ja (ohne `.venv`) |
 | `scripts/` | PowerShell-Skripte, z.B. `setup-engines.ps1` | ja |
@@ -54,7 +54,7 @@ Beim Start passiert der Reihe nach:
 6. Das Hauptfenster öffnet sich mit dem zuletzt benutzten Chat.
 7. Ein Modell wird erst geladen, wenn du die erste Frage stellst.
 
-## Bedienung (Stand M2)
+## Bedienung (Stand M3)
 
 | Was | Wo |
 |---|---|
@@ -63,6 +63,7 @@ Beim Start passiert der Reihe nach:
 | VRAM und RAM | Kopfleiste rechts, alle 2 Sekunden gemessen. Gelb ab 90 %. |
 | Modell entladen | Power-Symbol in der Kopfleiste. Es leuchtet, solange ein Modell geladen ist. |
 | Chatten | Chat-Tab, Stil Simpel oder Terminal. Details: [04-Chat-und-Stile.md](04-Chat-und-Stile.md) |
+| KIs und Modelle verwalten | Create-Hub-Tab: Übersicht, Neue KI, Importieren, Hugging Face. Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) |
 
 | Taste | Wirkung |
 |---|---|
@@ -79,6 +80,6 @@ Beim Start passiert der Reihe nach:
 
 - [01-Architektur.md](01-Architektur.md) – Schichten, Klassen, Einstellungen
 - [02-Engines.md](02-Engines.md) – llama.cpp und Ollama, Messwerte
-- [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) – Modell-Ordner, KI-Profile, Import aus Ollama
+- [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) – Modell-Ordner, KI-Profile, Create-Hub, Import, Hugging Face
 - [04-Chat-und-Stile.md](04-Chat-und-Stile.md) – Simpel, Terminal, Befehle, Bilder, Kontext, Datenbank
 - [09-Fehlerbehebung.md](09-Fehlerbehebung.md) – wenn etwas nicht geht

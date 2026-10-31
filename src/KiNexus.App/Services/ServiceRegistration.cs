@@ -3,12 +3,14 @@ using KiNexus.App.ViewModels;
 using KiNexus.App.Views;
 using KiNexus.Core.Chats;
 using KiNexus.Core.Inference;
+using KiNexus.Core.IO;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Models;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Processes;
 using KiNexus.Core.Resources;
 using KiNexus.Core.Settings;
+using KiNexus.Engines.HuggingFace;
 using KiNexus.Engines.LlamaCpp;
 using KiNexus.Engines.Ollama;
 using Microsoft.Extensions.DependencyInjection;
@@ -44,6 +46,7 @@ public static class ServiceRegistration
         AddEngines(services, paths);
         AddChats(services, paths);
 
+        services.AddSingleton<CreateHubViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddTransient<SettingsViewModel>();
@@ -62,6 +65,22 @@ public static class ServiceRegistration
 
         services.AddSingleton(_ => new OllamaModelStore(OllamaModelStore.DefaultDirectory()));
         services.AddSingleton<OllamaImporter>();
+
+        // Aus Ollamas Ordnern wird nie verschoben (Bauplan: Ollama-Dateien nie verändern).
+        services.AddSingleton(provider => new ModelImporter(
+            provider.GetRequiredService<ModelLibrary>(),
+            [provider.GetRequiredService<OllamaModelStore>().ModelsDirectory,
+             Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), ".ollama")],
+            provider.GetRequiredService<ILogger<ModelImporter>>()));
+
+        // Hugging Face: Token verschlüsselt (DPAPI) in data/hf-token.bin.
+        services.AddSingleton(_ => new SecretStore(Path.Combine(paths.DataDirectory, "hf-token.bin")));
+        services.AddSingleton(provider =>
+        {
+            var tokens = provider.GetRequiredService<SecretStore>();
+            return new HuggingFaceClient(tokens.Load);
+        });
+        services.AddSingleton<ModelDownloader>();
 
         services.AddSingleton(provider =>
         {

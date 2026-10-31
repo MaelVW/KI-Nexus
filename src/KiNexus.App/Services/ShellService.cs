@@ -13,6 +13,9 @@ public interface IShellService
     void OpenFile(string path);
 
     void CopyText(string text);
+
+    /// <summary>Öffnet eine Webseite im Standard-Browser. Nur https.</summary>
+    void OpenUrl(Uri uri);
 }
 
 public sealed class ShellService : IShellService
@@ -32,4 +35,14 @@ public sealed class ShellService : IShellService
     }
 
     public void CopyText(string text) => Clipboard.SetText(text);
+
+    public void OpenUrl(Uri uri)
+    {
+        if (uri.Scheme != Uri.UriSchemeHttps)
+        {
+            throw new ArgumentException("Nur https-Adressen werden geöffnet.", nameof(uri));
+        }
+
+        Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
 }

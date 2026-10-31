@@ -5,7 +5,8 @@ namespace KiNexus.Core.Tests;
 /// <summary>Schreibt eine winzige GGUF-Datei mit nur Metadaten. Reicht für Tests, ein echtes Modell ist das nicht.</summary>
 internal static class GgufTestFile
 {
-    public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128)
+    /// <param name="type">"mmproj" für einen Bild-Projektor.</param>
+    public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128, string? type = null)
     {
         using var writer = new BinaryWriter(File.Create(path), Encoding.UTF8);
         var entries = new List<Action>
@@ -21,6 +22,11 @@ internal static class GgufTestFile
             () => WriteString(writer, "tokenizer.chat_template", "{{ messages }}"),
             () => { WriteKey(writer, "general.file_type"); writer.Write(4u); writer.Write((uint)fileType); },
         };
+        if (type is not null)
+        {
+            entries.Add(() => WriteString(writer, "general.type", type));
+        }
+
         if (expertCount is int experts)
         {
             entries.Add(() => { WriteKey(writer, $"{architecture}.expert_count"); writer.Write(4u); writer.Write((uint)experts); });
