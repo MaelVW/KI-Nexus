@@ -67,7 +67,7 @@ public sealed partial class CreateHubViewModel : TabViewModel
         Overview = new CreateHubOverviewViewModel(this, kis, library, engines, dialogs, shell, ollama, loggers.CreateLogger<CreateHubOverviewViewModel>());
         Wizard = new NewKiWizardViewModel(this, kis, ollama);
         Import = new ImportViewModel(this, importer, ollamaStore, ollamaImporter, library, dialogs, loggers.CreateLogger<ImportViewModel>());
-        HuggingFace = new HuggingFaceViewModel(this, huggingFace, downloader, tokenStore, shell, loggers.CreateLogger<HuggingFaceViewModel>());
+        HuggingFace = new HuggingFaceViewModel(this, huggingFace, downloader, tokenStore, shell, dialogs, loggers.CreateLogger<HuggingFaceViewModel>());
     }
 
     public CreateHubOverviewViewModel Overview { get; }

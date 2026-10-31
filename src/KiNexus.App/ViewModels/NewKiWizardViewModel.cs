@@ -141,7 +141,8 @@ public sealed partial class NewKiWizardViewModel(CreateHubViewModel hub, IKiRegi
         // dauert die Absage unter Windows ca. 2 s. Darauf soll der Assistent nicht warten.
         var wanted = model is not null ? model.FolderName : ollamaName is not null ? "ollama:" + ollamaName : previous;
         Models.Clear();
-        foreach (var local in await Task.Run(hub.LibraryScan))
+        // Bild- und Video-Modelle (z.B. für ComfyUI) taugen nicht für eine KI.
+        foreach (var local in (await Task.Run(hub.LibraryScan)).Where(m => m.IsLanguageModel))
         {
             Models.Add(new ModelChoice(local.FolderName,
                 $"{DisplayFormat.Bytes(local.Manifest.SizeBytes)} · {local.Manifest.Quantization ?? "?"} · Bilder {(local.SupportsImages ? "ja" : "nein")}",

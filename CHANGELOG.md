@@ -6,6 +6,10 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Warnung bei Bild- und Video-Modellen:** GGUF gibt es auch für Modelle, mit denen man nicht chatten kann (z.B. LTX-Video oder FLUX für ComfyUI). Die Hugging-Face-Suche erkennt sie an Architektur, Art und Schlagwörtern („kein Chat-Modell“) und fragt vor dem Download nach. Der Import lehnt sie ab. In der Übersicht steht eine rote Zeile, der Assistent „Neue KI“ zeigt sie nicht, und über dem Chat erscheint ein Hinweis.
+
 ## [1.2.0] – 2026-10-31 – Meilenstein 6: System-Prompt und Feineinstellungen
 
 ### Neu

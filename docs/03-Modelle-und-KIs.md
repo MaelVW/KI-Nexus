@@ -80,7 +80,14 @@ Klappt es nicht, schlägt die App vor, dasselbe Modell als GGUF von Hugging Face
 
 ### Hugging Face
 
-**Suche**: über `https://huggingface.co/api/models`, nur GGUF-Modelle, die beliebtesten zuerst. Pro Treffer: Downloads, Likes, Datum, Lizenz. Markiert werden „gesperrt“ (braucht Token) und „kein Chat-Modell“ (z.B. Embedding oder Spracherkennung).
+**Suche**: über `https://huggingface.co/api/models`, nur GGUF-Modelle, die beliebtesten zuerst. Pro Treffer: Downloads, Likes, Datum, Lizenz. Markiert werden „gesperrt“ (braucht Token) und „kein Chat-Modell“ (z.B. Embedding, Spracherkennung, Bild- oder Videomodell).
+
+**Bild- und Video-Modelle:** GGUF gibt es auch für Modelle wie FLUX (Bilder) oder LTX-Video (Videos), gedacht für Programme wie ComfyUI. llama.cpp kann damit nicht chatten. Die App erkennt sie an der Architektur im Kopf der GGUF-Datei (z.B. `flux`, `ltxv`, `wan`), an fehlendem Tokenizer und an Schlagwörtern auf Hugging Face (z.B. `text-to-video`, `ltx-video`). Dann:
+
+- Hugging Face: „kein Chat-Modell“ mit Grund, und vor dem Download eine Rückfrage.
+- Import: wird abgelehnt, mit Erklärung.
+- Übersicht: rote Zeile beim Grundmodell. „Neue KI“ und „Ladetest“ zeigen nur die Erklärung. Im Assistenten „Neue KI“ fehlen solche Modelle.
+- Chat: Nutzt eine KI so ein Modell, steht ein Hinweis über dem Chat.
 
 **Dateien**: Klick auf einen Treffer zeigt alle Quantisierungen mit Grösse und Ampel. Geteilte Modelle sind zusammengefasst. **Q4_K_M** ist als Standard empfohlen. Gibt es das nicht, nimmt die App die nächstbeste Stufe (z.B. Q8_0). Hat das Repository einen Projektor (`mmproj-*.gguf`), lädt die App ihn mit (abschaltbar), bevorzugt F16.
 

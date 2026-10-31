@@ -36,6 +36,13 @@ public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<K
     };
 
     public string UsedByText => UsedBy.Count == 0 ? "von keiner KI genutzt" : "genutzt von " + string.Join(", ", UsedBy.Select(k => k.DisplayName));
+
+    /// <summary>Rote Zeile bei Bild- oder Video-Modellen, z.B. "Kein Sprachmodell: ein Videomodell (ltxv)". Sonst leer.</summary>
+    public string KindWarning => Model.IsLanguageModel
+        ? ""
+        : $"Kein Sprachmodell: {ModelKinds.NonTextKind(Model.Manifest.Architecture)} ({Model.Manifest.Architecture}). Zum Chatten nicht nutzbar.";
+
+    public bool HasKindWarning => KindWarning.Length > 0;
 }
 
 /// <summary>Eine Zeile in "Ollama-Modelle".</summary>
@@ -169,10 +176,22 @@ public sealed partial class CreateHubOverviewViewModel(
     // ----------------------------------------------------------- Grundmodelle
 
     [RelayCommand]
-    private Task TestLoadAsync(ModelRow row) => hub.TestLoadAsync(row.Model);
+    private Task TestLoadAsync(ModelRow row) => RefuseNonText(row) ? Task.CompletedTask : hub.TestLoadAsync(row.Model);
 
     [RelayCommand]
-    private Task NewKiFrom(ModelRow row) => hub.StartWizardAsync(row.Model);
+    private Task NewKiFrom(ModelRow row) => RefuseNonText(row) ? Task.CompletedTask : hub.StartWizardAsync(row.Model);
+
+    /// <summary>Bild- und Video-Modelle kann llama.cpp nicht laden. Dann nur eine Meldung zeigen.</summary>
+    private bool RefuseNonText(ModelRow row)
+    {
+        if (row.Model.IsLanguageModel)
+        {
+            return false;
+        }
+
+        hub.ShowNotice($"{row.Name}: {ModelKinds.Explain(row.Model.Manifest.Architecture)}", isError: true);
+        return true;
+    }
 
     [RelayCommand]
     private void OpenFolder(ModelRow row) => shell.OpenFolder(row.Model.FolderPath);

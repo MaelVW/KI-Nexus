@@ -100,6 +100,11 @@ public sealed partial class ModelImporter(ModelLibrary library, IReadOnlyList<st
             throw new InvalidDataException("Das ist ein Bild-Projektor (mmproj), kein Modell. Wähle zuerst die Modell-Datei und den Projektor als Zusatz.");
         }
 
+        if (!metadata.IsLanguageModel)
+        {
+            throw new InvalidDataException(ModelKinds.Explain(metadata.Architecture));
+        }
+
         if (mmprojFile is not null && !GgufReader.Read(mmprojFile).IsProjector)
         {
             throw new InvalidDataException($"{Path.GetFileName(mmprojFile)} ist kein Bild-Projektor (mmproj).");

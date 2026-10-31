@@ -79,7 +79,7 @@
                                 </Border>
                                 <Border Style="{StaticResource Badge}" BorderBrush="{StaticResource Brush.Border}"
                                         Visibility="{Binding IsNotChat, Converter={StaticResource BoolToVisibility}}"
-                                        ToolTip="{Binding Model.PipelineTag, StringFormat='Art: {0}. Zum Chatten nicht geeignet.'}">
+                                        ToolTip="{Binding NotChatReason, StringFormat='Art: {0}. Zum Chatten nicht geeignet.'}">
                                     <TextBlock Text="kein Chat-Modell" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
                                 </Border>
                             </StackPanel>

@@ -20,9 +20,30 @@ public sealed record HfResultRow(HfModel Model)
     public string LicenseText => string.IsNullOrWhiteSpace(Model.License) ? "Lizenz unbekannt" : Model.License!;
     public bool IsGated => Model.Gated;
 
-    /// <summary>Embedding-, Sprach- oder Reranker-Modelle taugen nicht zum Chatten. Die Suche findet sie trotzdem.</summary>
-    public bool IsNotChat => Model.PipelineTag is { Length: > 0 } tag
-        && tag is not ("text-generation" or "image-text-to-text" or "conversational" or "any-to-any");
+    /// <summary>
+    /// Embedding-, Sprach-, Bild- oder Video-Modelle taugen nicht zum Chatten. Die Suche findet sie trotzdem.
+    /// Geprüft werden die Art (pipeline_tag), die Schlagwörter und die Architektur im Kopf der GGUF-Datei.
+    /// </summary>
+    public bool IsNotChat => NotChatReason is not null;
+
+    /// <summary>z.B. "ein Videomodell, Architektur ltxv" oder "feature-extraction". Null = Chat-Modell.</summary>
+    public string? NotChatReason
+    {
+        get
+        {
+            if (ModelKinds.NonTextKind(Model.GgufArchitecture) is { } kind)
+            {
+                return $"{kind}, Architektur {Model.GgufArchitecture}";
+            }
+
+            if (Model.PipelineTag is { Length: > 0 } tag && tag is not ("text-generation" or "image-text-to-text" or "conversational" or "any-to-any"))
+            {
+                return tag;
+            }
+
+            return ModelKinds.NonTextTag(Model.Tags);
+        }
+    }
 
     /// <summary>Für Screenreader: Die Liste liest diesen Text vor.</summary>
     public override string ToString() => Model.Id;
@@ -53,12 +74,14 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
     private readonly SecretStore _tokenStore;
     private readonly IShellService _shell;
     private readonly ILogger<HuggingFaceViewModel> _logger;
+    private readonly IDialogService _dialogs;
     private CancellationTokenSource? _filesRequest;
 
     public HuggingFaceViewModel(CreateHubViewModel hub, HuggingFaceClient client, ModelDownloader downloader, SecretStore tokenStore,
-        IShellService shell, ILogger<HuggingFaceViewModel> logger)
+        IShellService shell, IDialogService dialogs, ILogger<HuggingFaceViewModel> logger)
     {
         _hub = hub;
+        _dialogs = dialogs;
         _client = client;
         _downloader = downloader;
         _tokenStore = tokenStore;
@@ -178,7 +201,7 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
                   + " Die Ampel ist eine Schätzung für 8192 Token Kontext.";
             if (row.IsNotChat)
             {
-                FilesInfo += $" Achtung: Das ist kein Chat-Modell ({row.Model.PipelineTag}).";
+                FilesInfo += $" Achtung: Das ist kein Chat-Modell ({row.NotChatReason}). KI-Nexus kann damit nicht chatten.";
             }
             if (row.IsGated && !HasToken)
             {
@@ -217,6 +240,14 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
     private void Download(HfOptionRow row)
     {
         if (SelectedResult is not { } result)
+        {
+            return;
+        }
+
+        // Kein Chat-Modell (z.B. ein Videomodell): lieber nachfragen, bevor viele Gigabyte geladen werden.
+        if (result.NotChatReason is { } reason && !_dialogs.Confirm("Kein Chat-Modell",
+                $"{result.Model.Id} ist kein Chat-Modell ({reason}). KI-Nexus kann damit wahrscheinlich nicht chatten. "
+                + $"Der Download braucht {row.SizeText}. Trotzdem herunterladen?", "Trotzdem laden"))
         {
             return;
         }

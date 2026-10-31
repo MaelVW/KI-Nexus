@@ -55,6 +55,33 @@ public class HuggingFaceProtocolTests
     }
 
     [Fact]
+    public void ParseSearch_ReadsTagsAndGgufArchitecture()
+    {
+        using var json = JsonDocument.Parse("""
+            [
+              { "id": "test/video-gguf", "tags": ["gguf", "ltx-video"], "gguf": { "total": 21005004544, "architecture": "ltxv" } },
+              { "id": "test/chat-gguf", "pipeline_tag": "text-generation", "gguf": { "architecture": "qwen3", "context_length": 40960 } }
+            ]
+            """);
+
+        var models = HuggingFaceProtocol.ParseSearch(json.RootElement);
+
+        Assert.Equal(["gguf", "ltx-video"], models[0].Tags);
+        Assert.Equal("ltxv", models[0].GgufArchitecture);
+        Assert.Null(models[1].Tags);
+        Assert.Equal("qwen3", models[1].GgufArchitecture);
+    }
+
+    [Fact]
+    public void SearchPath_AsksForTagsAndGgufHeader()
+    {
+        var path = HuggingFaceProtocol.SearchPath("qwen", 20);
+
+        Assert.Contains("expand[]=tags", path, StringComparison.Ordinal);
+        Assert.Contains("expand[]=gguf", path, StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void ParseTree_ReadsSizeAndSha256_SkipsFolders()
     {
         using var json = JsonDocument.Parse("""

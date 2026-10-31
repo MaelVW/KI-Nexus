@@ -1,5 +1,6 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using KiNexus.Core.Models;
 using KiNexus.Engines.HuggingFace;
 
 namespace KiNexus.App.ViewModels;
@@ -82,8 +83,16 @@ public sealed partial class DownloadItemViewModel : ObservableObject
 
         if (State != _lastState && State == DownloadState.Completed && Job.Result is { } model)
         {
-            _hub.ShowNotice($"Download fertig: {model.FolderName} ist jetzt ein Grundmodell.", isError: false,
-                "Neue KI daraus", () => _hub.StartWizardAsync(model));
+            if (model.IsLanguageModel)
+            {
+                _hub.ShowNotice($"Download fertig: {model.FolderName} ist jetzt ein Grundmodell.", isError: false,
+                    "Neue KI daraus", () => _hub.StartWizardAsync(model));
+            }
+            else
+            {
+                _hub.ShowNotice($"Download fertig, aber {model.FolderName}: {ModelKinds.Explain(model.Manifest.Architecture)} "
+                    + "Du kannst es in der Übersicht löschen.", isError: true);
+            }
         }
 
         _lastState = State;

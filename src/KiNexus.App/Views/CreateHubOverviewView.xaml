@@ -123,6 +123,8 @@
                                     </TextBlock>
                                     <TextBlock Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" TextTrimming="CharacterEllipsis"
                                                Text="{Binding LicenseText, StringFormat='Lizenz: {0}'}" />
+                                    <TextBlock Foreground="{StaticResource Brush.Error}" FontSize="{StaticResource FontSize.Small}" TextWrapping="Wrap"
+                                               Text="{Binding KindWarning}" Visibility="{Binding HasKindWarning, Converter={StaticResource BoolToVisibility}}" />
                                 </StackPanel>
                                 <ContentControl Grid.Column="1" Content="{Binding Fit}" Focusable="False" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="2" Text="{Binding SizeText}" VerticalAlignment="Center" />

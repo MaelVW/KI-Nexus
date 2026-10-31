@@ -6,7 +6,8 @@ namespace KiNexus.Core.Tests;
 internal static class GgufTestFile
 {
     /// <param name="type">"mmproj" für einen Bild-Projektor.</param>
-    public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128, string? type = null)
+    /// <param name="tokenizer">false = wie ein Bild- oder Video-Modell für ComfyUI, ohne Tokenizer.</param>
+    public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128, string? type = null, bool tokenizer = true)
     {
         using var writer = new BinaryWriter(File.Create(path), Encoding.UTF8);
         var entries = new List<Action>
@@ -20,11 +21,15 @@ internal static class GgufTestFile
             () => { WriteKey(writer, "general.sampling.penalty_repeat"); writer.Write(6u); writer.Write(1.1f); },
             () => { WriteKey(writer, $"{architecture}.block_count"); writer.Write(4u); writer.Write(30u); },
             () => { WriteKey(writer, $"{architecture}.context_length"); writer.Write(4u); writer.Write(262144u); },
-            () => WriteStringArray(writer, "tokenizer.ggml.tokens", ["<pad>", "<eos>", "Hallo", "Welt"]),
-            () => { WriteKey(writer, "tokenizer.ggml.scores"); writer.Write(9u); writer.Write(6u); writer.Write(2ul); writer.Write(0.5f); writer.Write(0.25f); },
-            () => WriteString(writer, "tokenizer.chat_template", "{{ messages }}"),
             () => { WriteKey(writer, "general.file_type"); writer.Write(4u); writer.Write((uint)fileType); },
         };
+        if (tokenizer)
+        {
+            entries.Add(() => WriteStringArray(writer, "tokenizer.ggml.tokens", ["<pad>", "<eos>", "Hallo", "Welt"]));
+            entries.Add(() => { WriteKey(writer, "tokenizer.ggml.scores"); writer.Write(9u); writer.Write(6u); writer.Write(2ul); writer.Write(0.5f); writer.Write(0.25f); });
+            entries.Add(() => WriteString(writer, "tokenizer.chat_template", "{{ messages }}"));
+        }
+
         if (type is not null)
         {
             entries.Add(() => WriteString(writer, "general.type", type));

@@ -4,7 +4,10 @@ namespace KiNexus.Engines.HuggingFace;
 
 /// <summary>Ein Treffer der Suche: ein Repository (Modell-Sammlung) auf Hugging Face.</summary>
 /// <param name="Gated">Gesperrt: Man muss auf der Webseite zuerst die Bedingungen akzeptieren und braucht einen Token.</param>
-public sealed record HfModel(string Id, long Downloads, long Likes, DateTimeOffset? LastModified, bool Gated, string? License, string? PipelineTag)
+/// <param name="Tags">Schlagwörter, z.B. "text-generation" oder "text-to-video".</param>
+/// <param name="GgufArchitecture">Architektur aus dem Kopf der GGUF-Datei, wie Hugging Face sie liest (z.B. "qwen3" oder "ltxv").</param>
+public sealed record HfModel(string Id, long Downloads, long Likes, DateTimeOffset? LastModified, bool Gated, string? License, string? PipelineTag,
+    IReadOnlyList<string>? Tags = null, string? GgufArchitecture = null)
 {
     public string Author => Id.Contains('/') ? Id[..Id.IndexOf('/')] : "";
 

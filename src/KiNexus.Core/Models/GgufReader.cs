@@ -17,8 +17,14 @@ public sealed record GgufMetadata(
     bool HasChatTemplate,
     double? MinP = null,
     double? RepeatPenalty = null,
-    int? BlockCount = null)
+    int? BlockCount = null,
+    bool HasTokenizer = true)
 {
+    /// <summary>
+    /// Ein Sprachmodell, mit dem man chatten kann? Bild- und Video-Modelle (z.B. für ComfyUI) haben keinen Tokenizer.
+    /// </summary>
+    public bool IsLanguageModel => !IsProjector && HasTokenizer && ModelKinds.IsTextArchitecture(Architecture);
+
     /// <summary>Mixture of Experts: Das Modell hat viele "Experten", pro Wort rechnen nur wenige.</summary>
     public bool IsMoe => ExpertCount is > 1;
 
@@ -59,7 +65,8 @@ public static class GgufReader
             HasChatTemplate: values.ContainsKey("tokenizer.chat_template"),
             MinP: AsDouble(values.GetValueOrDefault("general.sampling.min_p")),
             RepeatPenalty: AsDouble(values.GetValueOrDefault("general.sampling.penalty_repeat")),
-            BlockCount: AsInt(values.GetValueOrDefault($"{architecture}.block_count")));
+            BlockCount: AsInt(values.GetValueOrDefault($"{architecture}.block_count")),
+            HasTokenizer: values.Keys.Any(key => key.StartsWith("tokenizer.ggml.", StringComparison.Ordinal)));
     }
 
     /// <summary>

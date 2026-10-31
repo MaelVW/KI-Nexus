@@ -29,6 +29,37 @@ public class GgufReaderTests
     }
 
     [Fact]
+    public void Read_VideoModelWithoutTokenizer_IsNoLanguageModel()
+    {
+        using var temp = new TempDirectory();
+        var video = temp.Combine("video.gguf");
+        var chat = temp.Combine("chat.gguf");
+        GgufTestFile.Write(video, architecture: "ltxv", expertCount: null, tokenizer: false);
+        GgufTestFile.Write(chat);
+
+        Assert.False(GgufReader.Read(video).IsLanguageModel);
+        Assert.False(GgufReader.Read(video).HasTokenizer);
+        Assert.True(GgufReader.Read(chat).IsLanguageModel);
+    }
+
+    [Theory]
+    [InlineData("ltxv", "ein Videomodell")]
+    [InlineData("FLUX", "ein Bildmodell")]
+    [InlineData("qwen3", null)]
+    [InlineData(null, null)]
+    public void ModelKinds_KnowsImageAndVideoArchitectures(string? architecture, string? expected) =>
+        Assert.Equal(expected, ModelKinds.NonTextKind(architecture));
+
+    [Fact]
+    public void ModelKinds_FindsNonTextTags()
+    {
+        Assert.Equal("ltx-video", ModelKinds.NonTextTag(["gguf", "ltx-video", "license:apache-2.0"]));
+        Assert.Null(ModelKinds.NonTextTag(["gguf", "text-generation", "conversational"]));
+        Assert.Null(ModelKinds.NonTextTag(null));
+        Assert.Contains("Videomodell", ModelKinds.Explain("ltxv"), StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Read_DenseModel_IsNotMoe()
     {
         using var temp = new TempDirectory();

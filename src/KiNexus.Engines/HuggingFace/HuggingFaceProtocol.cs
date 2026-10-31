@@ -27,7 +27,7 @@ public static partial class HuggingFaceProtocol
             builder.Append("&search=").Append(Uri.EscapeDataString(query.Trim()));
         }
 
-        foreach (var field in new[] { "downloads", "likes", "lastModified", "gated", "cardData", "pipeline_tag" })
+        foreach (var field in new[] { "downloads", "likes", "lastModified", "gated", "cardData", "pipeline_tag", "tags", "gguf" })
         {
             builder.Append("&expand[]=").Append(field);
         }
@@ -57,7 +57,11 @@ public static partial class HuggingFaceProtocol
             LastModified: item.TryGetProperty("lastModified", out var date) && date.ValueKind == JsonValueKind.String && date.TryGetDateTimeOffset(out var parsed) ? parsed : null,
             Gated: item.TryGetProperty("gated", out var gated) && gated.ValueKind is JsonValueKind.String or JsonValueKind.True,
             License: ReadLicense(item),
-            PipelineTag: GetString(item, "pipeline_tag")))
+            PipelineTag: GetString(item, "pipeline_tag"),
+            Tags: item.TryGetProperty("tags", out var tags) && tags.ValueKind == JsonValueKind.Array
+                ? [.. tags.EnumerateArray().Where(t => t.ValueKind == JsonValueKind.String).Select(t => t.GetString()!)]
+                : null,
+            GgufArchitecture: item.TryGetProperty("gguf", out var gguf) && gguf.ValueKind == JsonValueKind.Object ? GetString(gguf, "architecture") : null))
             .Where(m => m.Id.Length > 0)
             .ToList();
     }

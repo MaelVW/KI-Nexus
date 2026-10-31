@@ -211,6 +211,20 @@ public class ModelImporterTests
     }
 
     [Fact]
+    public async Task VideoModel_IsRejected_WithClearMessage()
+    {
+        using var source = new TempDirectory();
+        using var models = new TempDirectory();
+        var video = source.Combine("video.gguf");
+        GgufTestFile.Write(video, architecture: "ltxv", expertCount: null, tokenizer: false);
+
+        var error = await Assert.ThrowsAsync<InvalidDataException>(() => CreateImporter(models).ImportFileAsync(video, null, false, "datei", null, null, Ct));
+
+        Assert.Contains("kein Sprachmodell", error.Message, StringComparison.Ordinal);
+        Assert.Empty(Directory.EnumerateDirectories(models.Path));
+    }
+
+    [Fact]
     public async Task ModelAsProjector_IsRejected()
     {
         using var source = new TempDirectory();

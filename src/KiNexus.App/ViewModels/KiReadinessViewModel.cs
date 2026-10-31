@@ -3,6 +3,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KiNexus.Core.Inference;
 using KiNexus.Core.Kis;
+using KiNexus.Core.Models;
 using KiNexus.Core.Paths;
 using KiNexus.Engines.Ollama;
 using Microsoft.Extensions.Logging;
@@ -17,6 +18,7 @@ public sealed partial class KiReadinessViewModel(
     EngineManager engines,
     OllamaModelStore ollamaStore,
     OllamaImporter importer,
+    ModelLibrary library,
     AppPaths paths,
     ILogger<KiReadinessViewModel> logger) : ObservableObject
 {
@@ -107,6 +109,15 @@ public sealed partial class KiReadinessViewModel(
             return CanImport
                 ? $"Die Modell-Datei fehlt noch. Ollama hat das passende Modell {_importCandidate!.Name} – du kannst es ohne zusätzlichen Speicherplatz übernehmen."
                 : $"Die Modell-Datei fehlt: {path}";
+        }
+
+        // Ein Bild- oder Video-Modell bricht beim Laden ab. Das sagen wir vorher.
+        if (ki.BaseModel.Path is { Length: > 0 } modelPath
+            && library.Scan().FirstOrDefault(m => string.Equals(Path.GetFullPath(m.ModelPath), Path.GetFullPath(paths.Resolve(modelPath)),
+                StringComparison.OrdinalIgnoreCase)) is { IsLanguageModel: false } model)
+        {
+            return $"Das Grundmodell {model.FolderName} ist kein Sprachmodell, sondern {ModelKinds.NonTextKind(model.Manifest.Architecture)} "
+                + $"(Architektur {model.Manifest.Architecture}). Damit kann diese KI nicht antworten. Erstelle im Create-Hub eine KI mit einem Sprachmodell.";
         }
 
         return null;

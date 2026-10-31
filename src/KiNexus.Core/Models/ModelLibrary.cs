@@ -41,6 +41,10 @@ public sealed record LocalModel(string FolderName, string FolderPath, ModelManif
     [JsonIgnore]
     public bool SupportsImages => Manifest.MmprojFile is not null;
 
+    /// <summary>Kann man damit chatten? Bild- und Video-Modelle (z.B. Architektur "ltxv") nicht.</summary>
+    [JsonIgnore]
+    public bool IsLanguageModel => ModelKinds.IsTextArchitecture(Manifest.Architecture);
+
     /// <summary>Pfad relativ zum Projektordner, so wie er in kis/*.json steht: "models/&lt;ordner&gt;/&lt;datei&gt;".</summary>
     public string RelativeModelPath => $"models/{FolderName}/{Manifest.ModelFile}";
 
