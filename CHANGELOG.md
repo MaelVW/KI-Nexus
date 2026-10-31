@@ -6,6 +6,36 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.0.0] – 2026-10-31 – Meilenstein 4: Gespräch-Stil
+
+Version 1.0 = Meilensteine M0 bis M4: Chat in drei Stilen und der Create-Hub.
+
+### Neu
+
+- **Gespräch-Stil** im Chat-Tab: Orb in der Mitte (pulsiert beim Zuhören, Ring dreht sich beim Verstehen und Denken, wächst mit der Stimme), Mitschrift darunter. Es ist derselbe Chat wie in Simpel und Terminal.
+- **Push-to-Talk** (Leertaste oder Orb gedrückt halten) und **Freihändig** (Sprechpausen-Erkennung mit Silero-VAD, 0.8 s Stille), mit Schalter im Gesprächsfenster.
+- **Spracherkennung** mit faster-whisper (large-v3-turbo, auf der CPU, umschaltbar auf small) in einem Python-Hilfsprozess (`python/voice/worker.py`, JSON Lines).
+- **Sprachausgabe** mit Piper (de_DE-thorsten-high), satzweise: Die KI spricht schon, während das Modell noch schreibt. Wiedergabe mit NAudio.
+- Im Gespräch ist Thinking immer aus. Die App hängt „Antworte kurz und so, wie man spricht.“ an den Systemprompt (abschaltbar).
+- Markdown wird vor dem Vorlesen entfernt. Codeblöcke liest die KI nicht vor („Den Code findest du in der Mitschrift.“).
+- Unterbrechen mit `Esc`, Knopf oder Push-to-Talk-Taste.
+- Schutz vor erfundenen Mitschriften: Stille geht nicht an Whisper, unsichere Stücke und typische Whisper-Erfindungen werden verworfen.
+- Einstellungen → Sprache: Mikrofon, Stimme, Whisper-Modell, CPU/GPU, Push-to-Talk-Taste, Sprechpause, kurze Antworten.
+- `scripts/setup-voice.ps1`: richtet Python-Umgebung (uv), Whisper-Modell und Stimme ein, mit SHA-256-Prüfung.
+- „Entladen“ beendet auch den Sprach-Worker (gibt ca. 2 GB RAM frei).
+- 257 Unit-Tests (vorher 213).
+
+### Geändert
+
+- `ChatService.SendAsync` kann einen Zusatz zum Systemprompt für eine einzelne Frage mitgeben.
+- `ProcessSupervisor.Start` kann stdin/stdout umleiten (für den Python-Worker).
+
+### Bekannt
+
+- Unterbrechen per Stimme (Freihändig) kommt in M7.
+- Freihändig hört alle Stimmen im Raum. Bei Gesprächen oder Videos im Hintergrund Push-to-Talk nehmen.
+- Spracherkennung auf der GPU ist vorbereitet, aber die NVIDIA-Bibliotheken dafür sind nicht installiert.
+
 ## [0.4.0] – 2026-10-31 – Meilenstein 3: Create-Hub
 
 ### Neu

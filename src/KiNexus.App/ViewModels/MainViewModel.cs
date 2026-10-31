@@ -37,6 +37,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         ChatSessionViewModel session,
         ChatListViewModel chatList,
         CreateHubViewModel createHub,
+        ConversationViewModel conversation,
         ILogger<MainViewModel> logger)
     {
         _settings = settings;
@@ -47,7 +48,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         _logger = logger;
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
 
-        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, session, chatList, new TerminalViewModel(session, this));
+        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, session, chatList, new TerminalViewModel(session, this), conversation);
         Tabs =
         [
             Chat,
@@ -176,12 +177,13 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         }
     }
 
-    /// <summary>Knopf "Entladen": Gibt VRAM und RAM sofort frei, z.B. vor dem Gamen (Lektion 8).</summary>
+    /// <summary>Knopf "Entladen": Gibt VRAM und RAM sofort frei, z.B. vor dem Gamen (Lektion 8). Auch die Sprache (ca. 2 GB RAM).</summary>
     [RelayCommand(CanExecute = nameof(IsModelLoaded))]
     public async Task UnloadAsync()
     {
         try
         {
+            await Chat.Conversation.ShutdownAsync();
             await _engines.UnloadAsync(CancellationToken.None);
         }
         catch (InferenceException ex)
@@ -209,6 +211,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     public async Task ShutdownAsync()
     {
         await _shutdown.CancelAsync();
+        await Chat.Conversation.DisposeAsync();
         await _engines.DisposeAsync();
     }
 

@@ -27,25 +27,25 @@ public sealed class PlaceholderTabViewModel(string id, string title, string icon
 
 /// <summary>
 /// Der Chat-Tab: Seitenleiste + ein Chat in drei Ansichten (Stile).
-/// Terminal und Simpel zeigen denselben ChatSessionViewModel. Gespräch kommt in M4.
+/// Terminal, Simpel und Gespräch zeigen denselben ChatSessionViewModel.
 /// </summary>
 public sealed partial class ChatTabViewModel : TabViewModel
 {
-    public ChatTabViewModel(ChatStyle initialStyle, ChatSessionViewModel session, ChatListViewModel chatList, TerminalViewModel terminal)
+    public ChatTabViewModel(ChatStyle initialStyle, ChatSessionViewModel session, ChatListViewModel chatList, TerminalViewModel terminal,
+        ConversationViewModel conversation)
         : base("chat", "Chat", Glyphs.Chat)
     {
         _style = initialStyle;
         Session = session;
         ChatList = chatList;
         Terminal = terminal;
+        Conversation = conversation;
     }
 
     public ChatSessionViewModel Session { get; }
     public ChatListViewModel ChatList { get; }
     public TerminalViewModel Terminal { get; }
-
-    public PlaceholderInfo ConversationPlaceholder { get; } = new("Gespräch-Stil", Glyphs.Microphone, 4,
-        "Du sprichst Hochdeutsch, die KI antwortet mit Stimme. Mit Push-to-Talk oder freihändig.");
+    public ConversationViewModel Conversation { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSimple))]

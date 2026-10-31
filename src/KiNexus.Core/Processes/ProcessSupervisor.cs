@@ -12,7 +12,8 @@ public sealed class ProcessSupervisor(ILogger<ProcessSupervisor> logger) : IDisp
     private readonly JobObject _job = new();
 
     /// <summary>Startet ein Programm ohne Fenster und hängt es ans Job Object.</summary>
-    public Process Start(string fileName, IEnumerable<string> arguments, string? workingDirectory = null)
+    /// <param name="configure">Für Sonderwünsche, z.B. stdin/stdout umleiten (Python-Worker) oder Umgebungsvariablen.</param>
+    public Process Start(string fileName, IEnumerable<string> arguments, string? workingDirectory = null, Action<ProcessStartInfo>? configure = null)
     {
         var info = new ProcessStartInfo(fileName)
         {
@@ -24,6 +25,8 @@ public sealed class ProcessSupervisor(ILogger<ProcessSupervisor> logger) : IDisp
         {
             info.ArgumentList.Add(argument);
         }
+
+        configure?.Invoke(info);
 
         var process = Process.Start(info) ?? throw new InvalidOperationException($"{fileName} konnte nicht gestartet werden.");
         try

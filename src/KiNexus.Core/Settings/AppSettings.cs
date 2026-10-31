@@ -70,6 +70,15 @@ public sealed class VoiceSettings
 
     public ComputeDevice SpeechRecognitionDevice { get; set; } = ComputeDevice.Cpu;
     public string PushToTalkKey { get; set; } = "Space";
+
+    /// <summary>Whisper-Modell in models/voice/whisper-&lt;name&gt;/. "large-v3-turbo" erkennt am besten, "small" ist schneller.</summary>
+    public string WhisperModel { get; set; } = "large-v3-turbo";
+
+    /// <summary>Freihändig: So lange Stille, bis die App annimmt, dass du fertig bist (Millisekunden).</summary>
+    public int SilenceMs { get; set; } = 800;
+
+    /// <summary>Im Gespräch "Antworte kurz und so, wie man spricht." an den Systemprompt hängen.</summary>
+    public bool ShortSpokenAnswers { get; set; } = true;
 }
 
 public sealed class BackgroundTaskSettings

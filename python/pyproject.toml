@@ -1,0 +1,23 @@
+# Python-Teil von KI-Nexus: Sprach-Worker (M4), später Training (M8).
+# Die Umgebung liegt in python/.venv (nicht in Git). Einrichten: scripts/setup-voice.ps1 oder "uv sync" in diesem Ordner.
+
+[project]
+name = "kinexus-python"
+version = "1.0.0"
+description = "Hilfsprozesse für KI-Nexus: Spracherkennung (faster-whisper) und Sprachausgabe (Piper)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # Spracherkennung: Whisper mit CTranslate2, läuft gut auf der CPU (int8). Bringt Silero-VAD als ONNX mit.
+    "faster-whisper>=1.2.1",
+    # Sprachausgabe: Piper (Open Home Foundation), deutsche Stimme als ONNX-Datei in models/voice/piper/.
+    "piper-tts>=1.8.0",
+    # Mikrofon lesen (PortAudio ist im Paket enthalten).
+    "sounddevice>=0.5",
+    "numpy>=2.0",
+]
+
+[tool.uv]
+# Kein installierbares Paket, nur Skripte.
+package = false
+# Nur Versionen, die mindestens zwei Wochen alt sind (frische Releases haben öfter Fehler).
+exclude-newer = "2026-10-17T00:00:00Z"

@@ -13,6 +13,7 @@ using KiNexus.Core.Settings;
 using KiNexus.Engines.HuggingFace;
 using KiNexus.Engines.LlamaCpp;
 using KiNexus.Engines.Ollama;
+using KiNexus.Engines.Voice;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Serilog;
@@ -82,6 +83,10 @@ public static class ServiceRegistration
         });
         services.AddSingleton<ModelDownloader>();
 
+        // Sprache (M4): Python-Worker für Mikrofon, Whisper und Piper, Wiedergabe mit NAudio.
+        services.AddSingleton<VoiceWorker>();
+        services.AddSingleton<PcmPlayer>();
+
         services.AddSingleton(provider =>
         {
             var settings = Settings(provider);
@@ -106,6 +111,7 @@ public static class ServiceRegistration
         services.AddSingleton<KiReadinessViewModel>();
         services.AddSingleton<ChatSessionViewModel>();
         services.AddSingleton<ChatListViewModel>();
+        services.AddSingleton<ConversationViewModel>();
     }
 
     private static AppSettings Settings(IServiceProvider provider) => provider.GetRequiredService<ISettingsService>().Current;

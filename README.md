@@ -3,14 +3,16 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 0.4.0 (Meilenstein 3 – Create-Hub).**
-> Chatten im Simpel- und im Terminal-Stil, mit Seitenleiste, Bildern, Markdown und Code-Farben. Im Create-Hub erstellst und löschst du KIs, importierst GGUF-Dateien und Ollama-Modelle und lädst Modelle von Hugging Face. Die eigene Engine (llama.cpp) und Ollama laufen. Der Gespräch-Stil (Sprache) kommt in Meilenstein 4.
+> **Stand: Version 1.0.0 (Meilenstein 4 – Gespräch-Stil).** Das ist die Mindestversion aus dem Bauplan (M0 bis M4).
+> Chatten in drei Stilen: Simpel, Terminal und Gespräch (du sprichst, die KI antwortet mit Stimme, alles lokal mit Whisper und Piper). Im Create-Hub erstellst und löschst du KIs, importierst GGUF-Dateien und Ollama-Modelle und lädst Modelle von Hugging Face. Die eigene Engine (llama.cpp) und Ollama laufen.
 
 ![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
 
 ![Terminal-Stil von KI-Nexus](docs/bilder/terminal-m2.png)
 
 ![Create-Hub mit Ampel](docs/bilder/create-hub-m3.png)
+
+![Gespräch-Stil mit Orb](docs/bilder/gespraech-m4.png)
 
 ## Starten
 
@@ -20,6 +22,7 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 4. Das Fenster vom Skript schliesst sich von selbst, und KI-Nexus öffnet sich.
 5. Fehlt einer KI die Modell-Datei, bietet ein Hinweis über dem Chat „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
 6. Neue Modelle und KIs: Tab **Create-Hub** (`Strg + 5`).
+7. Für den **Gespräch-Stil** einmal `.\scripts\setup-voice.ps1` ausführen (lädt ca. 1.8 GB: Python-Pakete, Whisper, deutsche Stimme).
 
 ## Voraussetzungen
 
@@ -29,6 +32,7 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 | .NET SDK | 10.0 | `dotnet --list-sdks` |
 | NVIDIA-Treiber | mit CUDA 13 (getestet: 592.01) | `nvidia-smi` |
 | Ollama | optional | Ollama-App |
+| uv (Python) | für den Gespräch-Stil (getestet: 0.11.26) | `uv --version` |
 
 ## Für Entwickler
 
@@ -36,6 +40,7 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 dotnet build KI-Nexus.sln            # alles bauen
 dotnet test --solution KI-Nexus.sln  # alle Tests
 .\scripts\setup-engines.ps1          # llama.cpp nach engines\ laden
+.\scripts\setup-voice.ps1            # Sprache: python\.venv, Whisper und Piper-Stimme
 ```
 
 Die Solution `KI-Nexus.sln` kannst du mit Visual Studio 2026 oder Rider öffnen.

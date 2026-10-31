@@ -289,13 +289,71 @@
                     </Grid>
                 </Border>
 
-                <!-- Sprache -->
+                <!-- Sprache (Gespräch-Stil) -->
                 <Border Style="{StaticResource SettingsCard}">
-                    <StackPanel>
-                        <TextBlock Text="Sprache" Style="{StaticResource Text.SectionTitle}" />
-                        <TextBlock Style="{StaticResource Text.Muted}" TextWrapping="Wrap"
-                                   Text="Mikrofon, Stimme, Spracherkennung (CPU oder GPU) und Push-to-Talk-Taste stellst du hier ab Meilenstein 4 ein." />
-                    </StackPanel>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="{StaticResource LabelWidth}" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <Grid.RowDefinitions>
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                            <RowDefinition Height="Auto" />
+                        </Grid.RowDefinitions>
+
+                        <TextBlock Grid.ColumnSpan="2" Text="Sprache" Style="{StaticResource Text.SectionTitle}" />
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Margin="0,0,0,12" TextWrapping="Wrap" Foreground="{StaticResource Brush.Warning}"
+                                   Text="{Binding VoiceSetupHint}" Visibility="{Binding HasVoiceSetupHint, Converter={StaticResource BoolToVisibility}}" />
+
+                        <TextBlock Grid.Row="2" Text="Mikrofon" Style="{StaticResource Text.Label}" />
+                        <ComboBox Grid.Row="2" Grid.Column="1" ItemsSource="{Binding MicrophoneChoices}" DisplayMemberPath="Name"
+                                  SelectedValuePath="Value" SelectedValue="{Binding Microphone}" AutomationProperties.Name="Mikrofon" />
+
+                        <TextBlock Grid.Row="3" Text="Stimme" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
+                        <ComboBox Grid.Row="3" Grid.Column="1" Margin="0,12,0,0" ItemsSource="{Binding VoiceChoices}" DisplayMemberPath="Name"
+                                  SelectedValuePath="Value" SelectedValue="{Binding VoiceName}" AutomationProperties.Name="Stimme" />
+
+                        <TextBlock Grid.Row="4" Text="Spracherkennung" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
+                        <ComboBox Grid.Row="4" Grid.Column="1" Margin="0,12,0,0" ItemsSource="{Binding WhisperChoices}" DisplayMemberPath="Name"
+                                  SelectedValuePath="Value" SelectedValue="{Binding WhisperModel}" AutomationProperties.Name="Whisper-Modell" />
+
+                        <TextBlock Grid.Row="5" Text="Rechnet auf" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
+                        <StackPanel Grid.Row="5" Grid.Column="1" Margin="0,12,0,0">
+                            <Border Style="{StaticResource SegmentHost}" HorizontalAlignment="Left">
+                                <StackPanel Orientation="Horizontal">
+                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="speechDevice" Content="CPU"
+                                                 IsChecked="{Binding SpeechRecognitionDevice, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ComputeDevice.Cpu}}" />
+                                    <RadioButton Style="{StaticResource SegmentButton}" GroupName="speechDevice" Content="GPU"
+                                                 IsChecked="{Binding SpeechRecognitionDevice, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ComputeDevice.Gpu}}" />
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Style="{StaticResource Text.Hint}"
+                                       Text="CPU lässt den Grafikspeicher frei für das Modell. GPU ist schneller, braucht aber NVIDIA-Bibliotheken, die noch nicht installiert sind. Geht es nicht, nimmt die App die CPU." />
+                        </StackPanel>
+
+                        <TextBlock Grid.Row="6" Text="Push-to-Talk-Taste" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
+                        <ComboBox Grid.Row="6" Grid.Column="1" Margin="0,12,0,0" Width="220" HorizontalAlignment="Left" ItemsSource="{Binding PushToTalkKeyChoices}"
+                                  DisplayMemberPath="Name" SelectedValuePath="Value" SelectedValue="{Binding PushToTalkKey}" AutomationProperties.Name="Push-to-Talk-Taste" />
+
+                        <TextBlock Grid.Row="7" Text="Sprechpause" Style="{StaticResource Text.Label}" Margin="0,12,0,0" />
+                        <StackPanel Grid.Row="7" Grid.Column="1" Margin="0,12,0,0">
+                            <ComboBox ItemsSource="{Binding SilenceChoices}" DisplayMemberPath="Name" SelectedValuePath="Value"
+                                      SelectedValue="{Binding SilenceMs}" AutomationProperties.Name="Sprechpause für Freihändig" />
+                            <TextBlock Style="{StaticResource Text.Hint}" Text="Freihändig: So lange Stille, bis die App annimmt, dass du fertig bist." />
+                        </StackPanel>
+
+                        <CheckBox Grid.Row="8" Grid.Column="1" Margin="0,14,0,0" Style="{StaticResource ToggleSwitch}" IsChecked="{Binding ShortSpokenAnswers}"
+                                  AutomationProperties.Name="Kurze Antworten im Gespräch">
+                            <TextBlock TextWrapping="Wrap" Text="Im Gespräch kurz antworten (hängt &quot;Antworte kurz und so, wie man spricht.&quot; an den Systemprompt)" />
+                        </CheckBox>
+                    </Grid>
                 </Border>
 
             </StackPanel>

@@ -48,7 +48,22 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M3)
+## Wichtige Klassen (Stand M4)
+
+### Neu in M4: Gespräch-Stil
+
+| Klasse / Datei | Projekt | Aufgabe |
+|---|---|---|
+| `python/voice/worker.py` | Python | Mikrofon, Sprechpausen (Silero-VAD), Whisper, Piper. Redet über JSON Lines mit der App. |
+| `VoiceWorker` | Engines | Startet den Worker (über den `ProcessSupervisor`), schickt Befehle, meldet Ereignisse. |
+| `VoiceProtocol` | Engines | Befehle bauen und Ereignisse lesen (JSON Lines). |
+| `VoiceInstallation` | Engines | Wo Python, Whisper-Modelle und Stimmen liegen. Sagt, was zum Einrichten fehlt. |
+| `PcmPlayer` | Engines | Spielt die Stimme ab (NAudio) und misst die Lautstärke für den Orb. |
+| `SpeechText` | Core | Markdown vorlesbar machen, Mitschrift aufräumen („ß“ → „ss“), Whisper-Erfindungen erkennen. |
+| `SentenceSplitter` | Core | Teilt die Antwort beim Streamen in Sätze. Codeblöcke werden nicht vorgelesen. |
+| `ChatService.SendAsync(…, systemPromptSuffix)` | Core | Zusatz zum Systemprompt nur für eine Frage („Antworte kurz …“). |
+| `ConversationViewModel` | App | Ablauf des Gesprächs: Orb-Zustand, Push-to-Talk, Freihändig, Frage, satzweise Stimme, Unterbrechen. |
+| `ConversationView` | App | Orb (mit Animationen), Mitschrift, Taste und Maus für Push-to-Talk. |
 
 ### Neu in M3: Create-Hub
 
@@ -275,6 +290,11 @@ Kapitel 12, Punkt 10 im Bauplan.
 | Markdig | 1.4.2 (Markdown lesen). 1.5.1 war beim Einbau erst 2 Tage alt, darum die bewährte 1.4er-Reihe. |
 | AvalonEdit | 6.3.1.120 (Codeblöcke mit Syntax-Farben) |
 | System.Security.Cryptography.ProtectedData | 10.0.14 (Hugging-Face-Token mit DPAPI verschlüsseln) |
+| NAudio.WinMM | 2.4.0 (Stimme abspielen). 2.4.0 ist die letzte der stabilen 2er-Reihe. Die 3er-Reihe (seit August 2026) hat sich seither mehrmals stark geändert. |
+| Python (uv) | 3.12, uv 0.11.26. Pakete nur, wenn mindestens 2 Wochen alt (`exclude-newer` in `python/pyproject.toml`) |
+| faster-whisper / CTranslate2 | 1.2.1 / 4.8.3 |
+| piper-tts | 1.8.0 (Open Home Foundation, GPL-3.0) |
+| onnxruntime / sounddevice / numpy | 1.31.0 / 0.5.6 / 2.5.4 |
 | llama.cpp | b11960 = v0.8.0 (CUDA 13.4), siehe [02-Engines.md](02-Engines.md) |
 
 Alle Versionen stehen an einem Ort: `Directory.Packages.props` (Central Package Management).

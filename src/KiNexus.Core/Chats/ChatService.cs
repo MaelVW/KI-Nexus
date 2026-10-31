@@ -66,9 +66,10 @@ public sealed class ChatService(
     }
 
     /// <summary>Neue Frage stellen.</summary>
+    /// <param name="systemPromptSuffix">Zusatz zum Systemprompt nur für diese Frage, z.B. im Gespräch "Antworte kurz …".</param>
     public async IAsyncEnumerable<ChatTurnEvent> SendAsync(
         ChatRecord chat, KiProfile ki, string text, IReadOnlyList<string> imageFiles, bool think,
-        IProgress<string>? progress, [EnumeratorCancellation] CancellationToken ct)
+        IProgress<string>? progress, [EnumeratorCancellation] CancellationToken ct, string? systemPromptSuffix = null)
     {
         var history = await HistoryAsync(chat.Id, ct).ConfigureAwait(false);
         var stored = imageFiles.Select(file => attachments.Store(chat.Id, file)).ToList();
@@ -82,7 +83,7 @@ public sealed class ChatService(
         }, ct).ConfigureAwait(false);
         yield return new UserMessageSaved(user);
 
-        await foreach (var turnEvent in AnswerAsync(chat, ki, history, user, think, progress, ct).ConfigureAwait(false))
+        await foreach (var turnEvent in AnswerAsync(chat, ki, history, user, think, progress, ct, systemPromptSuffix).ConfigureAwait(false))
         {
             yield return turnEvent;
         }
@@ -169,10 +170,10 @@ public sealed class ChatService(
 
     private async IAsyncEnumerable<ChatTurnEvent> AnswerAsync(
         ChatRecord chat, KiProfile ki, IReadOnlyList<ChatMessage> history, MessageRecord question,
-        bool think, IProgress<string>? progress, [EnumeratorCancellation] CancellationToken ct)
+        bool think, IProgress<string>? progress, [EnumeratorCancellation] CancellationToken ct, string? systemPromptSuffix = null)
     {
         var p = ki.Parameters;
-        var plan = ContextBudget.Fit(ki.SystemPrompt, history, question.ToChatMessage(), p.ContextLength,
+        var plan = ContextBudget.Fit(WithSuffix(ki.SystemPrompt, systemPromptSuffix), history, question.ToChatMessage(), p.ContextLength,
             ContextBudget.ReserveForAnswer(p.ContextLength, p.MaxTokens), CharsPerToken(chat.Id));
         if (plan.WasTrimmed)
         {
@@ -250,6 +251,12 @@ public sealed class ChatService(
         LearnCharsPerToken(chat.Id, plan, saved);
         yield return new AnswerSaved(saved, cancelled);
     }
+
+    /// <summary>Systemprompt plus Zusatz, durch eine Leerzeile getrennt.</summary>
+    internal static string WithSuffix(string systemPrompt, string? suffix) =>
+        string.IsNullOrWhiteSpace(suffix) ? systemPrompt
+        : string.IsNullOrWhiteSpace(systemPrompt) ? suffix.Trim()
+        : systemPrompt.TrimEnd() + "\n\n" + suffix.Trim();
 
     private async Task<List<ChatMessage>> HistoryAsync(long chatId, CancellationToken ct) =>
         (await repository.GetMessagesAsync(chatId, ct).ConfigureAwait(false)).Select(m => m.ToChatMessage()).ToList();

@@ -75,6 +75,15 @@ public static class SettingsValidator
         if (!Enum.IsDefined(settings.DefaultChatStyle)) { fixes.Add("defaultChatStyle ungültig"); settings.DefaultChatStyle = ChatStyle.Simple; }
         if (!Enum.IsDefined(settings.EngineOrder)) { fixes.Add("engineOrder ungültig"); settings.EngineOrder = EngineOrder.LlamaCppFirst; }
         if (!Enum.IsDefined(settings.Voice.SpeechRecognitionDevice)) { fixes.Add("speechRecognitionDevice ungültig"); settings.Voice.SpeechRecognitionDevice = ComputeDevice.Cpu; }
+        FixVoice(settings.Voice, fixes);
+    }
+
+    private static void FixVoice(VoiceSettings voice, List<string> fixes)
+    {
+        var defaults = new VoiceSettings();
+        if (string.IsNullOrWhiteSpace(voice.WhisperModel)) { voice.WhisperModel = defaults.WhisperModel; fixes.Add("whisperModel fehlte"); }
+        if (string.IsNullOrWhiteSpace(voice.PushToTalkKey)) { voice.PushToTalkKey = defaults.PushToTalkKey; fixes.Add("pushToTalkKey fehlte"); }
+        if (voice.SilenceMs is < 300 or > 3000) { voice.SilenceMs = defaults.SilenceMs; fixes.Add("silenceMs ausserhalb 300–3000"); }
     }
 
     private static void FixWindow(WindowSettings window, List<string> fixes)

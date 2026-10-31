@@ -12,7 +12,7 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | M1 | Engines: llama.cpp und Ollama, Laden/Entladen, Streaming, Ressourcen-Anzeige, Ollama-Import | ✅ fertig (v0.2.0) |
 | M2 | Chat: Simpel- und Terminal-Stil, Seitenleiste, Bilder, Titel, Bewertung, Kontext | ✅ fertig (v0.3.0) |
 | M3 | Create-Hub: Übersicht mit Ampel, neue KI, löschen, GGUF-Import, Ollama-Import, Hugging Face | ✅ fertig (v0.4.0) |
-| M4 | Gespräch-Stil (Sprache) | offen |
+| M4 | Gespräch-Stil: Spracherkennung (Whisper), Stimme (Piper), Orb, Mitschrift, Push-to-Talk und Freihändig | ✅ fertig (v1.0.0) |
 | M5–M10 | Alternate Launch, System-Prompt, Feineinstellungen, Training, Server, Chatraum | offen |
 
 ## Ordner
@@ -30,8 +30,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | `src/KiNexus.Core/` | Logik ohne Oberfläche: Einstellungen, KIs, EngineManager, Prozesse, Messung | ja |
 | `src/KiNexus.Engines/` | Anbindung an llama.cpp, Ollama und Hugging Face, Import aus Ollama | ja |
 | `tests/` | Unit-Tests für Core und Engines | ja |
-| `python/` | Spracherkennung (M4) und Training (M8) | ja (ohne `.venv`) |
-| `scripts/` | PowerShell-Skripte, z.B. `setup-engines.ps1` | ja |
+| `python/` | Sprach-Worker (`voice/worker.py`, M4) und später Training (M8). Umgebung in `python/.venv` | ja (ohne `.venv`) |
+| `scripts/` | PowerShell-Skripte: `setup-engines.ps1` (llama.cpp), `setup-voice.ps1` (Sprache) | ja |
 
 ## So hängt alles zusammen
 
@@ -41,6 +41,7 @@ Start-KI-Nexus.bat
                            ├─ nutzt KiNexus.Core     (Einstellungen, KIs, EngineManager)
                            └─ nutzt KiNexus.Engines  (llama.cpp, Ollama)
                                      ├─ startet  engines\llama.cpp\llama-server.exe  (Port 8090)
+                                     ├─ startet  python\voice\worker.py (Whisper + Piper, stdin/stdout)
                                      └─ spricht mit Ollama, falls es läuft          (Port 11434)
 ```
 
@@ -54,7 +55,7 @@ Beim Start passiert der Reihe nach:
 6. Das Hauptfenster öffnet sich mit dem zuletzt benutzten Chat.
 7. Ein Modell wird erst geladen, wenn du die erste Frage stellst.
 
-## Bedienung (Stand M3)
+## Bedienung (Stand M4)
 
 | Was | Wo |
 |---|---|
@@ -63,6 +64,7 @@ Beim Start passiert der Reihe nach:
 | VRAM und RAM | Kopfleiste rechts, alle 2 Sekunden gemessen. Gelb ab 90 %. |
 | Modell entladen | Power-Symbol in der Kopfleiste. Es leuchtet, solange ein Modell geladen ist. |
 | Chatten | Chat-Tab, Stil Simpel oder Terminal. Details: [04-Chat-und-Stile.md](04-Chat-und-Stile.md) |
+| Sprechen | Chat-Tab, Stil Gespräch. Einmal `scripts\setup-voice.ps1` ausführen. Details: [05-Sprache.md](05-Sprache.md) |
 | KIs und Modelle verwalten | Create-Hub-Tab: Übersicht, Neue KI, Importieren, Hugging Face. Details: [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) |
 
 | Taste | Wirkung |
@@ -75,11 +77,14 @@ Beim Start passiert der Reihe nach:
 | `Strg + C` | Antwort abbrechen (Terminal, wenn kein Text markiert ist) |
 | `Pfeil hoch/runter`, `Tab` | Frühere Eingaben, Befehl vervollständigen (Terminal) |
 | `F2` / `Entf` | Chat umbenennen / löschen (in der Seitenleiste) |
+| `Leertaste` (halten) | Push-to-Talk im Gespräch-Stil (Taste einstellbar) |
+| `Esc` | im Gespräch: KI unterbrechen |
 
 ## Weiter lesen
 
 - [01-Architektur.md](01-Architektur.md) – Schichten, Klassen, Einstellungen
 - [02-Engines.md](02-Engines.md) – llama.cpp und Ollama, Messwerte
 - [03-Modelle-und-KIs.md](03-Modelle-und-KIs.md) – Modell-Ordner, KI-Profile, Create-Hub, Import, Hugging Face
-- [04-Chat-und-Stile.md](04-Chat-und-Stile.md) – Simpel, Terminal, Befehle, Bilder, Kontext, Datenbank
+- [04-Chat-und-Stile.md](04-Chat-und-Stile.md) – Simpel, Terminal, Gespräch, Befehle, Bilder, Kontext, Datenbank
+- [05-Sprache.md](05-Sprache.md) – Gespräch-Stil: Whisper, Piper, Einrichten, Messwerte, Protokoll
 - [09-Fehlerbehebung.md](09-Fehlerbehebung.md) – wenn etwas nicht geht

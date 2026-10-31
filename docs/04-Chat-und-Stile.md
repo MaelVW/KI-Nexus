@@ -1,8 +1,8 @@
 # 04 – Chat und Stile
 
 Ein Chat hat drei Ansichten: Terminal, Simpel und Gespräch.
-Du kannst mitten im Chat den Stil wechseln, der Verlauf bleibt gleich. Beide Stile zeigen nämlich denselben Chat.
-Alle Chats liegen in `data/chats.db`. Gespräch (mit Stimme) kommt in Meilenstein 4.
+Du kannst mitten im Chat den Stil wechseln, der Verlauf bleibt gleich. Alle drei Stile zeigen nämlich denselben Chat.
+Alle Chats liegen in `data/chats.db`. Den Gespräch-Stil (mit Stimme) beschreibt [05-Sprache.md](05-Sprache.md).
 
 ## Für alle Stile gleich
 
@@ -23,6 +23,7 @@ Alle Chats liegen in `data/chats.db`. Gespräch (mit Stimme) kommt in Meilenstei
 ### Was ans Modell geht
 
 Nur Systemprompt, Verlauf und deine neue Nachricht. Nichts Verstecktes (Lektion 5 im Bauplan).
+Einzige Ausnahme, offen dokumentiert: Im Gespräch-Stil hängt die App „Antworte kurz und so, wie man spricht.“ an den Systemprompt (abschaltbar, siehe [05-Sprache.md](05-Sprache.md)).
 Die Gedanken früherer Antworten gehen **nicht** mit, nur der eigentliche Text.
 
 ### Kontext (Gedächtnis des Modells)
@@ -84,6 +85,14 @@ Getestet: Mael-KI (gemma4) beschreibt ein Testbild richtig (rotes Haus, braunes 
 | `/stop` | Antwort abbrechen (auch `Strg + C`) |
 | `/stats` | Token, Tempo und Kontext anzeigen |
 | `/unload` | Modell entladen |
+
+## Gespräch-Stil
+
+- In der Mitte ein **Orb**, der den Zustand zeigt (zuhören, verstehen, denken, sprechen). Darunter die **Mitschrift** (der normale Chat).
+- Oben der Schalter **Push-to-Talk | Freihändig**. Push-to-Talk: Leertaste oder Orb gedrückt halten. Freihändig: einfach sprechen.
+- `Esc` oder „Unterbrechen“ stoppt Antwort und Stimme sofort.
+- Thinking ist im Gespräch immer aus. Codeblöcke werden nicht vorgelesen.
+- Alles Weitere (Einrichten, Einstellungen, Messwerte, Grenzen): [05-Sprache.md](05-Sprache.md).
 
 ## Chat-Datenbank (`data/chats.db`)
 

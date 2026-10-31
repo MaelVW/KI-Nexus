@@ -18,6 +18,9 @@
     <PackageVersion Include="Microsoft.Data.Sqlite" Version="10.0.14" />
     <!-- Windows DPAPI: Hugging-Face-Token verschlüsselt speichern. -->
     <PackageVersion Include="System.Security.Cryptography.ProtectedData" Version="10.0.14" />
+    <!-- Wiedergabe der Sprachausgabe. 2.4.0 ist die letzte der stabilen 2er-Reihe. Die 3er-Reihe (seit August 2026)
+         hat sich seither mehrmals stark geändert, darum noch nicht. -->
+    <PackageVersion Include="NAudio.WinMM" Version="2.4.0" />
   </ItemGroup>
 
   <ItemGroup Label="Chat-Anzeige">

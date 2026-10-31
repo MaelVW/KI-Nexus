@@ -1,3 +1,5 @@
+using System.Collections.ObjectModel;
+using System.ComponentModel;
 using System.Globalization;
 using System.IO;
 using CommunityToolkit.Mvvm.ComponentModel;
@@ -7,6 +9,7 @@ using KiNexus.Core;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Settings;
+using KiNexus.Engines.Voice;
 using Microsoft.Extensions.Logging;
 
 namespace KiNexus.App.ViewModels;
@@ -16,6 +19,12 @@ public sealed record AccentPreset(string Name, string Hex);
 
 /// <summary>Ein Eintrag in der Auswahl "Standard-KI". Leere Id = keine feste Standard-KI.</summary>
 public sealed record KiChoice(string Id, string Name);
+
+/// <summary>Ein Eintrag in einer Auswahl: gespeicherter Wert und Anzeige. Leerer Wert = Standard.</summary>
+public sealed record SettingChoice(string Value, string Name)
+{
+    public override string ToString() => Name;
+}
 
 /// <summary>
 /// Logik des Einstellungs-Dialogs (Zahnrad).
@@ -37,7 +46,12 @@ public sealed partial class SettingsViewModel : ObservableObject
         _paths = paths;
         _logger = logger;
         KiChoices = [new KiChoice("", "Erste in der Liste"), .. KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder).Select(k => new KiChoice(k.Id, $"{k.DisplayName} ({k.EngineLabel})"))];
+        _voice = VoiceInstallation.For(paths, paths.Resolve(settings.Current.Paths.Models));
+        VoiceChoices = [.. _voice.Voices().Select(v => new SettingChoice(v, v))];
+        WhisperChoices = [.. _voice.WhisperModels().Select(m => new SettingChoice(m, WhisperLabel(m)))];
         LoadFrom(settings.Current);
+        VoiceSetupHint = _voice.Problem(settings.Current.Voice) ?? "";
+        _ = LoadMicrophonesAsync();
     }
 
     /// <summary>Wird nach erfolgreichem Speichern ausgelöst. Dann geht der Dialog zu.</summary>
@@ -56,6 +70,82 @@ public sealed partial class SettingsViewModel : ObservableObject
     ];
 
     public IReadOnlyList<KiChoice> KiChoices { get; }
+
+    // ----------------------------------------------------------- Sprache
+
+    private readonly VoiceInstallation _voice;
+
+    /// <summary>Mikrofone kommen vom Sprach-Worker (dauert ca. 1 s). Leerer Wert = Windows-Standard.</summary>
+    public ObservableCollection<SettingChoice> MicrophoneChoices { get; } = [new("", "Windows-Standard")];
+
+    public IReadOnlyList<SettingChoice> VoiceChoices { get; }
+
+    public IReadOnlyList<SettingChoice> WhisperChoices { get; }
+
+    public IReadOnlyList<SettingChoice> PushToTalkKeyChoices { get; } =
+    [
+        new("Space", "Leertaste"),
+        new("RightCtrl", "Rechte Strg-Taste"),
+        new("F8", "F8"),
+        new("F9", "F9"),
+        new("F10", "F10"),
+    ];
+
+    public IReadOnlyList<SettingChoice> SilenceChoices { get; } =
+    [
+        new("500", "0.5 Sekunden (schnell, unterbricht dich eher)"),
+        new("800", "0.8 Sekunden (Standard)"),
+        new("1200", "1.2 Sekunden"),
+        new("2000", "2 Sekunden (für lange Denkpausen)"),
+    ];
+
+    [ObservableProperty] private string _microphone = "";
+    [ObservableProperty] private string _voiceName = "";
+    [ObservableProperty] private string _whisperModel = "";
+    [ObservableProperty] private ComputeDevice _speechRecognitionDevice;
+    [ObservableProperty] private string _pushToTalkKey = "";
+    [ObservableProperty] private string _silenceMs = "";
+    [ObservableProperty] private bool _shortSpokenAnswers;
+
+    /// <summary>Was für die Sprache noch fehlt (z.B. "setup-voice.ps1 ausführen"). Leer = alles da.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasVoiceSetupHint))]
+    private string _voiceSetupHint = "";
+
+    public bool HasVoiceSetupHint => VoiceSetupHint.Length > 0;
+
+    private async Task LoadMicrophonesAsync()
+    {
+        if (!File.Exists(_voice.PythonExe))
+        {
+            return;
+        }
+
+        try
+        {
+            var microphones = await VoiceWorker.ListMicrophonesAsync(_voice, CancellationToken.None);
+            var selected = Microphone;
+            foreach (var name in microphones.Items.Where(n => MicrophoneChoices.All(c => c.Value != n)))
+            {
+                MicrophoneChoices.Add(new SettingChoice(name, name));
+            }
+
+            // Die Auswahl neu setzen, jetzt wo der Eintrag in der Liste steht.
+            Microphone = "";
+            Microphone = selected;
+        }
+        catch (Exception ex) when (ex is IOException or InvalidOperationException or Win32Exception)
+        {
+            _logger.LogWarning(ex, "Mikrofone konnten nicht aufgelistet werden.");
+        }
+    }
+
+    private static string WhisperLabel(string model) => model switch
+    {
+        "large-v3-turbo" => "large-v3-turbo (beste Erkennung, ca. 3 s pro Satz auf der CPU)",
+        "small" => "small (schneller, ca. 1 s, mehr Fehler)",
+        _ => model,
+    };
 
     [ObservableProperty] private string _defaultKiId = "";
     [ObservableProperty] private string _accentColor = "";
@@ -140,6 +230,21 @@ public sealed partial class SettingsViewModel : ObservableObject
         GenerateChatTitles = settings.BackgroundTasks.GenerateChatTitles;
         StopOpenWebUiOnExit = settings.OpenWebUi.StopOnExit;
         OpenWebUiVersion = settings.OpenWebUi.PinnedVersion ?? "";
+
+        var voice = settings.Voice;
+        if (voice.Microphone is { Length: > 0 } mic && MicrophoneChoices.All(c => c.Value != mic))
+        {
+            // Gespeichertes Mikrofon, das gerade nicht angeschlossen ist: trotzdem anzeigen.
+            MicrophoneChoices.Add(new SettingChoice(mic, mic + " (nicht gefunden)"));
+        }
+
+        Microphone = voice.Microphone ?? "";
+        VoiceName = _voice.ChooseVoice(voice.Voice);
+        WhisperModel = voice.WhisperModel;
+        SpeechRecognitionDevice = voice.SpeechRecognitionDevice;
+        PushToTalkKey = PushToTalkKeyChoices.Any(c => c.Value == voice.PushToTalkKey) ? voice.PushToTalkKey : "Space";
+        SilenceMs = SilenceChoices.FirstOrDefault(c => c.Value == ToText(voice.SilenceMs))?.Value ?? "800";
+        ShortSpokenAnswers = voice.ShortSpokenAnswers;
     }
 
     private void ApplyTo(AppSettings settings)
@@ -157,6 +262,14 @@ public sealed partial class SettingsViewModel : ObservableObject
         settings.BackgroundTasks.GenerateChatTitles = GenerateChatTitles;
         settings.OpenWebUi.StopOnExit = StopOpenWebUiOnExit;
         settings.OpenWebUi.PinnedVersion = string.IsNullOrWhiteSpace(OpenWebUiVersion) ? null : OpenWebUiVersion.Trim();
+
+        settings.Voice.Microphone = Microphone.Length == 0 ? null : Microphone;
+        settings.Voice.Voice = VoiceName.Length == 0 ? null : VoiceName;
+        settings.Voice.WhisperModel = WhisperModel.Length == 0 ? new VoiceSettings().WhisperModel : WhisperModel;
+        settings.Voice.SpeechRecognitionDevice = SpeechRecognitionDevice;
+        settings.Voice.PushToTalkKey = PushToTalkKey;
+        settings.Voice.SilenceMs = int.Parse(SilenceMs, CultureInfo.InvariantCulture);
+        settings.Voice.ShortSpokenAnswers = ShortSpokenAnswers;
     }
 
     private void Validate()

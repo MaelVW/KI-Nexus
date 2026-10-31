@@ -53,8 +53,8 @@
                                   Visibility="{Binding DataContext.IsSimple, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
             <views:TerminalChatView Grid.Row="1" DataContext="{Binding Terminal}"
                                     Visibility="{Binding DataContext.IsTerminal, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
-            <ContentControl Grid.Row="1" Content="{Binding ConversationPlaceholder}" Focusable="False"
-                            Visibility="{Binding IsConversation, Converter={StaticResource BoolToVisibility}}" />
+            <views:ConversationView Grid.Row="1" DataContext="{Binding Conversation}"
+                                    Visibility="{Binding DataContext.IsConversation, RelativeSource={RelativeSource AncestorType=UserControl}, Converter={StaticResource BoolToVisibility}}" />
         </Grid>
     </Grid>
 </UserControl>

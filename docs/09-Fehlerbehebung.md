@@ -84,6 +84,23 @@ Alle Chats stehen in `data\chats.db`. Zum Sichern genügt es, diese Datei und de
 | Grundmodell löschen gibt keinen Platz frei | Das Modell ist ein Hardlink auf Ollama | Normal: Die Daten gehören auch Ollama. Platz wird erst frei, wenn auch Ollama das Modell löscht |
 | Angefangene Downloads tauchen nach dem Neustart wieder auf | Gewollt: Sie stehen pausiert in der Liste | „Fortsetzen“ oder „Abbrechen“ (löscht die halbe Datei in `models\.downloads\`) |
 
+## Sprache (Gespräch-Stil)
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „Die Sprache ist noch nicht eingerichtet“ | Python-Umgebung oder Modelle fehlen | `.\scripts\setup-voice.ps1` ausführen (lädt ca. 1.8 GB) |
+| „Das Whisper-Modell … fehlt“ / „Die Stimme … fehlt“ | In den Einstellungen ist etwas gewählt, das nicht geladen ist | Den angezeigten Befehl ausführen, z.B. `.\scripts\setup-voice.ps1 -Whisper small` |
+| „Ich habe nichts gehört“ | Mikrofon stumm, falsches Mikrofon oder zu weit weg | Stummschaltung prüfen (Taste am Laptop, Windows-Einstellungen → Datenschutz → Mikrofon). Zahnrad → Sprache → Mikrofon |
+| „Nichts verstanden“ | Whisper war sich nicht sicher (Rauschen, ferne Stimmen) | Näher ans Mikrofon, deutlich sprechen |
+| Freihändig antwortet die KI auf andere Leute oder ein Video | Freihändig hört alle Stimmen im Raum | Push-to-Talk nehmen |
+| Erkennung dauert ca. 3 s | Whisper turbo auf der CPU | Normal. Schneller: Zahnrad → Sprache → small (macht mehr Fehler) |
+| Die KI hört sich selbst und antwortet sich | Lautsprecher sehr laut oder sehr nah am Mikrofon | Kopfhörer nehmen oder leiser stellen. Freihändig wartet zwar, bis die KI fertig ist, aber Nachhall kann trotzdem ankommen |
+| Musik klingt dumpf, sobald das Gespräch läuft | Bluetooth-Kopfhörer als Mikrofon schalten in den Telefon-Modus | Laptop-Mikrofon wählen (Zahnrad → Sprache → Mikrofon) |
+| „Spracherkennung auf der GPU geht nicht“ | NVIDIA-Bibliotheken für Whisper fehlen | Auf CPU stellen. GPU ist noch nicht eingerichtet (siehe 05-Sprache.md) |
+| „Der Sprach-Worker wurde beendet“ | Python ist abgestürzt | Klick auf den Orb startet neu. Die Ursache steht im Log (Zeilen mit `[voice]`) |
+
+Was das Mikrofon wirklich aufgenommen hat: KI-Nexus mit der Umgebungsvariable `KINEXUS_VOICE_DEBUG=C:\Pfad\zum\Ordner` starten. Dann speichert der Worker jede Äusserung dort als WAV-Datei.
+
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 
 Die App läuft noch und sperrt `KI-Nexus.exe`. App schliessen und nochmals bauen.

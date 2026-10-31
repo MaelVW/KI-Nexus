@@ -184,6 +184,13 @@ public sealed partial class ChatSessionViewModel : ObservableObject
     public Task AskAsync(string text, IReadOnlyList<string> images) =>
         RunTurnAsync((chat, ki, ct) => _chats.SendAsync(chat, ki, text, images, ThinkEnabled, Progress(), ct));
 
+    /// <summary>
+    /// Frage aus dem Gespräch-Stil: immer ohne Thinking (Bauplan 8.1), optional mit Zusatz zum Systemprompt
+    /// (z.B. "Antworte kurz und so, wie man spricht."). Die Einstellung Thinking des Chats bleibt unverändert.
+    /// </summary>
+    public Task AskSpokenAsync(string text, string? systemPromptSuffix) =>
+        RunTurnAsync((chat, ki, ct) => _chats.SendAsync(chat, ki, text, [], think: false, Progress(), ct, systemPromptSuffix));
+
     [RelayCommand(CanExecute = nameof(IsBusy))]
     public void Stop() => _turn?.Cancel();
 
