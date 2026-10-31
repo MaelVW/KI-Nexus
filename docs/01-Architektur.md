@@ -48,7 +48,17 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M4)
+## Wichtige Klassen (Stand M5)
+
+### Neu in M5: Alternate Launch
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `OpenWebUiCommand`, `UvxLocator` | Engines | Befehl (`uvx … serve --host 127.0.0.1`), Umgebung, Arbeitsordner (Geheimschlüssel), uvx finden. |
+| `OpenWebUiLauncher` | Engines | Open WebUI starten, auf `/health` warten, Log sammeln, stoppen. Eigenes Job Object für die ganze Prozesskette. |
+| `JobObject` | Core | Jetzt öffentlich: mit oder ohne „beim Schliessen beenden“, `Terminate`, `ProcessIds`, `ActiveProcessCount`. |
+| `ProcessSupervisor.Start(…, assignToJob)` | Core | Programme, die KI-Nexus überleben dürfen, kommen nicht ins gemeinsame Job Object. |
+| `OpenWebUiViewModel`, `OpenWebUiPanel` | App | Knopf mit Statuspunkt in der Kopfleiste, Panel mit Starten / Stoppen / Browser / Hinweis / Log. |
 
 ### Neu in M4: Gespräch-Stil
 

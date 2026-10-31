@@ -176,6 +176,7 @@ public sealed partial class SettingsViewModel : ObservableObject
     partial void OnModelsPathChanged(string value) => Validate();
     partial void OnEnginesPathChanged(string value) => Validate();
     partial void OnOpenWebUiDataPathChanged(string value) => Validate();
+    partial void OnOpenWebUiVersionChanged(string value) => Validate();
 
     [RelayCommand]
     private void SelectAccent(string hex) => AccentColor = hex;
@@ -295,6 +296,11 @@ public sealed partial class SettingsViewModel : ObservableObject
         if (string.IsNullOrWhiteSpace(ModelsPath) || string.IsNullOrWhiteSpace(EnginesPath) || string.IsNullOrWhiteSpace(OpenWebUiDataPath))
         {
             return "Kein Pfad darf leer sein.";
+        }
+
+        if (!Engines.OpenWebUi.OpenWebUiCommand.IsValidVersion(OpenWebUiVersion))
+        {
+            return "Die feste Version von Open WebUI muss so aussehen: 0.12.5 (oder leer für die neueste).";
         }
 
         return null;

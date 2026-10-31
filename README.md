@@ -3,8 +3,8 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 1.0.0 (Meilenstein 4 – Gespräch-Stil).** Das ist die Mindestversion aus dem Bauplan (M0 bis M4).
-> Chatten in drei Stilen: Simpel, Terminal und Gespräch (du sprichst, die KI antwortet mit Stimme, alles lokal mit Whisper und Piper). Im Create-Hub erstellst und löschst du KIs, importierst GGUF-Dateien und Ollama-Modelle und lädst Modelle von Hugging Face. Die eigene Engine (llama.cpp) und Ollama laufen.
+> **Stand: Version 1.1.0 (Meilenstein 5 – Alternate Launch).** Version 1.0 (M0 bis M4) war die Mindestversion aus dem Bauplan.
+> Chatten in drei Stilen: Simpel, Terminal und Gespräch (du sprichst, die KI antwortet mit Stimme, alles lokal mit Whisper und Piper). Im Create-Hub erstellst und löschst du KIs, importierst GGUF-Dateien und Ollama-Modelle und lädst Modelle von Hugging Face. Ein Knopf startet Open WebUI im Hintergrund. Die eigene Engine (llama.cpp) und Ollama laufen.
 
 ![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
 
@@ -22,7 +22,8 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 4. Das Fenster vom Skript schliesst sich von selbst, und KI-Nexus öffnet sich.
 5. Fehlt einer KI die Modell-Datei, bietet ein Hinweis über dem Chat „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
 6. Neue Modelle und KIs: Tab **Create-Hub** (`Strg + 5`).
-7. Für den **Gespräch-Stil** einmal `.\scripts\setup-voice.ps1` ausführen (lädt ca. 1.8 GB: Python-Pakete, Whisper, deutsche Stimme).
+7. **Open WebUI:** Weltkugel in der Kopfleiste → Starten. Der Browser öffnet sich von selbst.
+8. Für den **Gespräch-Stil** einmal `.\scripts\setup-voice.ps1` ausführen (lädt ca. 1.8 GB: Python-Pakete, Whisper, deutsche Stimme).
 
 ## Voraussetzungen
 

@@ -13,7 +13,11 @@ public sealed class ProcessSupervisor(ILogger<ProcessSupervisor> logger) : IDisp
 
     /// <summary>Startet ein Programm ohne Fenster und hängt es ans Job Object.</summary>
     /// <param name="configure">Für Sonderwünsche, z.B. stdin/stdout umleiten (Python-Worker) oder Umgebungsvariablen.</param>
-    public Process Start(string fileName, IEnumerable<string> arguments, string? workingDirectory = null, Action<ProcessStartInfo>? configure = null)
+    /// <param name="assignToJob">
+    /// False nur für Programme, die KI-Nexus überleben sollen (Open WebUI mit "beim Schliessen nicht beenden").
+    /// </param>
+    public Process Start(string fileName, IEnumerable<string> arguments, string? workingDirectory = null, Action<ProcessStartInfo>? configure = null,
+        bool assignToJob = true)
     {
         var info = new ProcessStartInfo(fileName)
         {
@@ -29,15 +33,18 @@ public sealed class ProcessSupervisor(ILogger<ProcessSupervisor> logger) : IDisp
         configure?.Invoke(info);
 
         var process = Process.Start(info) ?? throw new InvalidOperationException($"{fileName} konnte nicht gestartet werden.");
-        try
+        if (assignToJob)
         {
-            _job.Assign(process);
-        }
-        catch
-        {
-            process.Kill();
-            process.Dispose();
-            throw;
+            try
+            {
+                _job.Assign(process);
+            }
+            catch
+            {
+                process.Kill();
+                process.Dispose();
+                throw;
+            }
         }
 
         logger.LogInformation("Gestartet: {File} (PID {Pid})", Path.GetFileName(fileName), process.Id);

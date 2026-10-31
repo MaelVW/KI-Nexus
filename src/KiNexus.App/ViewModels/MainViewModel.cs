@@ -38,11 +38,13 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         ChatListViewModel chatList,
         CreateHubViewModel createHub,
         ConversationViewModel conversation,
+        OpenWebUiViewModel openWebUi,
         ILogger<MainViewModel> logger)
     {
         _settings = settings;
         _dialogs = dialogs;
         _kis = kis;
+        OpenWebUi = openWebUi;
         _engines = engines;
         _resources = resources;
         _logger = logger;
@@ -91,6 +93,9 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     public string AppVersion { get; } = AppInfo.Version;
 
     public ChatTabViewModel Chat { get; }
+
+    /// <summary>Knopf "Alternate Launch" (Open WebUI) in der Kopfleiste.</summary>
+    public OpenWebUiViewModel OpenWebUi { get; }
 
     public IReadOnlyList<TabViewModel> Tabs { get; }
 
@@ -212,6 +217,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     {
         await _shutdown.CancelAsync();
         await Chat.Conversation.DisposeAsync();
+        await OpenWebUi.DisposeAsync();
         await _engines.DisposeAsync();
     }
 

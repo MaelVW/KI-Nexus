@@ -101,6 +101,19 @@ Alle Chats stehen in `data\chats.db`. Zum Sichern genügt es, diese Datei und de
 
 Was das Mikrofon wirklich aufgenommen hat: KI-Nexus mit der Umgebungsvariable `KINEXUS_VOICE_DEBUG=C:\Pfad\zum\Ordner` starten. Dann speichert der Worker jede Äusserung dort als WAV-Datei.
 
+## Open WebUI (Alternate Launch)
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „uvx fehlt“ | uv ist nicht installiert | uv installieren (https://docs.astral.sh/uv/), dann nochmals |
+| „Port 8080 ist von einem anderen Programm belegt“ | Etwas anderes läuft auf dem Port | Das Programm beenden oder im Zahnrad einen anderen Port für Open WebUI wählen |
+| „Läuft (nicht von KI-Nexus gestartet)“ | Open WebUI läuft schon, z.B. von Hand gestartet | Im Browser öffnen geht. Beenden dort, wo du es gestartet hast |
+| Start dauert über eine Minute | Erster Start einer Version: uv richtet Pakete ein | Warten. Danach ca. 20 s. Mit fester Version passiert das nur nach einem Wechsel |
+| „Open WebUI hat sich beendet (Code …)“ | Fehler beim Start | „Log anzeigen“ im Panel, oder `data\logs\open-webui.log` |
+| Open WebUI zeigt keine Modelle | Weder Ollama noch llama-server laufen, oder llama-server ist nicht als Verbindung eingetragen | Ollama-App starten. Für llama-server: einmal die Verbindung eintragen (siehe 07-Open-WebUI.md) |
+| Nach dem Start bin ich in Open WebUI abgemeldet | Open WebUI hat einen neuen Geheimschlüssel erzeugt | Neu anmelden (Passwort bleibt). KI-Nexus nimmt den bestehenden Schlüssel, wenn er im Daten-Ordner oder im Ordner darüber liegt |
+| Vom Handy aus geht Open WebUI nicht mehr | KI-Nexus startet es nur für diesen Laptop (127.0.0.1) | Gewollt (Bauplan). Für das Heimnetz müsste man Open WebUI von Hand mit `--host 0.0.0.0` starten |
+
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 
 Die App läuft noch und sperrt `KI-Nexus.exe`. App schliessen und nochmals bauen.

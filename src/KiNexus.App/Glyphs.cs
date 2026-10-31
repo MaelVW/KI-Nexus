@@ -40,4 +40,5 @@ public static class Glyphs
     public const string Lightbulb = "\uEA80";
     public const string Warning = "\uE7BA";
     public const string Download = "\uE896";
+    public const string Globe = "\uE774";
 }

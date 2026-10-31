@@ -14,7 +14,7 @@ public interface IShellService
 
     void CopyText(string text);
 
-    /// <summary>Öffnet eine Webseite im Standard-Browser. Nur https.</summary>
+    /// <summary>Öffnet eine Webseite im Standard-Browser. Nur https, oder http auf diesem Laptop (z.B. Open WebUI).</summary>
     void OpenUrl(Uri uri);
 }
 
@@ -38,9 +38,9 @@ public sealed class ShellService : IShellService
 
     public void OpenUrl(Uri uri)
     {
-        if (uri.Scheme != Uri.UriSchemeHttps)
+        if (uri.Scheme != Uri.UriSchemeHttps && !(uri.Scheme == Uri.UriSchemeHttp && uri.IsLoopback))
         {
-            throw new ArgumentException("Nur https-Adressen werden geöffnet.", nameof(uri));
+            throw new ArgumentException("Nur https-Adressen (oder http auf diesem Laptop) werden geöffnet.", nameof(uri));
         }
 
         Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });

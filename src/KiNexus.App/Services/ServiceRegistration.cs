@@ -13,6 +13,7 @@ using KiNexus.Core.Settings;
 using KiNexus.Engines.HuggingFace;
 using KiNexus.Engines.LlamaCpp;
 using KiNexus.Engines.Ollama;
+using KiNexus.Engines.OpenWebUi;
 using KiNexus.Engines.Voice;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -87,6 +88,11 @@ public static class ServiceRegistration
         services.AddSingleton<VoiceWorker>();
         services.AddSingleton<PcmPlayer>();
 
+        // Alternate Launch (M5): Open WebUI im Hintergrund, mit eigenem Job Object. Log in data/logs/open-webui.log.
+        services.AddSingleton(provider => new OpenWebUiLauncher(
+            provider.GetRequiredService<ProcessSupervisor>(), provider.GetRequiredService<ILogger<OpenWebUiLauncher>>(),
+            Path.Combine(paths.LogsDirectory, "open-webui.log"), Path.Combine(paths.DataDirectory, "open-webui.processes")));
+
         services.AddSingleton(provider =>
         {
             var settings = Settings(provider);
@@ -112,6 +118,7 @@ public static class ServiceRegistration
         services.AddSingleton<ChatSessionViewModel>();
         services.AddSingleton<ChatListViewModel>();
         services.AddSingleton<ConversationViewModel>();
+        services.AddSingleton<OpenWebUiViewModel>();
     }
 
     private static AppSettings Settings(IServiceProvider provider) => provider.GetRequiredService<ISettingsService>().Current;

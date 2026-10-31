@@ -52,7 +52,15 @@ public partial class App : Application
     {
         Log.Information("KI-Nexus wird beendet (Code {ExitCode}).", e.ApplicationExitCode);
         // Einige Dienste (EngineManager) räumen asynchron auf. Beim Beenden warten wir darauf kurz.
-        _services?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        // Ein Fehler beim Aufräumen darf das Beenden nie aufhalten.
+        try
+        {
+            _services?.DisposeAsync().AsTask().Wait(TimeSpan.FromSeconds(5));
+        }
+        catch (AggregateException ex)
+        {
+            Log.Warning(ex, "Fehler beim Aufräumen der Dienste. Die App wird trotzdem beendet.");
+        }
         Log.CloseAndFlush();
         base.OnExit(e);
     }

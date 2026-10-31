@@ -7,6 +7,8 @@
         xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
         xmlns:conv="clr-namespace:KiNexus.App.Converters"
         xmlns:settings="clr-namespace:KiNexus.Core.Settings;assembly=KiNexus.Core"
+        xmlns:owui="clr-namespace:KiNexus.Engines.OpenWebUi;assembly=KiNexus.Engines"
+        xmlns:views="clr-namespace:KiNexus.App.Views"
         mc:Ignorable="d"
         d:DataContext="{d:DesignInstance Type=vm:MainViewModel}"
         Title="KI-Nexus"
@@ -23,6 +25,7 @@
     <Window.Resources>
         <conv:EnumEqualsConverter x:Key="EnumEquals" />
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:InverseBoolConverter x:Key="InverseBool" />
 
         <!-- Schild mit dem Namen der Engine (llama.cpp / Ollama). -->
         <Style x:Key="EngineBadge" TargetType="Border">
@@ -178,9 +181,46 @@
                 </Grid>
             </Border>
 
-            <!-- Knöpfe. "Alternate Launch" kommt in M5, der Schalter "Lokal | Server" in M9. -->
+            <!-- Knöpfe: Alternate Launch (Open WebUI), Entladen, Einstellungen. Der Schalter "Lokal | Server" kommt in M9. -->
             <StackPanel Grid.Column="5" Orientation="Horizontal" VerticalAlignment="Center"
                         WindowChrome.IsHitTestVisibleInChrome="True">
+                <Grid DataContext="{Binding OpenWebUi}" Margin="0,0,2,0">
+                    <ToggleButton x:Name="OpenWebUiButton" Width="40" Height="36" Padding="0" Style="{StaticResource ToggleButton.HeaderIcon}"
+                                  IsChecked="{Binding IsPanelOpen}" AutomationProperties.Name="Alternate Launch: Open WebUI"
+                                  IsHitTestVisible="{Binding IsOpen, ElementName=OpenWebUiPopup, Converter={StaticResource InverseBool}}"
+                                  AutomationProperties.AutomationId="OpenWebUiButton" ToolTip="{Binding ToolTipText}">
+                        <Grid>
+                            <TextBlock Style="{StaticResource Text.Icon}" Text="{x:Static app:Glyphs.Globe}" />
+                            <!-- Statuspunkt: grün = läuft, gelb = startet, rot = Fehler -->
+                            <Ellipse Width="7" Height="7" HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,-5,-3">
+                                <Ellipse.Style>
+                                    <Style TargetType="Ellipse">
+                                        <Setter Property="Visibility" Value="Collapsed" />
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding State}" Value="{x:Static owui:OpenWebUiState.Running}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                                <Setter Property="Fill" Value="{StaticResource Brush.Success}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="{x:Static owui:OpenWebUiState.Starting}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                                <Setter Property="Fill" Value="{StaticResource Brush.Warning}" />
+                                            </DataTrigger>
+                                            <DataTrigger Binding="{Binding State}" Value="{x:Static owui:OpenWebUiState.Failed}">
+                                                <Setter Property="Visibility" Value="Visible" />
+                                                <Setter Property="Fill" Value="{StaticResource Brush.Error}" />
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </Ellipse.Style>
+                            </Ellipse>
+                        </Grid>
+                    </ToggleButton>
+                    <!-- Klick daneben schliesst das Panel. Während es offen ist, nimmt der Knopf keine Klicks an (sonst ginge es gleich wieder auf). -->
+                    <Popup x:Name="OpenWebUiPopup" IsOpen="{Binding IsPanelOpen}" PlacementTarget="{Binding ElementName=OpenWebUiButton}" Placement="Bottom"
+                           HorizontalOffset="-380" VerticalOffset="6" StaysOpen="False" AllowsTransparency="True" PopupAnimation="Fade">
+                        <views:OpenWebUiPanel />
+                    </Popup>
+                </Grid>
                 <Button Width="40" Height="36" Padding="0" Command="{Binding UnloadCommand}" AutomationProperties.Name="Modell entladen"
                         ToolTip="Modell entladen: gibt VRAM und RAM sofort frei, z.B. vor dem Gamen">
                     <Button.Style>

@@ -6,6 +6,23 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.1.0] – 2026-10-31 – Meilenstein 5: Alternate Launch
+
+### Neu
+
+- **Alternate Launch:** Knopf (Weltkugel) in der Kopfleiste mit Statuspunkt. Das Panel hat Starten, Im Browser öffnen, Stoppen, einen Hinweis und das Log.
+- Startet Open WebUI wie bisher von Hand (`uvx --python 3.11 open-webui@<Version> serve`), aber nur auf 127.0.0.1, mit `DATA_DIR` und ohne Telemetrie. Wartet, bis Open WebUI antwortet, und öffnet dann den Browser.
+- Prüfung vor dem Start: Ist uvx da? Ist der Port frei (oder läuft Open WebUI schon)? Läuft Ollama oder llama-server? Mit Anleitung, wie Open WebUI llama-server einbindet.
+- Nimmt den bestehenden Geheimschlüssel von Open WebUI, damit Anmeldungen gültig bleiben.
+- „Beim Schliessen von KI-Nexus beenden“ (Standard ein). Aus: Open WebUI läuft weiter, und KI-Nexus findet es beim nächsten Start wieder und kann es stoppen.
+- Log in `data/logs/open-webui.log`.
+- 280 Unit-Tests (vorher 257).
+
+### Geändert
+
+- `JobObject` ist öffentlich und kann alle Prozesse darin beenden oder auflisten. `ProcessSupervisor.Start` kann Programme ausserhalb des gemeinsamen Job Objects starten.
+- Fehler beim Aufräumen der Dienste halten das Beenden der App nicht mehr auf.
+
 ## [1.0.0] – 2026-10-31 – Meilenstein 4: Gespräch-Stil
 
 Version 1.0 = Meilensteine M0 bis M4: Chat in drei Stilen und der Create-Hub.
