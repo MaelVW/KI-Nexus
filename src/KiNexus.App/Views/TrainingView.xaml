@@ -1,0 +1,224 @@
+<UserControl x:Class="KiNexus.App.Views.TrainingView"
+             xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             xmlns:app="clr-namespace:KiNexus.App"
+             xmlns:vm="clr-namespace:KiNexus.App.ViewModels"
+             xmlns:training="clr-namespace:KiNexus.Core.Training;assembly=KiNexus.Core"
+             mc:Ignorable="d"
+             d:DataContext="{d:DesignInstance Type=vm:TrainingViewModel}">
+
+    <!-- Training (Bauplan 8.6): vier Schritte untereinander, unten eine Meldung. -->
+    <UserControl.Resources>
+        <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <Style x:Key="StepCard" TargetType="Border" BasedOn="{StaticResource Card}">
+            <Setter Property="Margin" Value="0,0,0,16" />
+        </Style>
+        <Style x:Key="StepTitle" TargetType="TextBlock" BasedOn="{StaticResource Text.SectionTitle}">
+            <Setter Property="Margin" Value="0,0,0,4" />
+            <Setter Property="AutomationProperties.HeadingLevel" Value="Level3" />
+        </Style>
+    </UserControl.Resources>
+
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+
+        <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
+            <StackPanel Margin="24,16,24,16" MaxWidth="1000">
+                <TextBlock Text="Training" FontFamily="{StaticResource Font.UiDisplay}" FontSize="{StaticResource FontSize.Title}" FontWeight="SemiBold"
+                           AutomationProperties.HeadingLevel="Level2" />
+
+                <!-- Ehrliche Grenzen (Bauplan 8.6) -->
+                <Border Margin="0,10,0,16" Padding="14,10" CornerRadius="{StaticResource Radius.Normal}" BorderThickness="1"
+                        BorderBrush="{DynamicResource Brush.AccentDim}" Background="{DynamicResource Brush.AccentSoft}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock Style="{StaticResource Text.Icon}" Text="{x:Static app:Glyphs.Info}" VerticalAlignment="Top" Margin="0,2,10,0"
+                                   Foreground="{DynamicResource Brush.Accent}" />
+                        <TextBlock TextWrapping="Wrap" MaxWidth="900" LineHeight="20" AutomationProperties.AutomationId="TrainingLimits"
+                                   Text="Ehrliche Grenzen: Mit 8 GB VRAM geht Fine-Tuning nur mit LoRA (kleine Zusatz-Gewichte statt dem ganzen Modell) und nur für kleine Modelle bis ca. 4B Parameter. 9B ist zu knapp, gemma4:26b geht nicht. Ein Adapter lernt vor allem Stil, Form und wiederkehrende Antworten, kaum neues Wissen." />
+                    </StackPanel>
+                </Border>
+
+                <!-- Einrichtung -->
+                <Border Style="{StaticResource StepCard}" BorderBrush="{StaticResource Brush.Warning}" BorderThickness="1"
+                        Visibility="{Binding HasSetupProblem, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="Noch nicht eingerichtet" Style="{StaticResource StepTitle}" />
+                        <TextBlock Text="{Binding SetupProblem}" TextWrapping="Wrap" AutomationProperties.AutomationId="TrainingSetup" />
+                        <Button Content="Nochmals prüfen" Command="{Binding CheckSetupCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                    </StackPanel>
+                </Border>
+                <TextBlock Text="{Binding CheckText}" Style="{StaticResource Text.Hint}" Margin="0,-8,0,12" AutomationProperties.AutomationId="TrainingCheck" />
+
+                <!-- 1. Datensatz -->
+                <Border Style="{StaticResource StepCard}">
+                    <StackPanel>
+                        <TextBlock Text="1 · Datensatz" Style="{StaticResource StepTitle}" />
+                        <TextBlock Text="{Binding DatasetInfo}" Style="{StaticResource Text.Hint}" Margin="0,0,0,10" AutomationProperties.AutomationId="TrainingDatasetInfo" />
+                        <WrapPanel Margin="0,0,0,10">
+                            <Button Content="Aus Chats übernehmen (👍)" Command="{Binding ImportLikedCommand}" Margin="0,0,8,8"
+                                    ToolTip="Alle Antworten, die du im Chat mit Daumen hoch bewertet hast, je mit der Frage davor." />
+                            <Button Content="JSONL importieren" Command="{Binding ImportFileCommand}" Margin="0,0,8,8"
+                                    ToolTip="Eine Zeile pro Beispiel. Geht: {&quot;messages&quot;:[…]}, {&quot;frage&quot;,&quot;antwort&quot;}, {&quot;question&quot;,&quot;answer&quot;}, {&quot;instruction&quot;,&quot;output&quot;}." />
+                            <Button Style="{StaticResource Button.Ghost}" Content="Alle löschen" Command="{Binding ClearExamplesCommand}" Margin="0,0,8,8" />
+                        </WrapPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="16" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <ListBox Height="260" ItemsSource="{Binding Examples}" SelectedItem="{Binding SelectedExample}" Style="{StaticResource ListBox.Plain}"
+                                     ItemContainerStyle="{StaticResource ListBoxItem.Card}" AutomationProperties.Name="Beispiele"
+                                     AutomationProperties.AutomationId="TrainingExamples">
+                                <ListBox.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type training:TrainingExample}">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Question}" FontWeight="SemiBold" TextTrimming="CharacterEllipsis" />
+                                            <TextBlock Text="{Binding Answer}" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}"
+                                                       TextTrimming="CharacterEllipsis" />
+                                        </StackPanel>
+                                    </DataTemplate>
+                                </ListBox.ItemTemplate>
+                            </ListBox>
+                            <StackPanel Grid.Column="2">
+                                <TextBlock Text="Frage" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding EditQuestion, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap"
+                                         MinHeight="56" VerticalContentAlignment="Top" AutomationProperties.Name="Frage"
+                                         AutomationProperties.AutomationId="TrainingQuestion" />
+                                <TextBlock Text="Gewünschte Antwort" Style="{StaticResource Text.Label}" Margin="0,10,0,4" />
+                                <TextBox Text="{Binding EditAnswer, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap"
+                                         MinHeight="96" VerticalContentAlignment="Top" AutomationProperties.Name="Gewünschte Antwort"
+                                         AutomationProperties.AutomationId="TrainingAnswer" />
+                                <WrapPanel Margin="0,10,0,0">
+                                    <Button Style="{StaticResource Button.Primary}" Content="Hinzufügen" Command="{Binding AddExampleCommand}" Margin="0,0,8,0"
+                                            AutomationProperties.AutomationId="TrainingAdd" />
+                                    <Button Content="Ändern" Command="{Binding UpdateExampleCommand}" Margin="0,0,8,0" ToolTip="Das gewählte Beispiel ersetzen" />
+                                    <Button Style="{StaticResource Button.Ghost}" Content="Löschen" Command="{Binding DeleteExampleCommand}" />
+                                </WrapPanel>
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- 2. Grundmodell -->
+                <Border Style="{StaticResource StepCard}">
+                    <StackPanel>
+                        <TextBlock Text="2 · Grundmodell" Style="{StaticResource StepTitle}" />
+                        <TextBlock Style="{StaticResource Text.Hint}" Margin="0,0,0,10"
+                                   Text="Training braucht das Originalmodell (safetensors von Hugging Face), nicht die GGUF-Datei. Danach wandelt die App es für llama.cpp nach GGUF um." />
+                        <ListBox ItemsSource="{Binding BaseModels}" SelectedItem="{Binding SelectedBaseModel}" Style="{StaticResource ListBox.Plain}"
+                                 ItemContainerStyle="{StaticResource ListBoxItem.Card}" AutomationProperties.Name="Grundmodell fürs Training"
+                                 AutomationProperties.AutomationId="TrainingBaseModels">
+                            <ListBox.ItemTemplate>
+                                <DataTemplate DataType="{x:Type training:TrainingBaseModel}">
+                                    <StackPanel>
+                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                        <TextBlock Text="{Binding Details}" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
+                                    </StackPanel>
+                                </DataTemplate>
+                            </ListBox.ItemTemplate>
+                        </ListBox>
+                        <TextBlock Text="{Binding BaseModelInfo}" Style="{StaticResource Text.Hint}" Margin="0,8,0,0" AutomationProperties.AutomationId="TrainingBaseInfo" />
+                    </StackPanel>
+                </Border>
+
+                <!-- 3. Training -->
+                <Border Style="{StaticResource StepCard}">
+                    <StackPanel>
+                        <TextBlock Text="3 · Training" Style="{StaticResource StepTitle}" />
+                        <WrapPanel Margin="0,6,0,0" IsEnabled="{Binding IsIdle}">
+                            <StackPanel Margin="0,0,16,10" ToolTip="Wie oft das Modell den ganzen Datensatz sieht. Bei wenigen Beispielen eher mehr, bei vielen weniger.">
+                                <TextBlock Text="Durchgänge" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <ComboBox Width="230" ItemsSource="{Binding EpochChoices}" SelectedItem="{Binding Epochs}" AutomationProperties.Name="Durchgänge" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,10" ToolTip="Wie gross die Lernschritte sind. Zu schnell: Das Modell vergisst, was es konnte. Zu vorsichtig: Es lernt kaum.">
+                                <TextBlock Text="Lerntempo" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <ComboBox Width="200" ItemsSource="{Binding LearningRateChoices}" SelectedItem="{Binding LearningRate}" AutomationProperties.Name="Lerntempo" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,10" ToolTip="Grösse des Adapters. Grösser kann mehr lernen, braucht aber mehr Speicher und Beispiele.">
+                                <TextBlock Text="Adapter-Grösse" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <ComboBox Width="230" ItemsSource="{Binding RankChoices}" SelectedItem="{Binding LoraRank}" AutomationProperties.Name="Adapter-Grösse" />
+                            </StackPanel>
+                            <StackPanel Margin="0,0,16,10" ToolTip="Name des Adapters. Er wird zum Dateinamen.">
+                                <TextBlock Text="Name" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <TextBox Width="200" Text="{Binding RunName, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" AutomationProperties.Name="Name des Adapters"
+                                         AutomationProperties.AutomationId="TrainingRunName" />
+                            </StackPanel>
+                        </WrapPanel>
+                        <WrapPanel Margin="0,4,0,10">
+                            <Button Style="{StaticResource Button.Primary}" Content="Training starten" Command="{Binding StartCommand}" Margin="0,0,8,0"
+                                    AutomationProperties.AutomationId="TrainingStart" />
+                            <Button Content="Abbrechen" Command="{Binding StopCommand}" AutomationProperties.AutomationId="TrainingStop" />
+                        </WrapPanel>
+                        <TextBlock Text="{Binding StageText}" TextWrapping="Wrap" AutomationProperties.AutomationId="TrainingStage" AutomationProperties.LiveSetting="Polite" />
+                        <ProgressBar Height="8" Margin="0,8,0,4" Maximum="100" Value="{Binding ProgressValue}" AutomationProperties.Name="Fortschritt des Trainings" />
+                        <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Text.Hint}" AutomationProperties.AutomationId="TrainingProgress" />
+
+                        <!-- Loss-Kurve: wie falsch das Modell noch liegt, sinkt beim Lernen. -->
+                        <Border Margin="0,12,0,0" Padding="8" CornerRadius="{StaticResource Radius.Small}" Background="{StaticResource Brush.SurfaceLight}"
+                                HorizontalAlignment="Left" ToolTip="Loss-Kurve: zeigt, wie falsch das Modell bei den Beispielen noch liegt. Sie soll sinken.">
+                            <Canvas Width="600" Height="140" ClipToBounds="True" AutomationProperties.Name="Loss-Kurve">
+                                <Line X1="0" Y1="139" X2="600" Y2="139" Stroke="{StaticResource Brush.Border}" StrokeThickness="1" />
+                                <Polyline Points="{Binding LossPoints}" Stroke="{DynamicResource Brush.Accent}" StrokeThickness="2" StrokeLineJoin="Round" />
+                            </Canvas>
+                        </Border>
+                        <TextBlock Text="{Binding LossText}" Style="{StaticResource Text.Hint}" AutomationProperties.AutomationId="TrainingLoss" />
+                    </StackPanel>
+                </Border>
+
+                <!-- 4. Ergebnis -->
+                <Border Style="{StaticResource StepCard}" BorderBrush="{StaticResource Brush.Success}" BorderThickness="1"
+                        Visibility="{Binding HasResult, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="4 · Ergebnis" Style="{StaticResource StepTitle}" />
+                        <TextBlock Text="{Binding ResultText}" TextWrapping="Wrap" Style="{StaticResource Text.Hint}" Margin="0,0,0,10"
+                                   AutomationProperties.AutomationId="TrainingResult" />
+                        <WrapPanel>
+                            <TextBox Width="260" Text="{Binding NewKiName, UpdateSourceTrigger=PropertyChanged}" MaxLength="60" Margin="0,0,8,0"
+                                     AutomationProperties.Name="Name der neuen KI" AutomationProperties.AutomationId="TrainingKiName" />
+                            <Button Style="{StaticResource Button.Primary}" Content="Als neue KI speichern" Command="{Binding SaveAsKiCommand}" Margin="0,0,8,0"
+                                    AutomationProperties.AutomationId="TrainingSaveKi" />
+                            <Button Content="Jetzt chatten" Command="{Binding OpenChatCommand}" AutomationProperties.AutomationId="TrainingChat"
+                                    Visibility="{Binding IsSaved, Converter={StaticResource BoolToVisibility}}" />
+                        </WrapPanel>
+                        <TextBlock Style="{StaticResource Text.Hint}" Margin="0,8,0,0"
+                                   Text="Die neue KI nutzt das Grundmodell als GGUF (Q8_0) und lädt den Adapter mit --lora. Sie erscheint auch im Create-Hub." />
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- Meldung -->
+        <Border Grid.Row="1" BorderBrush="{StaticResource Brush.Border}" BorderThickness="0,1,0,0" Background="{StaticResource Brush.Surface}"
+                Visibility="{Binding HasStatus, Converter={StaticResource BoolToVisibility}}">
+            <Grid Margin="24,10" MaxWidth="1000">
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*" />
+                    <ColumnDefinition Width="Auto" />
+                </Grid.ColumnDefinitions>
+                <TextBlock Text="{Binding Status}" TextWrapping="Wrap" VerticalAlignment="Center"
+                           AutomationProperties.AutomationId="TrainingStatus" AutomationProperties.LiveSetting="Polite">
+                    <TextBlock.Style>
+                        <Style TargetType="TextBlock">
+                            <Setter Property="Foreground" Value="{StaticResource Brush.TextMuted}" />
+                            <Style.Triggers>
+                                <DataTrigger Binding="{Binding StatusIsError}" Value="True">
+                                    <Setter Property="Foreground" Value="{StaticResource Brush.Error}" />
+                                </DataTrigger>
+                            </Style.Triggers>
+                        </Style>
+                    </TextBlock.Style>
+                </TextBlock>
+                <Button Grid.Column="1" Margin="8,0,0,0" Style="{StaticResource Button.Icon}" Command="{Binding DismissStatusCommand}"
+                        AutomationProperties.Name="Meldung schliessen" ToolTip="Schliessen">
+                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="12" Text="{x:Static app:Glyphs.Close}" />
+                </Button>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

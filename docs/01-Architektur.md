@@ -48,7 +48,28 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M6)
+## Wichtige Klassen (Stand M8)
+
+### Neu in M8: Training
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `TrainingDataset`, `TrainingExample` | Core | Datensatz als JSONL lesen und schreiben (mehrere Formate beim Import). |
+| `TrainingModels`, `TrainingBaseModel`, `TrainingOptions` | Core | Empfohlene Grundmodelle (Qwen3 0.6B, 1.7B, 4B), VRAM-Schätzung, Einstellungen. |
+| `IChatRepository.GetLikedExamplesAsync` | Core | Antworten mit Daumen hoch mit der Frage davor. |
+| `TrainingWorker`, `TrainingInstallation` | Engines | `python/training/train.py` starten, Ereignisse lesen, abbrechen (`stop` auf stdin), Umgebung prüfen. |
+| `TrainingProtocol`, `TrainingPaths` | Engines | JSON Lines lesen, `run.json` bauen, wo welche Datei liegt. |
+| `TrainingViewModel`, `TrainingView` | App | Der Training-Tab: Datensatz, Grundmodell, Training mit Loss-Kurve, Ergebnis als neue KI. |
+
+### Neu in M7: Gespräch-Feinschliff
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `ConversationViewModel` | App | Modus aus Chat oder KI, Freihändig startet beim Öffnen, Unterbrechen (`barge_in`), Stimme pro KI ohne Neustart. |
+| `ChatSessionViewModel.SaveVoiceModeAsync` | App | Modus pro Chat in `chats.voice_mode`. |
+| `SpeechText.LooksLikeEcho` | Core | Erkennt, wenn das Mikrofon die KI selbst gehört hat. |
+| `VoiceProtocol.Watch`, `ChangeVoice` | Engines | Neue Befehle an den Sprach-Worker. |
+| `VoiceInstallation.SpeakerId`, `DisplayName` | Engines | Stimmen mit vielen Sprechern (`stimme#nummer`), Namen für die Auswahl. |
 
 ### Neu in M6: System-Prompt und Feineinstellungen
 

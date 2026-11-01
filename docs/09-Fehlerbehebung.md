@@ -126,6 +126,18 @@ Was das Mikrofon wirklich aufgenommen hat: KI-Nexus mit der Umgebungsvariable `K
 | Nach dem Start bin ich in Open WebUI abgemeldet | Open WebUI hat einen neuen Geheimschlüssel erzeugt | Neu anmelden (Passwort bleibt). KI-Nexus nimmt den bestehenden Schlüssel, wenn er im Daten-Ordner oder im Ordner darüber liegt |
 | Vom Handy aus geht Open WebUI nicht mehr | KI-Nexus startet es nur für diesen Laptop (127.0.0.1) | Gewollt (Bauplan). Für das Heimnetz müsste man Open WebUI von Hand mit `--host 0.0.0.0` starten |
 
+## Training
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „Das Training ist noch nicht eingerichtet“ | `python\training\.venv` fehlt | `scripts\setup-training.ps1` ausführen |
+| „PyTorch findet die Grafikkarte nicht“ | PyTorch ohne CUDA oder alter Treiber | Setup nochmals laufen lassen. NVIDIA-Treiber aktuell halten (CUDA 13 nötig) |
+| „Zu wenig Grafikspeicher (VRAM)“ | Ein anderes Modell belegt die Grafikkarte (z.B. in Ollama), oder das Modell ist zu gross | In Ollama das Modell entladen oder die Ollama-App beenden. Kleineres Modell oder kleinere Adapter-Grösse wählen |
+| Download des Grundmodells bricht ab | Internet weg | Nochmals starten: Fertige Dateien bleiben, der Rest wird nachgeladen |
+| „Umwandlung nach GGUF fehlgeschlagen“ | Skripte passen nicht zur llama.cpp-Version | `scripts\setup-training.ps1` nochmals (holt die Skripte zur installierten Version). Details in `data\logs\training.log` |
+| Die neue KI antwortet wie vorher | Zu wenige Beispiele oder zu wenige Durchgänge | Mehr Beispiele (ab ca. 30), 5–8 Durchgänge. Die Loss-Kurve sollte deutlich sinken |
+| Die neue KI redet wirr oder wiederholt sich | Zu viel gelernt (zu hohes Lerntempo, zu viele Durchgänge) | Lerntempo „Vorsichtig“ und weniger Durchgänge |
+
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 
 Die App läuft noch und sperrt `KI-Nexus.exe`. App schliessen und nochmals bauen.

@@ -65,6 +65,11 @@
         <views:SystemPromptView />
     </DataTemplate>
 
+    <!-- Training (M8). -->
+    <DataTemplate DataType="{x:Type vm:TrainingViewModel}">
+        <views:TrainingView />
+    </DataTemplate>
+
     <!-- Create-Hub (M3). -->
     <DataTemplate DataType="{x:Type vm:CreateHubViewModel}">
         <views:CreateHubView />

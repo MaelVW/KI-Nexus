@@ -32,6 +32,9 @@ public interface IDialogService
 
     /// <summary>Fragt beim Import: kopieren oder verschieben? Null = abgebrochen.</summary>
     ImportMode? AskCopyOrMove(string fileName, string sizeText);
+
+    /// <summary>Lässt einen Datensatz wählen (JSONL oder JSON). Null, wenn abgebrochen.</summary>
+    string? PickDatasetFile();
 }
 
 public sealed class DialogService(IServiceProvider services) : IDialogService
@@ -81,6 +84,16 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
             Multiselect = true,
         };
         return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileNames : [];
+    }
+
+    public string? PickDatasetFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Datensatz importieren",
+            Filter = "Datensätze (*.jsonl;*.json)|*.jsonl;*.json|Alle Dateien (*.*)|*.*",
+        };
+        return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileName : null;
     }
 
     public ImportMode? AskCopyOrMove(string fileName, string sizeText)

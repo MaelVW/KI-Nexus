@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Text.Json;
 using KiNexus.Core.Inference;
+using KiNexus.Core.Training;
 using Microsoft.Data.Sqlite;
 using Microsoft.Extensions.Logging;
 
@@ -26,6 +27,9 @@ public interface IChatRepository
 
     /// <summary>Die gespeicherten Fassungen einer KI, die neueste zuerst.</summary>
     Task<IReadOnlyList<PromptVersion>> GetPromptVersionsAsync(string kiId, CancellationToken ct);
+
+    /// <summary>Antworten mit Daumen hoch, je mit der Frage davor. Für den Datensatz im Training-Tab (Bauplan 8.6).</summary>
+    Task<IReadOnlyList<TrainingExample>> GetLikedExamplesAsync(CancellationToken ct);
 }
 
 /// <summary>Eine gespeicherte Fassung eines Systemprompts (Tabelle system_prompt_versions).</summary>
@@ -322,6 +326,32 @@ public sealed class ChatRepository(string databasePath, ILogger<ChatRepository> 
         }
 
         return versions;
+    }
+
+    public async Task<IReadOnlyList<TrainingExample>> GetLikedExamplesAsync(CancellationToken ct)
+    {
+        await using var connection = await OpenAsync(ct).ConfigureAwait(false);
+        await using var command = connection.CreateCommand();
+        command.CommandText = """
+            SELECT (SELECT u.content FROM messages u
+                    WHERE u.chat_id = a.chat_id AND u.id < a.id AND u.role = 'user'
+                    ORDER BY u.id DESC LIMIT 1) AS question,
+                   a.content
+            FROM messages a
+            WHERE a.role = 'assistant' AND a.rating = 1
+            ORDER BY a.id;
+            """;
+        var examples = new List<TrainingExample>();
+        await using var reader = await command.ExecuteReaderAsync(ct).ConfigureAwait(false);
+        while (await reader.ReadAsync(ct).ConfigureAwait(false))
+        {
+            if (!reader.IsDBNull(0) && reader.GetString(0).Trim().Length > 0 && reader.GetString(1).Trim().Length > 0)
+            {
+                examples.Add(new TrainingExample(reader.GetString(0).Trim(), reader.GetString(1).Trim()));
+            }
+        }
+
+        return examples;
     }
 
     private async Task<SqliteConnection> OpenAsync(CancellationToken ct)

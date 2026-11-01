@@ -15,6 +15,7 @@ using KiNexus.Engines.HuggingFace;
 using KiNexus.Engines.LlamaCpp;
 using KiNexus.Engines.Ollama;
 using KiNexus.Engines.OpenWebUi;
+using KiNexus.Engines.Training;
 using KiNexus.Engines.Voice;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -53,6 +54,7 @@ public static class ServiceRegistration
         services.AddSingleton<KiEditorServices>();
         services.AddSingleton<TuningViewModel>();
         services.AddSingleton<SystemPromptViewModel>();
+        services.AddSingleton<TrainingViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddTransient<SettingsViewModel>();
@@ -92,6 +94,11 @@ public static class ServiceRegistration
         // Sprache (M4): Python-Worker für Mikrofon, Whisper und Piper, Wiedergabe mit NAudio.
         services.AddSingleton<VoiceWorker>();
         services.AddSingleton<PcmPlayer>();
+
+        // Training (M8): Python-Worker mit PyTorch, Log in data/logs/training.log.
+        services.AddSingleton(provider => new TrainingWorker(
+            provider.GetRequiredService<ProcessSupervisor>(), provider.GetRequiredService<ILogger<TrainingWorker>>(),
+            Path.Combine(paths.LogsDirectory, "training.log")));
 
         // Alternate Launch (M5): Open WebUI im Hintergrund, mit eigenem Job Object. Log in data/logs/open-webui.log.
         services.AddSingleton(provider => new OpenWebUiLauncher(

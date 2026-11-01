@@ -6,6 +6,23 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.4.0] – 2026-11-01 – Meilenstein 8: Training
+
+### Neu
+
+- **Training-Tab** in vier Schritten: Datensatz, Grundmodell, Training, Ergebnis. Oben stehen die ehrlichen Grenzen (LoRA, bis ca. 4B Parameter).
+- **Datensatz:** Beispiele von Hand, aus Chats (alle Antworten mit Daumen hoch) oder als JSONL importieren (mehrere übliche Formate). Gespeichert in `data/training/datensatz.jsonl`.
+- **Grundmodelle:** Qwen3 1.7B (empfohlen), 0.6B und 4B (mit 4 Bit), mit VRAM-Schätzung. Das Originalmodell lädt die App beim ersten Training von Hugging Face.
+- **Training** mit PEFT (LoRA) im Python-Worker `python/training/train.py`: Fortschritt, Loss-Kurve, Restzeit, VRAM, Abbrechen. Ein geladenes Modell wird vorher entladen.
+- **Ergebnis:** Grundmodell (Q8_0) und Adapter werden nach GGUF umgewandelt (Skripte von llama.cpp in derselben Version). „Als neue KI speichern“ legt eine KI mit `--lora` an.
+- `scripts/setup-training.ps1`: eigene Umgebung `python/training/.venv` mit PyTorch 2.14 + CUDA 13.0, transformers, PEFT, bitsandbytes.
+- Abnahme: Qwen3-1.7B mit 24 Beispielen in ca. 1 Minute trainiert (Loss 4.71 → 0.51), danach als KI „Nexi“ im Chat genutzt.
+- 356 Unit-Tests (vorher 330).
+
+### Hinweis
+
+- Abbrechen geht über eine Datei `stop` im Arbeitsordner, nicht über stdin: Unter Windows blockiert ein Thread, der auf stdin wartet, schon `import torch`.
+
 ## [1.3.0] – 2026-10-31 – Meilenstein 7: Gespräch-Feinschliff
 
 ### Neu

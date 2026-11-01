@@ -38,6 +38,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         ChatListViewModel chatList,
         CreateHubViewModel createHub,
         TuningViewModel tuning,
+        TrainingViewModel training,
         SystemPromptViewModel systemPrompt,
         ConversationViewModel conversation,
         OpenWebUiViewModel openWebUi,
@@ -57,12 +58,13 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         [
             Chat,
             tuning,
-            new PlaceholderTabViewModel("training", "Training", Glyphs.Training, 8,
-                "Eigene KIs mit LoRA nachtrainieren. Mit 8 GB VRAM geht das für kleine Modelle bis ca. 4B Parameter."),
+            training,
             systemPrompt,
             createHub,
         ];
         createHub.Shell = this;
+        training.Shell = this;
+        Training = training;
         _selectedTab = Tabs.FirstOrDefault(tab => tab.Id == settings.Current.Window.LastTab) ?? Chat;
         if (_selectedTab == createHub)
         {
@@ -72,6 +74,10 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         Kis = new ObservableCollection<KiProfile>(KiRegistry.SortForDisplay(kis.All, settings.Current.EngineOrder));
         SelectedKi = kis.Find(settings.Current.DefaultKiId) ?? Kis.FirstOrDefault();
         (_selectedTab as KiEditorTabViewModel)?.Activate(SelectedKi);
+        if (_selectedTab == training)
+        {
+            _ = training.ActivateAsync();
+        }
 
         // Öffnet man einen alten Chat, wechselt die Kopfleiste zur KI dieses Chats.
         session.ChatOpened += (_, _) =>
@@ -94,6 +100,8 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     public string AppVersion { get; } = AppInfo.Version;
 
     public ChatTabViewModel Chat { get; }
+
+    public TrainingViewModel Training { get; }
 
     /// <summary>Knopf "Alternate Launch" (Open WebUI) in der Kopfleiste.</summary>
     public OpenWebUiViewModel OpenWebUi { get; }
@@ -161,6 +169,11 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
 
         // Feineinstellungen und System-Prompt öffnen mit der KI aus der Kopfleiste.
         (value as KiEditorTabViewModel)?.Activate(SelectedKi);
+
+        if (value is TrainingViewModel training)
+        {
+            _ = training.ActivateAsync();
+        }
     }
 
     // ----------------------------------------------------------- Ressourcen
@@ -222,6 +235,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         await _shutdown.CancelAsync();
         await Chat.Conversation.DisposeAsync();
         await OpenWebUi.DisposeAsync();
+        await Training.DisposeAsync();
         await _engines.DisposeAsync();
     }
 

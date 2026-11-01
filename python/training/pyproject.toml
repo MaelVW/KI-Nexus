@@ -1,0 +1,39 @@
+# Training von KI-Nexus (M8): LoRA-Fine-Tuning kleiner Modelle mit PEFT.
+# Eigene Umgebung in python/training/.venv (nicht in Git), getrennt von der Sprache: PyTorch mit CUDA ist gross (ca. 5 GB).
+# Einrichten: scripts/setup-training.ps1 (oder "uv sync" in diesem Ordner).
+
+[project]
+name = "kinexus-training"
+version = "1.0.0"
+description = "Hilfsprozess für KI-Nexus: LoRA-Training (PEFT) und Umwandlung nach GGUF"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # PyTorch mit CUDA 13.0: enthält fertigen Code für Blackwell (RTX 50, sm_120).
+    "torch==2.14.0",
+    # Modelle und Tokenizer von Hugging Face laden.
+    "transformers>=4.57",
+    "accelerate>=1.10",
+    "safetensors>=0.6",
+    "sentencepiece>=0.2",
+    "huggingface-hub>=0.35",
+    # LoRA: kleine Zusatz-Gewichte statt dem ganzen Modell (passt in 8 GB VRAM).
+    "peft>=0.17",
+    # 4-Bit-Laden (QLoRA) für Modelle ab ca. 3B. Hat Windows-Pakete mit CUDA.
+    "bitsandbytes>=0.48",
+    # Für die Umwandlung nach GGUF (Skripte von llama.cpp).
+    "numpy>=2.0",
+    "protobuf>=5.0",
+]
+
+[tool.uv]
+package = false
+# Nur Versionen, die mindestens zwei Wochen alt sind (frische Releases haben öfter Fehler).
+exclude-newer = "2026-10-17T00:00:00Z"
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
