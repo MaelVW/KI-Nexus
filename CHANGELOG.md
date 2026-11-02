@@ -11,6 +11,13 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 - **Bauplan Video** (`docs/Bauplan-Video.md`): Erweiterung für Videomodelle wie LTX-2.3, mit Phasen V0 bis V4.
 - **Video V0 – Machbarkeitstest (ohne App):** ComfyUI v0.43.0 mit ComfyUI-GGUF in `engines/comfyui`, Umgebung über `python/video/pyproject.toml`, Workflow `python/video/workflows/ltx23-text-zu-video.json`, Testskript `python/video/v0_test.py`.
 - Ergebnis: LTX-2.3 (22B, distilled, Q4_K_M) erzeugt auf der RTX 5070 Laptop (8 GB) einen Clip mit 768×512 Pixeln und 3.9 s, mit Ton, in ca. 2½ Minuten. Der RAM ist der Engpass. Mit `--cache-none` lagert Windows nur noch 3 GB aus statt 9 GB. Messwerte in `docs/10-Video.md`.
+- **Video V1 – Engine (noch ohne Oberfläche):**
+  - `IVideoBackend` mit `VideoRequest` (prüft die LTX-Regeln), `VideoModelSet` und Fortschritts-Meldungen (Core).
+  - `ComfyVideoBackend` (Engines): startet ComfyUI unsichtbar auf 127.0.0.1 (`--offline`, `--cache-none`), schickt den Workflow, meldet Abschnitte und Schritte über den WebSocket, bricht mit `/interrupt` ab, gibt mit `/free` Speicher frei.
+  - Die Workflow-Vorlage ist in die DLL eingebettet. Bei CFG 1 setzt sie `ConditioningZeroOut` statt eines Negativ-Prompts ein (ca. 4 s schneller).
+  - `scripts/setup-video.ps1` richtet alles ein. Mit `-Models` lädt es die 24 GB Modelle mit Prüfsumme.
+  - Neue Einstellung `ports.comfyUi` (Standard 8188).
+  - 385 Unit-Tests (vorher 356) und ein echter Testlauf über die Schnittstelle (`KINEXUS_VIDEO_TEST=1`): Video in 97 s, Abbrechen sofort.
 
 ## [1.4.0] – 2026-11-01 – Meilenstein 8: Training
 

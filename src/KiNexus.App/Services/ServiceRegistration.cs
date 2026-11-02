@@ -10,12 +10,14 @@ using KiNexus.Core.Paths;
 using KiNexus.Core.Processes;
 using KiNexus.Core.Resources;
 using KiNexus.Core.Settings;
+using KiNexus.Core.Video;
 using KiNexus.Engines;
 using KiNexus.Engines.HuggingFace;
 using KiNexus.Engines.LlamaCpp;
 using KiNexus.Engines.Ollama;
 using KiNexus.Engines.OpenWebUi;
 using KiNexus.Engines.Training;
+using KiNexus.Engines.Video;
 using KiNexus.Engines.Voice;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -104,6 +106,21 @@ public static class ServiceRegistration
         services.AddSingleton(provider => new OpenWebUiLauncher(
             provider.GetRequiredService<ProcessSupervisor>(), provider.GetRequiredService<ILogger<OpenWebUiLauncher>>(),
             Path.Combine(paths.LogsDirectory, "open-webui.log"), Path.Combine(paths.DataDirectory, "open-webui.processes")));
+
+        // Video (Bauplan Video, V1): ComfyUI im Hintergrund, erst beim ersten Video gestartet. Log in data/logs/video.log.
+        services.AddSingleton(provider =>
+        {
+            var settings = Settings(provider);
+            var options = new ComfyOptions(
+                VideoModelsDirectory: Path.Combine(paths.Resolve(settings.Paths.Models), "video"),
+                OutputDirectory: Path.Combine(paths.DataDirectory, "videos", "roh"),
+                WorkDirectory: Path.Combine(paths.DataDirectory, "comfyui"),
+                LogFile: Path.Combine(paths.LogsDirectory, "video.log"),
+                Port: settings.Ports.ComfyUi);
+            return new ComfyVideoBackend(provider.GetRequiredService<ProcessSupervisor>(), provider.GetRequiredService<ILogger<ComfyVideoBackend>>(),
+                ComfyInstallation.For(paths.Resolve(settings.Paths.Engines)), options);
+        });
+        services.AddSingleton<IVideoBackend>(provider => provider.GetRequiredService<ComfyVideoBackend>());
 
         services.AddSingleton(provider =>
         {

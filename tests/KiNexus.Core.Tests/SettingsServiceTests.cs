@@ -18,6 +18,7 @@ public class SettingsServiceTests
         Assert.Equal(8090, settings.Ports.LlamaServer);
         Assert.Equal(11434, settings.Ports.Ollama);
         Assert.Equal(8080, settings.Ports.OpenWebUi);
+        Assert.Equal(8188, settings.Ports.ComfyUi);
         Assert.Equal("#00E5FF", settings.AccentColor);
         Assert.True(settings.OpenWebUi.StopOnExit);
         Assert.Same(settings, service.Current);
@@ -111,7 +112,7 @@ public class SettingsServiceTests
         await File.WriteAllTextAsync(SettingsFile(temp), """
             {
               "accentColor": "blau",
-              "ports": { "llamaServer": 80, "openWebUi": 99999 },
+              "ports": { "llamaServer": 80, "openWebUi": 99999, "comfyUi": 0 },
               "paths": null,
               "window": { "width": 200 }
             }
@@ -122,6 +123,7 @@ public class SettingsServiceTests
         Assert.Equal("#00E5FF", settings.AccentColor);
         Assert.Equal(8090, settings.Ports.LlamaServer);
         Assert.Equal(8080, settings.Ports.OpenWebUi);
+        Assert.Equal(8188, settings.Ports.ComfyUi);
         Assert.Equal("models", settings.Paths.Models);
         Assert.Equal(1280, settings.Window.Width);
     }

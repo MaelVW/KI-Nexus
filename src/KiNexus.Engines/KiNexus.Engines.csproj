@@ -13,4 +13,9 @@
     <InternalsVisibleTo Include="KiNexus.Engines.Tests" />
   </ItemGroup>
 
+  <!-- Workflow-Vorlagen für ComfyUI (Bauplan Video). Fest in der DLL, damit niemand fremde Workflows unterschiebt. -->
+  <ItemGroup>
+    <EmbeddedResource Include="Video\Workflows\*.json" LogicalName="KiNexus.Video.%(Filename)%(Extension)" />
+  </ItemGroup>
+
 </Project>

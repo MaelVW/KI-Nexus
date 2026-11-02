@@ -138,6 +138,17 @@ Was das Mikrofon wirklich aufgenommen hat: KI-Nexus mit der Umgebungsvariable `K
 | Die neue KI antwortet wie vorher | Zu wenige Beispiele oder zu wenige Durchgänge | Mehr Beispiele (ab ca. 30), 5–8 Durchgänge. Die Loss-Kurve sollte deutlich sinken |
 | Die neue KI redet wirr oder wiederholt sich | Zu viel gelernt (zu hohes Lerntempo, zu viele Durchgänge) | Lerntempo „Vorsichtig“ und weniger Durchgänge |
 
+## Video (ComfyUI)
+
+| Anzeichen | Ursache | Lösung |
+|---|---|---|
+| „Video ist noch nicht eingerichtet“ | `engines\comfyui` fehlt | `scripts\setup-video.ps1` ausführen |
+| „Für LTX-2.3 … fehlen Dateien“ | Modelle nicht geladen (ca. 24 GB) | `scripts\setup-video.ps1 -Models` (fragt nicht nochmals, lädt sofort) |
+| „Port 8188 ist schon belegt“ | ComfyUI läuft schon (von Hand oder ein Test) | Das andere ComfyUI beenden oder in `data\settings.json` unter `ports` → `comfyUi` einen anderen Port eintragen |
+| „Zu wenig Speicher für dieses Video“ | VRAM oder RAM voll | Kleiner (512×320) oder kürzer. Grosse Programme schliessen. Ein geladenes Chat-Modell vorher entladen |
+| „ComfyUI hat sich beendet“ | Absturz, z.B. RAM ganz voll | `data\logs\video.log` lesen. Netzteil einstecken, andere Programme schliessen |
+| Video dauert sehr lange | Laptop auf Akku, oder RAM voll (Windows lagert aus) | Netzteil einstecken. Vor dem Start sollten höchstens ca. 10 GB RAM belegt sein |
+
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 
 Die App läuft noch und sperrt `KI-Nexus.exe`. App schliessen und nochmals bauen.

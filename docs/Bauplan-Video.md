@@ -2,7 +2,7 @@
 
 **Für:** die KI, die KI-Nexus weiterbaut
 **Von:** Mael, geplant zusammen mit Claude
-**Stand:** 2. November 2026 – Phase **V0 (Machbarkeitstest) ist erledigt**, Ergebnisse in `docs/10-Video.md`. V1 bis V4 sind noch nicht gebaut.
+**Stand:** 2. November 2026 – **V0 (Machbarkeitstest) und V1 (Engine) sind erledigt**, Ergebnisse in `docs/10-Video.md`. V2 bis V4 sind noch nicht gebaut.
 
 > Das ist eine Erweiterung zum Hauptbauplan (`KI-Nexus-Bauplan.md`). Alle Regeln aus Kapitel 1 dort gelten auch hier: Phase für Phase, vorher fragen bei Installationen und Downloads über 1 GB, alles lokal, ehrlich bleiben.
 
@@ -288,7 +288,7 @@ docs/10-Video.md                 Doku und Messwerte (ab V0)
 | # | Inhalt | Abnahme |
 |---|---|---|
 | **V0** ✅ | **Machbarkeitstest, noch ohne App.** ComfyUI (feste Version) und ComfyUI-GGUF in `engines/comfyui` einrichten. Fehlende Dateien laden: Gemma 3 12B, VAEs, Upscaler. **Vorher fragen, das sind über 10 GB.** Ein Clip 768×512, 4 s, einmal mit dem offiziellen LTX-2.3 (Q4_K_M) und einmal mit meiner Datei. Messen: Zeit, höchstes VRAM und RAM, Auslagerungsdatei. | Ein MP4 mit Ton liegt vor. Die Messwerte stehen in `docs/10-Video.md`. **Läuft es nicht oder dauert ein Clip über 15 Minuten: stoppen und mit Mael entscheiden.** — **Erledigt 2.11.2026:** 768×512, 3.9 s mit Ton in ca. 2½ min. Nur mit dem offiziellen LTX-2.3 (distilled 1.1, Q4_K_M), ohne Upscaler. |
-| V1 | **Engine:** `setup-video.ps1`, `ComfyVideoBackend`: Start/Stopp, Bereitschaft, Auftrag, Fortschritt über WebSocket, Abbrechen, Speicher freigeben. `ComfyWorkflowBuilder`, `VideoRequest` mit Prüfungen. Unit-Tests. | Tests laufen durch. Ein Testlauf erzeugt ein Video nur über die Schnittstelle. |
+| V1 ✅ | **Engine:** `setup-video.ps1`, `ComfyVideoBackend`: Start/Stopp, Bereitschaft, Auftrag, Fortschritt über WebSocket, Abbrechen, Speicher freigeben. `ComfyWorkflowBuilder`, `VideoRequest` mit Prüfungen. Unit-Tests. | Tests laufen durch. Ein Testlauf erzeugt ein Video nur über die Schnittstelle. — **Erledigt 2.11.2026:** 385 Tests grün. Der echte Testlauf erzeugt ein Video über `IVideoBackend` und bricht ein zweites ab (`docs/10-Video.md`). |
 | V2 | **Video-Tab:** Auftrag, Vorlagen, Speicher-Ampel, Fortschritt, Abbrechen, Player, Galerie, Chat-Modell entladen | Ich erzeuge im Tab einen Clip, breche einen zweiten ab und spiele den ersten ab. Danach chatte ich wieder normal. |
 | V3 | **Create-Hub:** Videomodelle als eigene Art statt nur Warnung. Statt „Neue KI daraus“ gibt es den Knopf „Im Video-Tab nutzen“. Prüfen, ob die Zusatzdateien da sind, und sie bei Bedarf laden. Die Hugging-Face-Suche zeigt „Videomodell, nutzbar im Video-Tab“. | Ein Videomodell aus der Hugging-Face-Suche ist nach dem Download im Video-Tab nutzbar. |
 | V4 | **Extras:** Bild zu Video, „Prompt verbessern“ mit einer KI, Warteschlange | Ich mache aus einem eigenen Foto einen Clip. Eine KI verbessert meinen Prompt. |

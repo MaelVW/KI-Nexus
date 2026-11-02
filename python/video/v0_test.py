@@ -25,7 +25,7 @@ ROOT = Path(__file__).resolve().parents[2]
 COMFY = ROOT / "engines" / "comfyui"
 VIDEOS = ROOT / "data" / "videos"
 LOGS = ROOT / "data" / "logs"
-WORKFLOW = Path(__file__).resolve().parent / "workflows" / "ltx23-text-zu-video.json"
+WORKFLOW = ROOT / "src" / "KiNexus.Engines" / "Video" / "Workflows" / "ltx23-text-zu-video.json"
 PORT = 8188
 BASE = f"http://127.0.0.1:{PORT}"
 
@@ -118,9 +118,9 @@ def start_comfy(extra: list[str]) -> subprocess.Popen:
         "--listen", "127.0.0.1", "--port", str(PORT), "--disable-auto-launch", "--offline",
         "--extra-model-paths-config", str(COMFY / "kinexus-paths.yaml"),
         "--output-directory", str(VIDEOS / "roh"),
-        "--input-directory", str(VIDEOS / "comfy-input"),
-        "--temp-directory", str(VIDEOS / "comfy-temp"),
-        "--user-directory", str(VIDEOS / "comfy-user"),
+        "--input-directory", str(ROOT / "data" / "comfyui" / "input"),
+        "--temp-directory", str(ROOT / "data" / "comfyui" / "temp"),
+        "--user-directory", str(ROOT / "data" / "comfyui" / "user"),
         *extra,
     ]
     log = open(LOGS / "video-v0.log", "ab")

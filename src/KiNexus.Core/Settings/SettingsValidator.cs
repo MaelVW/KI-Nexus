@@ -48,6 +48,7 @@ public static class SettingsValidator
         if (!IsValidPort(ports.LlamaServer)) { fixes.Add($"Port llamaServer {ports.LlamaServer} ungültig"); ports.LlamaServer = PortSettings.DefaultLlamaServer; }
         if (!IsValidPort(ports.Ollama)) { fixes.Add($"Port ollama {ports.Ollama} ungültig"); ports.Ollama = PortSettings.DefaultOllama; }
         if (!IsValidPort(ports.OpenWebUi)) { fixes.Add($"Port openWebUi {ports.OpenWebUi} ungültig"); ports.OpenWebUi = PortSettings.DefaultOpenWebUi; }
+        if (!IsValidPort(ports.ComfyUi)) { fixes.Add($"Port comfyUi {ports.ComfyUi} ungültig"); ports.ComfyUi = PortSettings.DefaultComfyUi; }
     }
 
     private static void FixPaths(PathSettings paths, List<string> fixes)

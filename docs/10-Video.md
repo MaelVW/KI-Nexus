@@ -1,6 +1,12 @@
-# 10 – Video (Machbarkeitstest V0)
+# 10 – Video
 
 Stand: 2. November 2026. Plan und Phasen stehen in [Bauplan-Video.md](Bauplan-Video.md).
+
+| Phase | Inhalt | Status |
+|---|---|---|
+| V0 | Machbarkeitstest ohne App (dieses Kapitel bis „Noch nicht geprüft“) | ✅ |
+| V1 | Video-Engine in KI-Nexus, noch ohne Oberfläche (Kapitel „V1 – Video-Engine“ unten) | ✅ |
+| V2–V4 | Video-Tab, Create-Hub, Extras | offen |
 
 V0 ist ein Test **ohne App**: Schafft der Laptop mit LTX-2.3 überhaupt ein Video? **Ja.** Ein Clip mit 768×512 Pixeln und knapp 4 Sekunden, mit Ton, dauert ca. 2½ Minuten.
 
@@ -30,14 +36,7 @@ Bewusst **nicht** installiert:
 - **Vorlagen- und Hilfepakete** (`comfyui-workflow-templates`, `comfyui-embedded-docs`): Die braucht nur die Knoten-Ansicht. ComfyUI meldet beim Start einen Fehler dazu, läuft aber.
 - Optionale Pakete `kornia`, `spandrel` und `comfy_angle`: Ein paar Knoten fehlen dadurch. LTX braucht keinen davon.
 
-Einrichten (von Hand, V1 macht daraus `scripts/setup-video.ps1`):
-
-```powershell
-# ComfyUI-ZIP nach engines\comfyui entpacken, ComfyUI-GGUF nach engines\comfyui\custom_nodes\ComfyUI-GGUF
-cd python\video
-$env:UV_PROJECT_ENVIRONMENT = "..\..\engines\comfyui\.venv"; $env:UV_LINK_MODE = "hardlink"
-uv sync --python 3.12
-```
+Einrichten: seit V1 mit `scripts\setup-video.ps1` (siehe unten). In V0 lief das von Hand mit denselben Schritten.
 
 ## Modelldateien (24 GB)
 
@@ -60,7 +59,7 @@ Was dabei herauskam:
 
 ## Workflow
 
-`python/video/workflows/ltx23-text-zu-video.json` (API-Format). Jeder wichtige Knoten hat einen Titel `KN_…`. Das Testskript findet die Knoten darüber, nicht über die Nummer, wie im Bauplan für V1 geplant.
+`src/KiNexus.Engines/Video/Workflows/ltx23-text-zu-video.json` (API-Format, in V0 noch unter `python/video/workflows/`). Jeder wichtige Knoten hat einen Titel `KN_…`. Das Testskript findet die Knoten darüber, nicht über die Nummer, wie im Bauplan für V1 geplant.
 
 ```
 UnetLoaderGGUF ──────────────────────────────┐
@@ -71,7 +70,7 @@ RandomNoise · KSamplerSelect (euler) · ManualSigmas (8 Schritte distilled) ─
 ```
 
 - Sigmas für das distilled-Modell: `1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0`. Die letzten vier sind dieselben wie in der zweiten Stufe des Unsloth-Workflows.
-- CFG 1: Der Negativ-Prompt wird dann nicht gebraucht. ComfyUI rechnet ihn trotzdem einmal (ca. 4 s). In V1 weglassen, z.B. mit `ConditioningZeroOut`.
+- CFG 1: Der Negativ-Prompt wird dann nicht gebraucht. ComfyUI rechnet ihn trotzdem einmal (ca. 4 s). Seit V1 setzt die Engine dafür `ConditioningZeroOut` ein.
 - `VAEDecodeTiled` mit 64 Bildern pro Stück, damit das Dekodieren in 8 GB passt.
 
 ## Messung (am Netzteil)
@@ -137,11 +136,88 @@ Prompt (alle Läufe, Seed 42): ein Golden Retriever rennt über eine sonnige Wie
 - **Nur das offizielle LTX-2.3** getestet, nicht die PinkCherry-Datei aus `models/`. Das Modell ist auf Hugging Face als NSFW markiert. Ich habe es nicht eingerichtet.
 - Grundmodell **distilled 1.1** (8 Schritte) statt „dev“: schneller, und der Bauplan sieht „Schnell“ als Vorlage vor.
 - ComfyUI-KJNodes nicht installiert (nicht nötig).
-- Vorlagen-Ordner in V0: `python/video/workflows/`. In V1 kommen die Vorlagen nach `src/KiNexus.Engines/Video/Workflows/`.
+- Vorlagen-Ordner in V0: `python/video/workflows/`. Seit V1 liegen die Vorlagen in `src/KiNexus.Engines/Video/Workflows/`.
 
 ## Noch nicht geprüft
 
 - Wie gut die Videos aussehen und klingen, musst du selbst beurteilen. Ich habe nur Einzelbilder angeschaut und den Tonpegel gemessen.
 - Bild zu Video, längere Clips (über 4 s), andere Formate (hochkant).
 - Mehrere Clips hintereinander mit laufendem ComfyUI.
-- Abbrechen (`POST /interrupt`) und Speicher freigeben (`POST /free`). Das kommt in V1.
+- Abbrechen (`POST /interrupt`) und Speicher freigeben (`POST /free`). Erledigt in V1 (siehe unten).
+
+---
+
+## V1 – Video-Engine
+
+KI-Nexus kann jetzt selbst Videos erzeugen, noch ohne Oberfläche. Der Video-Tab kommt in V2.
+Die Oberfläche spricht nur mit der Schnittstelle `IVideoBackend` (Core). ComfyUI steckt dahinter in `ComfyVideoBackend` (Engines).
+
+### Ablauf eines Videos
+
+1. `GenerateAsync(request, models, ct)` prüft den Auftrag (`VideoRequest.Problem()`) und ob alle 5 Modelldateien da sind.
+2. Läuft ComfyUI noch nicht, startet es. Der Start dauert ca. 16 s.
+   - Es läuft unsichtbar, nur auf `127.0.0.1:8188`, mit `--offline` und `--cache-none`.
+   - Es hängt am Job Object und endet spätestens mit KI-Nexus.
+   - Vor dem Start schreibt die App `engines\comfyui\kinexus-paths.yaml` neu, damit ComfyUI die Modelle in `models\video` findet.
+3. Der `ComfyWorkflowBuilder` füllt die Vorlage aus der DLL aus und schickt sie mit `POST /prompt`.
+4. Der WebSocket meldet, an welchem Knoten ComfyUI arbeitet. Daraus macht die Engine:
+   - `VideoStage`, z.B. „Entrauschen …“
+   - `VideoStep`, z.B. Schritt 3 von 8
+5. Am Ende kommt `VideoDone` mit dem Pfad, z.B. `data\videos\roh\2026-11-02_144301_seed11_00001_.mp4`. Bei einem Fehler kommt `VideoFailed` mit einem verständlichen Text, beim Abbrechen `VideoCancelled`.
+
+| Was | Wie |
+|---|---|
+| Abbrechen | Den `CancellationToken` auslösen. Die Engine schickt `POST /interrupt`, ComfyUI antwortet sofort mit `execution_interrupted`. Kommt in 30 s nichts, wird ComfyUI beendet. |
+| Speicher freigeben | `FreeMemoryAsync`: `POST /free` mit `unload_models` und `free_memory`. ComfyUI läuft weiter. |
+| Nur ein Video gleichzeitig | Ein zweiter Auftrag bekommt sofort „Es entsteht schon ein Video“. |
+| Negativ-Prompt | Bei CFG 1 (distilled) setzt die Vorlage `ConditioningZeroOut` ein, statt den Text mit Gemma zu lesen. Spart ca. 4 s. |
+| Ohne Ton | Der Knoten `KN_DecodeAudio` fliegt raus, das Video hat keine Tonspur. |
+| Log | `data\logs\video.log` (Ausgabe von ComfyUI), dazu Einträge im normalen App-Log. |
+| Einstellung | `data\settings.json` → `ports.comfyUi` (Standard 8188). |
+
+Abweichungen von der Schnittstelle im Bauplan:
+
+- **Zustand:** Statt `GetStatusAsync` gibt es `State`, `StatusText` und `Changed`. Grund: genau so wie beim Open-WebUI-Launcher, die Oberfläche (V2) kann sich einfach anmelden.
+- **Modelldateien** sind ein eigener Parameter (`VideoModelSet`), nicht Teil des Auftrags. Schritte und CFG hängen am Modell, nicht am Auftrag: Das distilled-Modell braucht immer 8 Schritte und CFG 1.
+- **Startbild** (Bild zu Video) fehlt noch im Auftrag. Das kommt in V4, zusammen mit der zweiten Vorlage.
+
+### Einrichten
+
+```powershell
+.\scripts\setup-video.ps1           # ComfyUI, ComfyUI-GGUF, Python-Umgebung, Modell-Pfade, Prüfung
+.\scripts\setup-video.ps1 -Models   # dazu die Modelle (ca. 24 GB, mit Prüfsumme)
+```
+
+Das Skript merkt sich die Version in `engines\comfyui\version.txt`. Bei einer neuen Version ersetzt es den Code und behält die Python-Umgebung.
+Getestet am 2.11.2026 auf der bestehenden Installation: Der Code wurde ersetzt, die Umgebung blieb, und PyTorch findet die RTX 5070.
+
+### Tests
+
+- 29 neue Unit-Tests in `VideoTests` (Core und Engines), insgesamt jetzt 385 plus der echte Testlauf:
+  - Prüfregeln des Auftrags, Sekunden in Bilder umrechnen, fehlende Modelldateien
+  - Ausfüllen der Vorlage, auch ohne Ton und mit Negativ-Prompt
+  - Jede Verbindung im Workflow zeigt auf einen vorhandenen Knoten
+  - Meldungen und Ablehnungen von ComfyUI, echte Beispiele aus ComfyUI 0.43
+  - Startbefehl, Pfad-Datei, Hinweis aufs Setup
+  - Fehlende Modelle ergeben `VideoFailed`, ohne dass ComfyUI startet
+- **Echter Testlauf** `RealRun_CreatesVideoThroughTheInterface`: läuft nur mit `KINEXUS_VIDEO_TEST=1`, weil er Minuten dauert.
+
+```powershell
+$env:KINEXUS_VIDEO_TEST = "1"
+tests\KiNexus.Engines.Tests\bin\Debug\net10.0-windows\KiNexus.Engines.Tests.exe -method "*RealRun*" -showLiveOutput
+```
+
+Ergebnis vom 2.11.2026 (am Netzteil, 10 GB RAM vorher belegt):
+
+| Auftrag | Ergebnis |
+|---|---|
+| 512×320, 49 Bilder (2 s), mit Ton | `VideoDone` nach 97 s (Schritt 1 nach 65 s inkl. Laden, dann ca. 3.6 s pro Schritt). V0 brauchte für dasselbe Format 118 s: ohne Negativ-Prompt und mit `--cache-none` geht es schneller. |
+| Derselbe nochmals, nach Schritt 1 abgebrochen | `VideoCancelled` sofort, danach ist die Engine wieder „Bereit“ |
+| Ganzer Test inkl. Start und Stopp von ComfyUI | 181 s, danach ist ComfyUI beendet und der VRAM leer |
+
+### Noch offen (V2)
+
+- Video-Tab mit Player und Galerie. Die Videos liegen bis dahin in `data\videos\roh\`.
+- ComfyUI nach X Minuten ohne Auftrag beenden (Einstellung).
+- Vor dem Start ein geladenes Chat-Modell entladen und freien RAM prüfen.
+- Den alten Ordner `data\videos\comfy-*` aus V0 braucht es nicht mehr. Seit V1 heissen die Arbeitsordner `data\comfyui\`.

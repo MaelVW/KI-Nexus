@@ -48,7 +48,21 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand M8)
+## Wichtige Klassen (Stand Video V1)
+
+### Neu in Video V1: Video-Engine (noch ohne Oberfläche)
+
+Details in `docs/10-Video.md` und `docs/Bauplan-Video.md`.
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `IVideoBackend`, `VideoProgress` (`VideoStage`, `VideoStep`, `VideoDone`, `VideoFailed`, `VideoCancelled`) | Core | Schnittstelle für Videomodelle: starten, Video erzeugen mit Fortschritt, abbrechen, Speicher freigeben, stoppen. |
+| `VideoRequest` | Core | Ein Auftrag (Prompt, Grösse, Bilder, Seed, Ton). Prüft die LTX-Regeln (32er-Raster, 8·n + 1 Bilder). |
+| `VideoModelSet` | Core | Welche Dateien ein Videomodell braucht und wie es entrauscht (Sigmas, CFG). `Ltx23Distilled` aus V0. |
+| `ComfyInstallation`, `ComfyOptions`, `ComfyCommand` | Engines | Wo ComfyUI liegt, Startbefehl (`--listen 127.0.0.1 --offline --cache-none`), `kinexus-paths.yaml`. |
+| `ComfyWorkflowBuilder` | Engines | Füllt die Workflow-Vorlage (eingebettet in die DLL) über die Knoten-Titel `KN_…` aus. |
+| `ComfyProtocol` | Engines | Meldungen vom WebSocket lesen, Antwort auf `POST /prompt`, Fehler verständlich machen. |
+| `ComfyVideoBackend` | Engines | ComfyUI starten und überwachen, Auftrag senden, Fortschritt melden, `/interrupt`, `/free`. |
 
 ### Neu in M8: Training
 
@@ -57,7 +71,7 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 | `TrainingDataset`, `TrainingExample` | Core | Datensatz als JSONL lesen und schreiben (mehrere Formate beim Import). |
 | `TrainingModels`, `TrainingBaseModel`, `TrainingOptions` | Core | Empfohlene Grundmodelle (Qwen3 0.6B, 1.7B, 4B), VRAM-Schätzung, Einstellungen. |
 | `IChatRepository.GetLikedExamplesAsync` | Core | Antworten mit Daumen hoch mit der Frage davor. |
-| `TrainingWorker`, `TrainingInstallation` | Engines | `python/training/train.py` starten, Ereignisse lesen, abbrechen (`stop` auf stdin), Umgebung prüfen. |
+| `TrainingWorker`, `TrainingInstallation` | Engines | `python/training/train.py` starten, Ereignisse lesen, abbrechen (Datei `stop` im Arbeitsordner), Umgebung prüfen. |
 | `TrainingProtocol`, `TrainingPaths` | Engines | JSON Lines lesen, `run.json` bauen, wo welche Datei liegt. |
 | `TrainingViewModel`, `TrainingView` | App | Der Training-Tab: Datensatz, Grundmodell, Training mit Loss-Kurve, Ergebnis als neue KI. |
 

@@ -41,10 +41,14 @@ public sealed class PortSettings
     public const int DefaultLlamaServer = 8090;
     public const int DefaultOllama = 11434;
     public const int DefaultOpenWebUi = 8080;
+    public const int DefaultComfyUi = 8188;
 
     public int LlamaServer { get; set; } = DefaultLlamaServer;
     public int Ollama { get; set; } = DefaultOllama;
     public int OpenWebUi { get; set; } = DefaultOpenWebUi;
+
+    /// <summary>ComfyUI für Videomodelle (Bauplan Video).</summary>
+    public int ComfyUi { get; set; } = DefaultComfyUi;
 }
 
 /// <summary>Einstellungen der Chat-Ansicht, die sich die App merkt.</summary>

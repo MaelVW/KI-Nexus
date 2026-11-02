@@ -19,7 +19,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | M8 | Training-Tab: Datensatz, LoRA-Training mit PEFT, Loss-Kurve, Adapter als neue KI | ✅ fertig (v1.4.0) |
 | M9–M10 | Server, Chatraum | offen |
 | Video V0 | Machbarkeitstest Videomodell (ComfyUI + LTX-2.3, noch ohne App), siehe `docs/10-Video.md` | ✅ erledigt |
-| Video V1–V4 | Engine, Video-Tab, Create-Hub, Extras (siehe `docs/Bauplan-Video.md`) | offen |
+| Video V1 | Video-Engine: `IVideoBackend` mit ComfyUI, `scripts/setup-video.ps1`, noch ohne Oberfläche | ✅ erledigt |
+| Video V2–V4 | Video-Tab, Create-Hub, Extras (siehe `docs/Bauplan-Video.md`) | offen |
 
 ## Ordner
 
@@ -31,13 +32,13 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | `kis/` | Deine KIs, eine JSON-Datei pro KI | ja |
 | `models/` | Grundmodelle als GGUF, ein Ordner pro Modell. In `models/.downloads/` liegen angefangene Downloads. | nein |
 | `data/` | `chats.db`, `settings.json`, angehängte Bilder, Logs, Cache, `hf-token.bin` (verschlüsselt) | nein |
-| `engines/` | llama.cpp (von `scripts/setup-engines.ps1`), Umwandlungs-Skripte fürs Training, ComfyUI für Video (V0, von Hand) | nein |
+| `engines/` | llama.cpp (von `scripts/setup-engines.ps1`), Umwandlungs-Skripte fürs Training, ComfyUI für Video (von `scripts/setup-video.ps1`) | nein |
 | `src/KiNexus.App/` | Die Oberfläche (WPF): Fenster, ViewModels, Theme | ja |
 | `src/KiNexus.Core/` | Logik ohne Oberfläche: Einstellungen, KIs, EngineManager, Prozesse, Messung | ja |
 | `src/KiNexus.Engines/` | Anbindung an llama.cpp, Ollama und Hugging Face, Import aus Ollama | ja |
 | `tests/` | Unit-Tests für Core und Engines | ja |
 | `python/` | Sprach-Worker (`voice/worker.py`, M4), Training (`training/`, M8), Video-Test (`video/`, V0). Umgebungen in `python/.venv`, `python/training/.venv` und `engines/comfyui/.venv` | ja (ohne `.venv`) |
-| `scripts/` | PowerShell-Skripte: `setup-engines.ps1` (llama.cpp), `setup-voice.ps1` (Sprache) | ja |
+| `scripts/` | PowerShell-Skripte: `setup-engines.ps1` (llama.cpp), `setup-voice.ps1` (Sprache), `setup-training.ps1` (Training), `setup-video.ps1` (Video) | ja |
 
 ## So hängt alles zusammen
 
