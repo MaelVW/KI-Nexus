@@ -355,7 +355,7 @@ Anlass: Ein Modell ohne „dev“ oder „distilled“ im Namen lief mit dem dis
 
 | Was | Ergebnis |
 |---|---|
-| Modell | `unsloth/LTX-2.3-GGUF` dev Q2_K (7.7 GB, mit Prüfsumme) in `modelsideo\diffusion_models\` |
+| Modell | `unsloth/LTX-2.3-GGUF` dev Q2_K (7.7 GB, mit Prüfsumme) in `models\video\diffusion_models\` |
 | Video-Tab | Hinweis „LTX-2.3 dev …“, Ablauf automatisch „Genau: dev“, Feld Negativ-Prompt sichtbar |
 | Clip 512×320, 2 s, mit Ton | **Fertig in 4 min 08 s** (20 Schritte à ca. 3.5 s mit CFG). distilled Q2_K brauchte für dasselbe 2 min 06 s. Das Bild ist scharf, nicht verrauscht: Der rote Ball rollt über den Tisch und fällt hinunter. |
 
