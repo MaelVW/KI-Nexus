@@ -6,6 +6,10 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Bauplan Bild, Training 2 und Szenen** (`docs/Bauplan-Bild-und-Szenen.md`): Bildgenerierung (B0–B2), Weitertrainieren und Trainingsdaten mit einer KI (T1–T2), längere Videos aus Szenen mit Keyframes und Warteschlange (S0–S3). Noch nichts gebaut.
+
 ## [1.8.0] – 2026-11-02 – Video V4: Bild zu Video, Prompt verbessern, Warteschlange
 
 ### Neu
