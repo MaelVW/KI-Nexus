@@ -12,6 +12,9 @@ public static class Glyphs
     public const string Microphone = "\uE720";
     public const string Tuning = "\uE9E9";
     public const string Training = "\uE7BE";
+    public const string Video = "\uE714";
+    public const string Play = "\uE768";
+    public const string Pause = "\uE769";
     public const string Edit = "\uE70F";
     public const string Library = "\uE8F1";
     public const string Settings = "\uE713";

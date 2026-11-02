@@ -42,6 +42,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         SystemPromptViewModel systemPrompt,
         ConversationViewModel conversation,
         OpenWebUiViewModel openWebUi,
+        VideoViewModel video,
         ILogger<MainViewModel> logger)
     {
         _settings = settings;
@@ -61,10 +62,12 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
             training,
             systemPrompt,
             createHub,
+            video,
         ];
         createHub.Shell = this;
         training.Shell = this;
         Training = training;
+        Video = video;
         _selectedTab = Tabs.FirstOrDefault(tab => tab.Id == settings.Current.Window.LastTab) ?? Chat;
         if (_selectedTab == createHub)
         {
@@ -77,6 +80,11 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         if (_selectedTab == training)
         {
             _ = training.ActivateAsync();
+        }
+
+        if (_selectedTab == video)
+        {
+            _ = video.ActivateAsync();
         }
 
         // Öffnet man einen alten Chat, wechselt die Kopfleiste zur KI dieses Chats.
@@ -102,6 +110,8 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     public ChatTabViewModel Chat { get; }
 
     public TrainingViewModel Training { get; }
+
+    public VideoViewModel Video { get; }
 
     /// <summary>Knopf "Alternate Launch" (Open WebUI) in der Kopfleiste.</summary>
     public OpenWebUiViewModel OpenWebUi { get; }
@@ -174,6 +184,11 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         {
             _ = training.ActivateAsync();
         }
+
+        if (value is VideoViewModel video)
+        {
+            _ = video.ActivateAsync();
+        }
     }
 
     // ----------------------------------------------------------- Ressourcen
@@ -188,7 +203,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     [RelayCommand]
     private void OpenSettings() => _dialogs.ShowSettings();
 
-    /// <summary>Für Strg + 1 bis 5. Der Parameter ist die Nummer des Tabs (1 = Chat).</summary>
+    /// <summary>Für Strg + 1 bis 6. Der Parameter ist die Nummer des Tabs (1 = Chat).</summary>
     [RelayCommand]
     private void SelectTab(string number)
     {
@@ -236,6 +251,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         await Chat.Conversation.DisposeAsync();
         await OpenWebUi.DisposeAsync();
         await Training.DisposeAsync();
+        await Video.DisposeAsync();
         await _engines.DisposeAsync();
     }
 

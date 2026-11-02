@@ -48,7 +48,18 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand Video V1)
+## Wichtige Klassen (Stand Video V2)
+
+### Neu in Video V2: Video-Tab
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `VideoLibrary`, `VideoEntry` | Core | Fertige Videos in `data/videos`: MP4, Vorschaubild (PNG) und JSON mit allem zum Nachbauen. Verschiebt die Dateien aus `roh/`. |
+| `VideoFitEstimator`, `VideoFit` | Core | Speicher-Ampel: freier RAM gegen ca. 22 GB (V0), Grösse des Videos, Chat-Modell geladen, Akku. |
+| `PowerStatus` | Core | Läuft der Laptop auf Akku? (`GetSystemPowerStatus`) |
+| `EngineManager.Block` | Core | Sperrt das Laden von Chat-Modellen, solange ein Video entsteht. Der Grund erscheint als Fehler im Chat und in der Kopfleiste. |
+| `VideoViewModel`, `VideoView` | App | Der Video-Tab: Auftrag, Ampel, Fortschritt, Abbrechen, Player (`MediaElement`, gesteuert im Code-Behind), Galerie, ComfyUI nach 10 Minuten ohne Video beenden. |
+| `IShellService.MoveToRecycleBin` | App | Dateien in den Papierkorb (nicht endgültig löschen). |
 
 ### Neu in Video V1: Video-Engine (noch ohne Oberfläche)
 

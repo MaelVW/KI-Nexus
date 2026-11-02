@@ -63,6 +63,7 @@
         <KeyBinding Gesture="Ctrl+D3" Command="{Binding SelectTabCommand}" CommandParameter="3" />
         <KeyBinding Gesture="Ctrl+D4" Command="{Binding SelectTabCommand}" CommandParameter="4" />
         <KeyBinding Gesture="Ctrl+D5" Command="{Binding SelectTabCommand}" CommandParameter="5" />
+        <KeyBinding Gesture="Ctrl+D6" Command="{Binding SelectTabCommand}" CommandParameter="6" />
         <KeyBinding Gesture="Ctrl+OemComma" Command="{Binding OpenSettingsCommand}" />
         <KeyBinding Gesture="Ctrl+N" Command="{Binding Chat.ChatList.NewChatCommand}" />
     </Window.InputBindings>

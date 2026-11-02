@@ -113,6 +113,7 @@ public class SettingsServiceTests
             {
               "accentColor": "blau",
               "ports": { "llamaServer": 80, "openWebUi": 99999, "comfyUi": 0 },
+              "video": { "idleStopMinutes": -5 },
               "paths": null,
               "window": { "width": 200 }
             }
@@ -124,6 +125,7 @@ public class SettingsServiceTests
         Assert.Equal(8090, settings.Ports.LlamaServer);
         Assert.Equal(8080, settings.Ports.OpenWebUi);
         Assert.Equal(8188, settings.Ports.ComfyUi);
+        Assert.Equal(10, settings.Video.IdleStopMinutes);
         Assert.Equal("models", settings.Paths.Models);
         Assert.Equal(1280, settings.Window.Width);
     }

@@ -24,6 +24,7 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 6. Neue Modelle und KIs: Tab **Create-Hub** (`Strg + 5`).
 7. **Open WebUI:** Weltkugel in der Kopfleiste → Starten. Der Browser öffnet sich von selbst.
 8. Für den **Gespräch-Stil** einmal `.\scripts\setup-voice.ps1` ausführen (lädt ca. 1.8 GB: Python-Pakete, Whisper, deutsche Stimme).
+9. Für **Video** (Tab Video, `Strg + 6`) einmal `.\scripts\setup-video.ps1 -Models` ausführen (ComfyUI und das Videomodell LTX-2.3, zusammen ca. 25 GB). Details: `docs/10-Video.md`.
 
 ## Voraussetzungen
 
@@ -57,7 +58,7 @@ Die Solution `KI-Nexus.sln` kannst du mit Visual Studio 2026 oder Rider öffnen.
 
 | Taste | Wirkung |
 |---|---|
-| `Strg + 1` … `Strg + 5` | Tab wechseln |
+| `Strg + 1` … `Strg + 6` | Tab wechseln |
 | `Strg + ,` | Einstellungen |
 | `Strg + N` | Neuer Chat |
 | `Enter` / `Shift + Enter` / `Esc` | Senden / neue Zeile / abbrechen (Simpel) |

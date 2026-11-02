@@ -57,6 +57,7 @@ public static class ServiceRegistration
         services.AddSingleton<TuningViewModel>();
         services.AddSingleton<SystemPromptViewModel>();
         services.AddSingleton<TrainingViewModel>();
+        services.AddSingleton<VideoViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
         services.AddTransient<SettingsViewModel>();
@@ -121,6 +122,7 @@ public static class ServiceRegistration
                 ComfyInstallation.For(paths.Resolve(settings.Paths.Engines)), options);
         });
         services.AddSingleton<IVideoBackend>(provider => provider.GetRequiredService<ComfyVideoBackend>());
+        services.AddSingleton(provider => new VideoLibrary(Path.Combine(paths.DataDirectory, "videos"), provider.GetRequiredService<ILogger<VideoLibrary>>()));
 
         services.AddSingleton(provider =>
         {

@@ -25,7 +25,17 @@ public sealed class AppSettings
     public VoiceSettings Voice { get; set; } = new();
     public BackgroundTaskSettings BackgroundTasks { get; set; } = new();
     public OpenWebUiSettings OpenWebUi { get; set; } = new();
+    public VideoSettings Video { get; set; } = new();
     public WindowSettings Window { get; set; } = new();
+}
+
+/// <summary>Video-Tab (Bauplan Video).</summary>
+public sealed class VideoSettings
+{
+    public const int DefaultIdleStopMinutes = 10;
+
+    /// <summary>ComfyUI nach so vielen Minuten ohne Video beenden (gibt RAM und VRAM frei). 0 = erst beim Schliessen der App.</summary>
+    public int IdleStopMinutes { get; set; } = DefaultIdleStopMinutes;
 }
 
 /// <summary>Ordner. Relative Pfade gelten ab dem Projektordner.</summary>

@@ -34,6 +34,8 @@ public class VideoTests
         Assert.Equal(Models.Sigmas, Inputs(workflow, "KN_Sigmas")["sigmas"]!.GetValue<string>());
         Assert.Equal("2026-11-02_120000_seed7", Inputs(workflow, "KN_Save")["filename_prefix"]!.GetValue<string>());
         Assert.Equal("h264", Inputs(workflow, "KN_Save")["codec"]!.GetValue<string>());
+        Assert.Equal(24, Inputs(workflow, "KN_Thumbnail")["batch_index"]!.GetValue<int>());
+        Assert.Equal("2026-11-02_120000_seed7_vorschau", Inputs(workflow, "KN_SaveThumbnail")["filename_prefix"]!.GetValue<string>());
         AssertAllLinksExist(workflow);
     }
 
@@ -194,6 +196,7 @@ public class VideoTests
         var failed = Assert.IsType<VideoFailed>(Assert.Single(events));
         Assert.Contains("setup-video.ps1 -Models", failed.Message, StringComparison.Ordinal);
         Assert.Equal(VideoBackendState.Stopped, backend.State);
+        Assert.Contains("setup-video.ps1", backend.SetupProblem(Models), StringComparison.Ordinal);
     }
 
     // ----------------------------------------------------------------- Echter Testlauf (nur auf Wunsch, ca. 2–3 Minuten)
@@ -222,6 +225,7 @@ public class VideoTests
 
         var done = Assert.IsType<VideoDone>(events[^1]);
         Assert.True(new FileInfo(done.VideoPath).Length > 50_000);
+        Assert.True(File.Exists(done.ThumbnailPath), "Vorschaubild fehlt.");
         Assert.Equal(Enumerable.Range(1, 8), events.OfType<VideoStep>().Select(s => s.Step));
         Assert.Contains(events, e => e is VideoStage { Phase: VideoPhase.Denoising });
 

@@ -148,6 +148,9 @@ Was das Mikrofon wirklich aufgenommen hat: KI-Nexus mit der Umgebungsvariable `K
 | „Zu wenig Speicher für dieses Video“ | VRAM oder RAM voll | Kleiner (512×320) oder kürzer. Grosse Programme schliessen. Ein geladenes Chat-Modell vorher entladen |
 | „ComfyUI hat sich beendet“ | Absturz, z.B. RAM ganz voll | `data\logs\video.log` lesen. Netzteil einstecken, andere Programme schliessen |
 | Video dauert sehr lange | Laptop auf Akku, oder RAM voll (Windows lagert aus) | Netzteil einstecken. Vor dem Start sollten höchstens ca. 10 GB RAM belegt sein |
+| Chat sagt „Gerade entsteht ein Video …“ | Absicht: Der Grafikspeicher reicht nicht für Chat und Video gleichzeitig | Warten, bis das Video fertig ist, oder es im Video-Tab abbrechen |
+| „Das Video lässt sich hier nicht abspielen“ | Windows hat keinen passenden Decoder (z.B. Windows N ohne Media Feature Pack) | „Ordner öffnen“ und das Video mit einem anderen Player ansehen. Media Feature Pack installieren |
+| „Das Video liess sich nicht löschen“ | Die Datei ist in einem anderen Programm offen | Das andere Programm schliessen und nochmals versuchen |
 
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“
 

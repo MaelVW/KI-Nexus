@@ -41,6 +41,10 @@ public static class ComfyWorkflowBuilder
         Inputs(workflow, "KN_CreateVideo")["fps"] = request.FrameRate;
         Inputs(workflow, "KN_Save")["filename_prefix"] = filenamePrefix;
 
+        // Vorschaubild für die Galerie: ein Bild aus der Mitte des Videos.
+        Inputs(workflow, "KN_Thumbnail")["batch_index"] = request.Frames / 2;
+        Inputs(workflow, "KN_SaveThumbnail")["filename_prefix"] = filenamePrefix + "_vorschau";
+
         SetNegativePrompt(workflow, request.NegativePrompt, models.Guidance);
         if (!request.WithAudio)
         {

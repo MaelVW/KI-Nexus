@@ -33,7 +33,8 @@ public sealed record VideoStep(int Step, int TotalSteps, double ElapsedSeconds) 
 
 /// <param name="VideoPath">Die fertige MP4-Datei.</param>
 /// <param name="Seconds">So lange hat der Auftrag gedauert (ohne Start des Dienstes).</param>
-public sealed record VideoDone(string VideoPath, double Seconds) : VideoProgress;
+/// <param name="ThumbnailPath">Ein Bild aus der Mitte des Videos (PNG) für die Galerie, falls vorhanden.</param>
+public sealed record VideoDone(string VideoPath, double Seconds, string? ThumbnailPath = null) : VideoProgress;
 
 public sealed record VideoFailed(string Message) : VideoProgress;
 
@@ -54,6 +55,9 @@ public interface IVideoBackend
 
     /// <summary>Zustand oder Text hat sich geändert. Kann aus einem Hintergrund-Thread kommen.</summary>
     event EventHandler? Changed;
+
+    /// <summary>Was fehlt noch, damit dieses Modell laufen kann (Einrichtung, Modelldateien)? Null, wenn alles da ist.</summary>
+    string? SetupProblem(VideoModelSet models);
 
     /// <summary>Startet den Dienst und wartet, bis er antwortet. Wirft <see cref="InvalidOperationException"/>, wenn es nicht geht.</summary>
     Task StartAsync(CancellationToken ct);

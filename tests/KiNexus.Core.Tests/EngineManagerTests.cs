@@ -24,6 +24,26 @@ public class EngineManagerTests
     }
 
     [Fact]
+    public async Task Block_RefusesLoadingUntilReleased()
+    {
+        var (manager, llama, _, _) = Create();
+        var ki = Ki("a", EngineKind.LlamaCpp);
+
+        using (manager.Block("Gerade entsteht ein Video."))
+        {
+            var error = await Assert.ThrowsAsync<InferenceException>(() => manager.EnsureLoadedAsync(ki, null, Ct));
+            Assert.Equal("Gerade entsteht ein Video.", error.Message);
+            Assert.Equal("Gerade entsteht ein Video.", manager.StatusMessage);
+            Assert.Equal(0, llama.LoadCount);
+        }
+
+        Assert.Null(manager.BlockReason);
+        Assert.Equal("Kein Modell geladen", manager.StatusMessage);
+        await manager.EnsureLoadedAsync(ki, null, Ct);
+        Assert.Equal(1, llama.LoadCount);
+    }
+
+    [Fact]
     public async Task EnsureLoaded_OtherEngine_UnloadsPreviousModelFirst()
     {
         var (manager, llama, ollama, _) = Create();

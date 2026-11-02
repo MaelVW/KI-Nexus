@@ -26,6 +26,11 @@ public static class SettingsValidator
         FixAccentColor(settings, fixes);
         FixEnums(settings, fixes);
         FixWindow(settings.Window, fixes);
+        if (settings.Video.IdleStopMinutes is < 0 or > 24 * 60)
+        {
+            fixes.Add($"video.idleStopMinutes {settings.Video.IdleStopMinutes} ungültig");
+            settings.Video.IdleStopMinutes = VideoSettings.DefaultIdleStopMinutes;
+        }
 
         return fixes;
     }
@@ -40,6 +45,7 @@ public static class SettingsValidator
         if (settings.Voice is null) { settings.Voice = new(); fixes.Add("voice fehlte"); }
         if (settings.BackgroundTasks is null) { settings.BackgroundTasks = new(); fixes.Add("backgroundTasks fehlte"); }
         if (settings.OpenWebUi is null) { settings.OpenWebUi = new(); fixes.Add("openWebUi fehlte"); }
+        if (settings.Video is null) { settings.Video = new(); fixes.Add("video fehlte"); }
         if (settings.Window is null) { settings.Window = new(); fixes.Add("window fehlte"); }
     }
 

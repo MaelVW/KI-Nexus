@@ -1,5 +1,6 @@
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Windows;
 
 namespace KiNexus.App.Services;
@@ -16,6 +17,9 @@ public interface IShellService
 
     /// <summary>Öffnet eine Webseite im Standard-Browser. Nur https, oder http auf diesem Laptop (z.B. Open WebUI).</summary>
     void OpenUrl(Uri uri);
+
+    /// <summary>Verschiebt Dateien in den Papierkorb (nicht endgültig gelöscht). False, wenn es nicht geklappt hat.</summary>
+    bool MoveToRecycleBin(IReadOnlyCollection<string> files);
 }
 
 public sealed class ShellService : IShellService
@@ -44,5 +48,44 @@ public sealed class ShellService : IShellService
         }
 
         Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    public bool MoveToRecycleBin(IReadOnlyCollection<string> files)
+    {
+        if (files.Count == 0)
+        {
+            return true;
+        }
+
+        // Windows will die Liste mit \0 getrennt und mit \0\0 am Ende. FOF_ALLOWUNDO = Papierkorb statt endgültig löschen.
+        var operation = new ShFileOperation
+        {
+            Function = FileOperationDelete,
+            From = string.Join('\0', files.Select(Path.GetFullPath)) + "\0\0",
+            Flags = FlagAllowUndo | FlagNoConfirmation | FlagSilent | FlagNoErrorUi,
+        };
+        return SHFileOperation(ref operation) == 0 && !operation.AnyOperationsAborted;
+    }
+
+    private const uint FileOperationDelete = 3;
+    private const ushort FlagSilent = 0x0004;
+    private const ushort FlagNoConfirmation = 0x0010;
+    private const ushort FlagAllowUndo = 0x0040;
+    private const ushort FlagNoErrorUi = 0x0400;
+
+    [DllImport("shell32.dll", CharSet = CharSet.Unicode, EntryPoint = "SHFileOperationW")]
+    private static extern int SHFileOperation(ref ShFileOperation operation);
+
+    [StructLayout(LayoutKind.Sequential, CharSet = CharSet.Unicode)]
+    private struct ShFileOperation
+    {
+        public IntPtr Window;
+        public uint Function;
+        public string From;
+        public string? To;
+        public ushort Flags;
+        [MarshalAs(UnmanagedType.Bool)] public bool AnyOperationsAborted;
+        public IntPtr NameMappings;
+        public string? ProgressTitle;
     }
 }

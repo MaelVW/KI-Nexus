@@ -178,6 +178,21 @@ public sealed class ComfyVideoBackend(
 
     // ----------------------------------------------------------------- Auftrag
 
+    public string? SetupProblem(VideoModelSet models)
+    {
+        ArgumentNullException.ThrowIfNull(models);
+        if (installation.Problem() is { } problem)
+        {
+            return problem;
+        }
+
+        var missing = models.MissingFiles(options.VideoModelsDirectory);
+        return missing.Count == 0
+            ? null
+            : $"Für {models.Name} fehlen Dateien: {string.Join(", ", missing.Select(Path.GetFileName))}. "
+              + @"Laden mit: scripts\setup-video.ps1 -Models";
+    }
+
     private string? CheckJob(VideoRequest request, VideoModelSet models)
     {
         if (request.Problem() is { } problem)
@@ -185,6 +200,7 @@ public sealed class ComfyVideoBackend(
             return problem;
         }
 
+        // Die Einrichtung prüft StartAsync. Hier nur die Modelldateien, damit ComfyUI gar nicht erst startet.
         var missing = models.MissingFiles(options.VideoModelsDirectory);
         return missing.Count == 0
             ? null
@@ -218,6 +234,7 @@ public sealed class ComfyVideoBackend(
         var titles = ComfyWorkflowBuilder.Titles(workflow);
         var denoiseNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_Denoise");
         var saveNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_Save");
+        var thumbnailNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_SaveThumbnail");
         var clientId = Guid.NewGuid().ToString("N");
         var clock = Stopwatch.StartNew();
 
@@ -250,6 +267,7 @@ public sealed class ComfyVideoBackend(
 
         VideoPhase? phase = null;
         string? videoPath = null;
+        string? thumbnailPath = null;
         VideoProgress? end = null;
         await foreach (var message in ReadMessagesAsync(socket, reading.Token).ConfigureAwait(false))
         {
@@ -271,9 +289,12 @@ public sealed class ComfyVideoBackend(
                 case ComfyExecuted executed when executed.Node == saveNode && executed.Files.Count > 0:
                     videoPath = ComfyProtocol.FullPath(executed.Files[0], options.OutputDirectory);
                     break;
+                case ComfyExecuted executed when executed.Node == thumbnailNode && executed.Files.Count > 0:
+                    thumbnailPath = ComfyProtocol.FullPath(executed.Files[0], options.OutputDirectory);
+                    break;
                 case ComfySuccess:
                     end = videoPath is not null && File.Exists(videoPath)
-                        ? new VideoDone(videoPath, Math.Round(clock.Elapsed.TotalSeconds, 1))
+                        ? new VideoDone(videoPath, Math.Round(clock.Elapsed.TotalSeconds, 1), thumbnailPath is not null && File.Exists(thumbnailPath) ? thumbnailPath : null)
                         : new VideoFailed("ComfyUI ist fertig, hat aber keine Videodatei gemeldet.");
                     break;
                 case ComfyError failure:

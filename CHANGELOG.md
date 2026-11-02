@@ -6,8 +6,21 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.5.0] – 2026-11-02 – Video (Bauplan Video, V0 bis V2)
+
 ### Neu
 
+- **Video-Tab** (`Strg + 6`, V2):
+  - Auftrag mit Prompt, Format (quer, hochkant, klein), Länge (2–10 s), Ton und Seed.
+  - Speicher-Ampel: freier RAM, Grösse, Chat-Modell geladen, Akku.
+  - Fortschritt mit Abschnitt, Schritten, Rest- und Wartezeit. Abbrechen.
+  - Player und Galerie mit Vorschaubildern: Prompt übernehmen, nochmal mit gleichem oder neuem Seed, Ordner öffnen, in den Papierkorb.
+- Fertige Videos liegen in `data/videos` (MP4, PNG, JSON mit allem zum Nachbauen).
+- **Während ein Video entsteht, ist der Chat gesperrt** (`EngineManager.Block`). Der Chat sagt klar, warum. Ein geladenes Chat-Modell wird nach Rückfrage entladen.
+- ComfyUI endet nach 10 Minuten ohne Video (`video.idleStopMinutes`) und beim Schliessen der App. Knopf „ComfyUI beenden“.
+- Die Workflow-Vorlage speichert ein Vorschaubild (das mittlere Bild des Videos).
+- Abnahme in der App: Clip 768×512, 4 s, mit Ton in 2 min 59 s. Zweiter Clip abgebrochen, ersten abgespielt, danach normal gechattet.
+- 397 Unit-Tests (vorher 385).
 - **Bauplan Video** (`docs/Bauplan-Video.md`): Erweiterung für Videomodelle wie LTX-2.3, mit Phasen V0 bis V4.
 - **Video V0 – Machbarkeitstest (ohne App):** ComfyUI v0.43.0 mit ComfyUI-GGUF in `engines/comfyui`, Umgebung über `python/video/pyproject.toml`, Workflow `python/video/workflows/ltx23-text-zu-video.json`, Testskript `python/video/v0_test.py`.
 - Ergebnis: LTX-2.3 (22B, distilled, Q4_K_M) erzeugt auf der RTX 5070 Laptop (8 GB) einen Clip mit 768×512 Pixeln und 3.9 s, mit Ton, in ca. 2½ Minuten. Der RAM ist der Engpass. Mit `--cache-none` lagert Windows nur noch 3 GB aus statt 9 GB. Messwerte in `docs/10-Video.md`.

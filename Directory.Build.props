@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <LangVersion>latest</LangVersion>
 
-    <Version>1.4.0</Version>
+    <Version>1.5.0</Version>
     <Product>KI-Nexus</Product>
     <Authors>Mael</Authors>
     <Copyright>Mael</Copyright>

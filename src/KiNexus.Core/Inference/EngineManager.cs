@@ -33,6 +33,7 @@ public sealed class EngineManager : IAsyncDisposable
     /// <summary>Alle laufenden Anfragen (z.B. eine Antwort und kurz danach noch eine Titel-Erzeugung).</summary>
     private readonly HashSet<CancellationTokenSource> _activeRequests = [];
     private string? _loadedSignature;
+    private volatile string? _blockReason;
 
     public EngineManager(IEnumerable<IInferenceBackend> backends, ILogger<EngineManager> logger, TimeProvider time)
     {
@@ -58,9 +59,29 @@ public sealed class EngineManager : IAsyncDisposable
             ? backend
             : throw new InferenceException($"Die Engine {kind} ist nicht eingerichtet.");
 
+    /// <summary>Warum gerade kein Modell geladen werden darf (z.B. "Ein Video entsteht …"). Null = frei.</summary>
+    public string? BlockReason => _blockReason;
+
+    /// <summary>
+    /// Sperrt das Laden von Modellen, z.B. solange ein Video entsteht: Dann ist der Grafikspeicher voll.
+    /// Wer trotzdem chatten will, bekommt den Grund als Fehlermeldung. Dispose gibt wieder frei.
+    /// </summary>
+    public IDisposable Block(string reason)
+    {
+        ArgumentException.ThrowIfNullOrWhiteSpace(reason);
+        _blockReason = reason;
+        SetState(State, reason);
+        return new Unblocker(this);
+    }
+
     public async Task EnsureLoadedAsync(KiProfile ki, IProgress<string>? progress, CancellationToken ct)
     {
         ArgumentNullException.ThrowIfNull(ki);
+        if (_blockReason is { } reason)
+        {
+            throw new InferenceException(reason);
+        }
+
         await _gate.WaitAsync(ct).ConfigureAwait(false);
         try
         {
@@ -281,5 +302,20 @@ public sealed class EngineManager : IAsyncDisposable
         State = state;
         StatusMessage = message;
         StateChanged?.Invoke(this, EventArgs.Empty);
+    }
+
+    /// <summary>Hebt die Sperre von <see cref="Block"/> auf (nur einmal).</summary>
+    private sealed class Unblocker(EngineManager manager) : IDisposable
+    {
+        private int _disposed;
+
+        public void Dispose()
+        {
+            if (Interlocked.Exchange(ref _disposed, 1) == 0)
+            {
+                manager._blockReason = null;
+                manager.SetState(manager.State, manager.LoadedKi is { } ki ? $"{ki.DisplayName} bereit" : "Kein Modell geladen");
+            }
+        }
     }
 }

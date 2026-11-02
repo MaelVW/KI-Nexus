@@ -6,7 +6,8 @@ Stand: 2. November 2026. Plan und Phasen stehen in [Bauplan-Video.md](Bauplan-Vi
 |---|---|---|
 | V0 | Machbarkeitstest ohne App (dieses Kapitel bis „Noch nicht geprüft“) | ✅ |
 | V1 | Video-Engine in KI-Nexus, noch ohne Oberfläche (Kapitel „V1 – Video-Engine“ unten) | ✅ |
-| V2–V4 | Video-Tab, Create-Hub, Extras | offen |
+| V2 | Video-Tab mit Player und Galerie (Kapitel „V2 – Video-Tab“ unten) | ✅ (v1.5.0) |
+| V3–V4 | Create-Hub, Extras | offen |
 
 V0 ist ein Test **ohne App**: Schafft der Laptop mit LTX-2.3 überhaupt ein Video? **Ja.** Ein Clip mit 768×512 Pixeln und knapp 4 Sekunden, mit Ton, dauert ca. 2½ Minuten.
 
@@ -215,9 +216,65 @@ Ergebnis vom 2.11.2026 (am Netzteil, 10 GB RAM vorher belegt):
 | Derselbe nochmals, nach Schritt 1 abgebrochen | `VideoCancelled` sofort, danach ist die Engine wieder „Bereit“ |
 | Ganzer Test inkl. Start und Stopp von ComfyUI | 181 s, danach ist ComfyUI beendet und der VRAM leer |
 
-### Noch offen (V2)
+### Noch offen nach V1
 
-- Video-Tab mit Player und Galerie. Die Videos liegen bis dahin in `data\videos\roh\`.
-- ComfyUI nach X Minuten ohne Auftrag beenden (Einstellung).
-- Vor dem Start ein geladenes Chat-Modell entladen und freien RAM prüfen.
-- Den alten Ordner `data\videos\comfy-*` aus V0 braucht es nicht mehr. Seit V1 heissen die Arbeitsordner `data\comfyui\`.
+Alles erledigt in V2 (siehe unten). Den alten Ordner `data\videos\comfy-*` aus V0 braucht es nicht mehr. Seit V1 heissen die Arbeitsordner `data\comfyui\`.
+
+---
+
+## V2 – Video-Tab
+
+Ein neuer Tab **Video** (`Strg + 6`), rechts neben dem Create-Hub.
+
+### Aufbau
+
+| Bereich | Inhalt |
+|---|---|
+| Links: Hinweis | Ehrliche Grenzen: kurze Clips bis ca. 10 s, 2–3 Minuten pro Clip, kein Chat während des Videos. |
+| Links: Auftrag | Prompt (mit Tipp), Format (Quer 768×512, Hochkant 512×768, Klein 512×320), Länge (2–10 s, die App rechnet auf 8·n + 1 Bilder um), Schalter „Mit Ton“, Seed mit Knopf „Zufall“ und Schalter „Seed behalten“. |
+| Links: Speicher-Ampel | Grün / gelb / rot mit Erklärung. Schätzung aus den V0-Messungen: ComfyUI braucht ca. 22 GB RAM. Warnt auch bei grossen Videos (mehr als 1.5-mal so viele Bildpunkte wie getestet), bei geladenem Chat-Modell und im Akkubetrieb. Wird alle 5 s neu berechnet. |
+| Links: Fortschritt | Abschnitt („Text-Encoder laden …“, „Entrauschen: Schritt 3 von 8“), Balken, verstrichene Zeit und Restzeit (ab dem 2. Schritt). Knopf „Abbrechen“. |
+| Links unten | Zustand von ComfyUI und Knopf „ComfyUI beenden“ (gibt RAM und VRAM frei). |
+| Rechts: Player | WPF `MediaElement`: Abspielen / Pause, am Ende zurück an den Anfang. Darunter Prompt und Angaben (Format, Länge, Ton, Seed, Dauer, Datum). |
+| Rechts: Knöpfe | Prompt übernehmen, Nochmal (gleicher Seed), Nochmal (neuer Seed), Ordner öffnen, In den Papierkorb. |
+| Rechts: Galerie | Vorschaubilder aller Videos, das neueste zuerst. |
+
+### Abläufe
+
+1. **Vor dem Start:**
+   - Läuft ein Training, lehnt die App ab.
+   - Ist ein Chat-Modell geladen, fragt sie: „Entladen und starten“.
+   - Danach sperrt sie das Laden von Chat-Modellen (`EngineManager.Block`). Wer in dieser Zeit chattet, bekommt: „Gerade entsteht ein Video. Der Grafikspeicher ist voll. Chatten geht wieder, wenn es fertig ist.“ Die Kopfleiste zeigt denselben Text.
+2. **Fertig:**
+   - Die `VideoLibrary` verschiebt MP4 und Vorschaubild aus `data\videos\roh\` nach `data\videos\`.
+   - Daneben schreibt sie eine JSON-Datei mit Prompt, Format, Seed, Dauer und Modell.
+   - Das Video läuft sofort im Player.
+3. **Danach:**
+   - Die App gibt den Speicher frei (`/free`).
+   - Nach `video.idleStopMinutes` Minuten ohne Video (Standard 10) beendet sie ComfyUI.
+   - Beim Schliessen der App endet ComfyUI sowieso.
+4. **Vorschaubild:** Die Vorlage hat zwei neue Knoten, `KN_Thumbnail` (`ImageFromBatch`, das mittlere Bild) und `KN_SaveThumbnail` (`SaveImage`). Das PNG kommt mit `VideoDone.ThumbnailPath` zurück.
+5. **Löschen:** Die App schiebt die Dateien in den Papierkorb, nicht endgültig gelöscht (Windows `SHFileOperation` mit „Rückgängig erlaubt“). Der Player gibt die Datei vorher frei.
+
+### Abnahme (2.11.2026, am Netzteil, App als Release gebaut)
+
+| Bauplan-Abnahme | Ergebnis |
+|---|---|
+| „Ich erzeuge im Tab einen Clip“ | 768×512, 4 s, mit Ton: **Fertig in 2 min 59 s** (davon 48 s Start von ComfyUI, weil `setup-video.ps1` den Code kurz vorher frisch hingelegt hatte; beim zweiten Start 15 s). Danach läuft das Video im Player, das Vorschaubild ist in der Galerie. |
+| Sperre während des Videos | In einem neuen Chat geschrieben: Die App zeigt den Hinweis oben und lädt kein Modell. |
+| „… breche einen zweiten ab“ | „Nochmal (neuer Seed)“, bei Schritt 2 „Abbrechen“: nach 3 s „Abgebrochen. Es wurde nichts gespeichert.“, die Galerie hat weiter 1 Video, ComfyUI ist wieder bereit. |
+| „… und spiele den ersten ab“ | Abspielen: Der Knopf wechselt auf „Pause“, nach knapp 4 s meldet der Player das Ende (zurück auf „Abspielen“), kein Fehler. H.264 + AAC spielt also in `MediaElement` (offene Frage 6 aus dem Bauplan). |
+| „Danach chatte ich wieder normal“ | Qwen schnell in 7.7 s geladen, Antwort: „Der Chat funktioniert jetzt wieder normal.“ |
+| Neustart der App | Die Galerie lädt das Video wieder aus `data\videos\`. Beim Schliessen der App endet ComfyUI (Port 8188 frei). |
+| ComfyUI nach 10 Minuten ohne Video beenden | Letztes Video um 15:07:56 fertig, um 15:17:56 meldet das Log „Kein Video seit 10 Minuten: ComfyUI wird beendet“, Port 8188 ist frei. |
+
+Gefunden und behoben während der Abnahme:
+
+- **Unsichtbare Schalter:** „Mit Ton“ und „Seed behalten“ waren normale Checkboxen mit dunkler Schrift. Jetzt nutzen sie den Stil `ToggleSwitch` wie im Rest der App.
+- **Falsche Restzeit:** Sie stand immer auf „noch ca. 5 s“, weil die App ihre eigene Uhr (ab Start von ComfyUI) mit der Uhr des Backends (ab dem Auftrag) verglichen hat. Jetzt misst sie alles mit der eigenen Uhr.
+- **Unterschiedliche Dauer:** Die Galerie zeigte die Zeit ohne den Start von ComfyUI, der Fortschritt die Zeit mit Start. Jetzt steht überall die ganze Wartezeit.
+
+### Noch nicht geprüft
+
+- Hochkant und 10 Sekunden (die Ampel warnt hier, die Messung fehlt).
+- „In den Papierkorb“ in der App. Die Funktion ist gebaut, aber nicht von Hand ausgelöst, weil der Bestätigungsdialog modal ist.
