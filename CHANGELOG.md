@@ -6,6 +6,17 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.7.0] – 2026-11-02 – Video V3.1: dev-Modelle
+
+### Neu
+
+- **dev-Modelle von LTX-2.3** im Video-Tab: 20 Schritte mit CFG 4 und Negativ-Prompt (`LTXVScheduler`). Vorher galten sie als nicht nutzbar, und Modelle ohne Art im Namen wurden mit distilled verrauscht.
+- **Ablauf wählbar** („Schnell: distilled“ / „Genau: dev“), Vorgabe aus dem Dateinamen, gemerkt pro Modell (`video.devByModel`).
+- Feld **Negativ-Prompt** beim dev-Ablauf, leer = Standard von Lightricks.
+- Text-Encoder und VAEs gelten für dev und distilled (Gewichte verglichen: gleich).
+- Das offizielle Modell steht in der Auswahl immer zuoberst.
+- Test: dev Q2_K, 512×320, 2 s in 4 min 08 s, scharfes Bild. 411 Unit-Tests.
+
 ## [1.6.0] – 2026-11-02 – Video V3: Videomodelle im Create-Hub
 
 ### Neu

@@ -39,6 +39,9 @@ public sealed class VideoSettings
 
     /// <summary>Zuletzt gewähltes Videomodell (Pfad zur GGUF-Datei). Null = das offizielle LTX-2.3 aus setup-video.ps1.</summary>
     public string? ModelPath { get; set; }
+
+    /// <summary>Gewählter Ablauf pro Modell (Pfad → true = dev, false = distilled). Fehlt ein Modell, gilt die Art aus dem Dateinamen.</summary>
+    public Dictionary<string, bool> DevByModel { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 /// <summary>Ordner. Relative Pfade gelten ab dem Projektordner.</summary>

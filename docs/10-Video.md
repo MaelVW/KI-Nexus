@@ -8,6 +8,7 @@ Stand: 2. November 2026. Plan und Phasen stehen in [Bauplan-Video.md](Bauplan-Vi
 | V1 | Video-Engine in KI-Nexus, noch ohne Oberfläche (Kapitel „V1 – Video-Engine“ unten) | ✅ |
 | V2 | Video-Tab mit Player und Galerie (Kapitel „V2 – Video-Tab“ unten) | ✅ (v1.5.0) |
 | V3 | Videomodelle im Create-Hub und in der Hugging-Face-Suche (Kapitel „V3“ unten) | ✅ (v1.6.0) |
+| V3.1 | dev-Modelle (20 Schritte, CFG 4, Negativ-Prompt), Wahl des Ablaufs (Kapitel „V3.1“ unten) | ✅ (v1.7.0) |
 | V4 | Extras (Bild zu Video, Prompt verbessern, Warteschlange) | offen |
 
 V0 ist ein Test **ohne App**: Schafft der Laptop mit LTX-2.3 überhaupt ein Video? **Ja.** Ein Clip mit 768×512 Pixeln und knapp 4 Sekunden, mit Ton, dauert ca. 2½ Minuten.
@@ -329,3 +330,34 @@ Gefunden und behoben während der Abnahme:
 
 - „Einrichten (Skript starten)“ mit fehlenden Zusatzdateien: Sie waren alle da. Getestet sind die Erkennung (Unit-Tests) und das Skript selbst.
 - Ein nicht passendes Videomodell aus der Suche (z.B. dev) bis zum Ende. Getestet sind Etikett und Urteil, nicht der Download.
+
+---
+
+## V3.1 – dev-Modelle
+
+Anlass: Ein Modell ohne „dev“ oder „distilled“ im Namen lief mit dem distilled-Ablauf und gab ein verrauschtes Video. Es war ein dev-Modell.
+
+### Was neu ist
+
+- **Ablauf im Video-Tab:**
+  - „Schnell: distilled (8 Schritte)“ oder „Genau: dev (20 Schritte mit CFG 4)“.
+  - Vorgabe aus dem Dateinamen, sonst distilled. Die Wahl merkt sich die App pro Modell (`video.devByModel`).
+- **dev-Ablauf:**
+  - ComfyUI rechnet die Rausch-Stufen selbst (`LTXVScheduler`: 20 Schritte, max_shift 2.05, base_shift 0.95, stretch, terminal 0.1, wie im Workflow von Unsloth).
+  - CFG 4 mit echtem Negativ-Prompt. Ohne eigenen Text nimmt die App den Standard von Lightricks: „blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles“.
+  - Das Feld „Negativ-Prompt“ erscheint nur beim dev-Ablauf.
+- **dev-Modelle** gelten als nutzbar (Create-Hub, Suche, Video-Tab).
+- **Zusatzdateien:** Text-Encoder, Projektion und VAEs teilen sich dev und distilled.
+  - Unsloth bietet zwar je eigene Dateien an, aber ich habe 30 Stichproben der Gewichte direkt auf Hugging Face verglichen (HTTP-Range): alle gleich, nur die Metadaten unterscheiden sich.
+  - Darum braucht dev keinen weiteren Download.
+
+### Test (2.11.2026)
+
+| Was | Ergebnis |
+|---|---|
+| Modell | `unsloth/LTX-2.3-GGUF` dev Q2_K (7.7 GB, mit Prüfsumme) in `modelsideo\diffusion_models\` |
+| Video-Tab | Hinweis „LTX-2.3 dev …“, Ablauf automatisch „Genau: dev“, Feld Negativ-Prompt sichtbar |
+| Clip 512×320, 2 s, mit Ton | **Fertig in 4 min 08 s** (20 Schritte à ca. 3.5 s mit CFG). distilled Q2_K brauchte für dasselbe 2 min 06 s. Das Bild ist scharf, nicht verrauscht: Der rote Ball rollt über den Tisch und fällt hinunter. |
+
+Noch nicht geprüft: dev in 768×512 und 4 s. Geschätzt dauert das ca. 6–8 Minuten.
+

@@ -36,7 +36,7 @@ public static class ComfyWorkflowBuilder
         audioLatent["frames_number"] = request.Frames;
         audioLatent["frame_rate"] = request.FrameRate;
         Inputs(workflow, "KN_Seed")["noise_seed"] = request.Seed;
-        Inputs(workflow, "KN_Sigmas")["sigmas"] = models.Sigmas;
+        SetSchedule(workflow, models);
         Inputs(workflow, "KN_Guider")["cfg"] = models.Guidance;
         Inputs(workflow, "KN_CreateVideo")["fps"] = request.FrameRate;
         Inputs(workflow, "KN_Save")["filename_prefix"] = filenamePrefix;
@@ -45,7 +45,7 @@ public static class ComfyWorkflowBuilder
         Inputs(workflow, "KN_Thumbnail")["batch_index"] = request.Frames / 2;
         Inputs(workflow, "KN_SaveThumbnail")["filename_prefix"] = filenamePrefix + "_vorschau";
 
-        SetNegativePrompt(workflow, request.NegativePrompt, models.Guidance);
+        SetNegativePrompt(workflow, string.IsNullOrWhiteSpace(request.NegativePrompt) ? models.DefaultNegativePrompt : request.NegativePrompt, models.Guidance);
         if (!request.WithAudio)
         {
             RemoveAudio(workflow);
@@ -68,6 +68,34 @@ public static class ComfyWorkflowBuilder
         using var stream = typeof(ComfyWorkflowBuilder).Assembly.GetManifestResourceStream("KiNexus.Video." + name)
             ?? throw new InvalidOperationException($"Workflow-Vorlage {name} fehlt in der DLL.");
         return JsonNode.Parse(stream)?.AsObject() ?? throw new InvalidOperationException($"Workflow-Vorlage {name} ist leer.");
+    }
+
+    /// <summary>
+    /// distilled: feste Rausch-Stufen (ManualSigmas). dev: ComfyUI rechnet die Stufen selbst (LTXVScheduler,
+    /// Werte wie im Workflow von Unsloth), passend zur Grösse des Latents.
+    /// </summary>
+    private static void SetSchedule(JsonObject workflow, VideoModelSet models)
+    {
+        if (models.Sigmas is { } sigmas)
+        {
+            Inputs(workflow, "KN_Sigmas")["sigmas"] = sigmas;
+            return;
+        }
+
+        workflow[NodeId(workflow, "KN_Sigmas")] = new JsonObject
+        {
+            ["class_type"] = "LTXVScheduler",
+            ["_meta"] = new JsonObject { ["title"] = "KN_Sigmas" },
+            ["inputs"] = new JsonObject
+            {
+                ["steps"] = models.SchedulerSteps,
+                ["max_shift"] = 2.05,
+                ["base_shift"] = 0.95,
+                ["stretch"] = true,
+                ["terminal"] = 0.1,
+                ["latent"] = new JsonArray(NodeId(workflow, "KN_ConcatAV"), 0),
+            },
+        };
     }
 
     /// <summary>

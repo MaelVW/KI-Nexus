@@ -2,7 +2,7 @@
 
 **Für:** die KI, die KI-Nexus weiterbaut
 **Von:** Mael, geplant zusammen mit Claude
-**Stand:** 2. November 2026 – **V0 bis V3 sind erledigt** (V2 = v1.5.0, V3 = v1.6.0), Ergebnisse in `docs/10-Video.md`. V4 ist noch nicht gebaut.
+**Stand:** 2. November 2026 – **V0 bis V3 sind erledigt** (V2 = v1.5.0, V3 = v1.6.0, dev-Modelle = v1.7.0), Ergebnisse in `docs/10-Video.md`. V4 ist noch nicht gebaut.
 
 > Das ist eine Erweiterung zum Hauptbauplan (`KI-Nexus-Bauplan.md`). Alle Regeln aus Kapitel 1 dort gelten auch hier: Phase für Phase, vorher fragen bei Installationen und Downloads über 1 GB, alles lokal, ehrlich bleiben.
 

@@ -9,8 +9,11 @@ namespace KiNexus.Core.Video;
 /// <param name="TextProjection">Übersetzt die Gemma-Ausgabe für den Kern, in text_encoders/.</param>
 /// <param name="VideoVae">Macht aus dem Ergebnis echte Bilder, in vae/.</param>
 /// <param name="AudioVae">Macht daraus Ton (mit Vocoder), in vae/.</param>
-/// <param name="Sigmas">Rausch-Stufen fürs Entrauschen, eine pro Schritt plus 0 am Schluss.</param>
-/// <param name="Guidance">CFG: wie streng das Modell dem Prompt folgt. Das distilled-Modell braucht 1.</param>
+/// <param name="Sigmas">
+/// Feste Rausch-Stufen fürs Entrauschen (distilled), eine pro Schritt plus 0 am Schluss.
+/// Null = dev: Die Stufen rechnet ComfyUI selbst (LTXVScheduler) mit <see cref="SchedulerSteps"/> Schritten.
+/// </param>
+/// <param name="Guidance">CFG: wie streng das Modell dem Prompt folgt. distilled braucht 1, dev ca. 4 (rechnet dann jeden Schritt doppelt).</param>
 public sealed record VideoModelSet(
     string Name,
     string Model,
@@ -18,9 +21,35 @@ public sealed record VideoModelSet(
     string TextProjection,
     string VideoVae,
     string AudioVae,
-    string Sigmas,
+    string? Sigmas,
     double Guidance)
 {
+    /// <summary>Wie bei Lightricks und Unsloth für LTX-2.3 dev: 20 Schritte, CFG 4, mit Negativ-Prompt.</summary>
+    public const int DevSteps = 20;
+    public const double DevGuidance = 4;
+    public const string DevNegativePrompt = "blurry, low quality, still frame, frames, watermark, overlay, titles, has blurbox, has subtitles";
+
+    /// <summary>Schritte für den LTXVScheduler (nur dev, wenn <see cref="Sigmas"/> null ist).</summary>
+    public int SchedulerSteps { get; init; } = DevSteps;
+
+    /// <summary>Negativ-Prompt, wenn der Auftrag keinen hat. Wirkt nur mit CFG über 1 (dev).</summary>
+    public string? DefaultNegativePrompt { get; init; }
+
+    /// <summary>dev-Ablauf: Scheduler statt fester Stufen, CFG über 1.</summary>
+    public bool IsDev => Sigmas is null;
+
+    /// <summary>
+    /// Dieselben Dateien mit dem dev-Ablauf. Text-Encoder, Projektion und VAEs teilen sich dev und distilled:
+    /// Die Gewichte sind gleich (Stichproben-Vergleich in docs/10-Video.md), nur die Metadaten unterscheiden sich.
+    /// </summary>
+    public VideoModelSet AsDev() => this with
+    {
+        Sigmas = null,
+        Guidance = DevGuidance,
+        SchedulerSteps = DevSteps,
+        DefaultNegativePrompt = DevNegativePrompt,
+    };
+
     /// <summary>Offizielles LTX-2.3, distilled 1.1 (8 Schritte), getestet in V0 (docs/10-Video.md).</summary>
     public static VideoModelSet Ltx23Distilled { get; } = new(
         "LTX-2.3 distilled (Q4_K_M)",
@@ -38,8 +67,8 @@ public sealed record VideoModelSet(
     /// </summary>
     public string? ModelFolder { get; init; }
 
-    /// <summary>Anzahl Schritte beim Entrauschen (eine Stufe weniger als Sigmas).</summary>
-    public int Steps => Sigmas.Split(',').Length - 1;
+    /// <summary>Anzahl Schritte beim Entrauschen (distilled: eine Stufe weniger als Sigmas).</summary>
+    public int Steps => Sigmas is null ? SchedulerSteps : Sigmas.Split(',').Length - 1;
 
     /// <summary>Die Zusatzdateien (Text-Encoder, Projektion, VAEs). Fehlen sie, hilft setup-video.ps1 -Companions.</summary>
     public IReadOnlyList<string> CompanionFiles(string videoModelsDirectory) => [.. Files(videoModelsDirectory).Skip(1)];

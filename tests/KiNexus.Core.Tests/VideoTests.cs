@@ -74,23 +74,42 @@ public class VideoTests
     private const string AvConfig = """{"transformer": {"_class_name": "AVTransformer3DModel", "num_layers": 48, "apply_gated_attention": true}}""";
 
     [Theory]
-    [InlineData("ltxv", "2.3.0", AvConfig, "ltx-2.3-22b-distilled-1.1-Q2_K.gguf", true, "distilled")]
+    [InlineData("ltxv", "2.3.0", AvConfig, "ltx-2.3-22b-distilled-1.1-Q2_K.gguf", true, "distilled", VideoModelVariant.Distilled)]
     // Unsloth-Dateien haben kein "model_version": Dann zählt der config.
-    [InlineData("ltxv", null, AvConfig, "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf", true, "distilled")]
-    [InlineData("ltxv", null, """{"transformer": {"_class_name": "AVTransformer3DModel", "apply_gated_attention": false}}""", "ltx-2-19b-distilled.gguf", false, "Version unbekannt")]
-    [InlineData("ltxv", "2.3.0", AvConfig, "PinkCherry_FineTune_Q5_K_M.gguf", true, "steht nicht in der Datei")]
-    [InlineData("ltxv", "2.3.0", null, "eigenes-modell.gguf", true, "8 Schritte")]
-    [InlineData("ltxv", "2.3.0", AvConfig, "ltx-2.3-22b-dev-Q4_K_M.gguf", false, "dev")]
-    [InlineData("ltxv", "0.9.8", AvConfig, "ltxv-13b-0.9.8-distilled.gguf", false, "0.9.8")]
-    [InlineData("ltxv", null, null, "alt.gguf", false, "Version unbekannt")]
-    [InlineData("ltxv", "2.3.0", """{"transformer": {"_class_name": "Transformer3DModel"}}""", "x-distilled.gguf", false, "ohne Ton")]
-    [InlineData("wan", "2.2", null, "wan-distilled.gguf", false, "Kein LTX-Modell")]
-    public void Catalog_ClassifiesVideoModels(string architecture, string? version, string? config, string fileName, bool usable, string note)
+    [InlineData("ltxv", null, AvConfig, "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf", true, "distilled", VideoModelVariant.Distilled)]
+    [InlineData("ltxv", null, """{"transformer": {"_class_name": "AVTransformer3DModel", "apply_gated_attention": false}}""", "ltx-2-19b-distilled.gguf", false, "Version unbekannt", VideoModelVariant.Unknown)]
+    [InlineData("ltxv", "2.3.0", AvConfig, "PinkCherry_FineTune_Q5_K_M.gguf", true, "Wähle im Video-Tab den Ablauf", VideoModelVariant.Unknown)]
+    [InlineData("ltxv", null, AvConfig, "ltx-2.3-22b-dev-Q2_K.gguf", true, "20 Schritte", VideoModelVariant.Dev)]
+    [InlineData("ltxv", "0.9.8", AvConfig, "ltxv-13b-0.9.8-distilled.gguf", false, "0.9.8", VideoModelVariant.Unknown)]
+    [InlineData("ltxv", null, null, "alt.gguf", false, "Version unbekannt", VideoModelVariant.Unknown)]
+    [InlineData("ltxv", "2.3.0", """{"transformer": {"_class_name": "Transformer3DModel"}}""", "x-distilled.gguf", false, "ohne Ton", VideoModelVariant.Unknown)]
+    [InlineData("wan", "2.2", null, "wan-distilled.gguf", false, "Kein LTX-Modell", VideoModelVariant.Unknown)]
+    public void Catalog_ClassifiesVideoModels(string architecture, string? version, string? config, string fileName, bool usable, string note,
+        VideoModelVariant variant)
     {
-        var (isUsable, text) = VideoModelCatalog.Classify(architecture, version, config, fileName);
+        var (isUsable, text, kind) = VideoModelCatalog.Classify(architecture, version, config, fileName);
 
         Assert.Equal(usable, isUsable);
         Assert.Contains(note, text, StringComparison.Ordinal);
+        Assert.Equal(variant, kind);
+    }
+
+    [Fact]
+    public void ModelSet_DevUsesSchedulerCfgAndNegativePrompt()
+    {
+        var dev = new VideoModelChoice("dev", @"C:\m\ltx-2.3-22b-dev-Q2_K.gguf", false, true, "", VideoModelVariant.Dev).ToModelSet();
+        var unknown = new VideoModelChoice("ft", @"C:\minetune.gguf", false, true, "");
+
+        Assert.True(dev.IsDev);
+        Assert.Null(dev.Sigmas);
+        Assert.Equal(20, dev.Steps);
+        Assert.Equal(4, dev.Guidance);
+        Assert.Contains("blurry", dev.DefaultNegativePrompt, StringComparison.Ordinal);
+        Assert.Equal(VideoModelSet.Ltx23Distilled.TextProjection, dev.TextProjection);
+        Assert.False(unknown.ToModelSet().IsDev);
+        Assert.Equal(8, unknown.ToModelSet().Steps);
+        Assert.True(unknown.ToModelSet(dev: true).IsDev);
+        Assert.False(VideoModelSet.Ltx23Distilled.IsDev);
     }
 
     [Fact]
@@ -101,6 +120,7 @@ public class VideoTests
         Directory.CreateDirectory(Path.Combine(video, "diffusion_models"));
         var official = Path.Combine(video, "diffusion_models", VideoModelSet.Ltx23Distilled.Model);
         WriteLtx(official, version: null); // wie die echte Datei von Unsloth: ohne model_version
+        WriteLtx(Path.Combine(video, "diffusion_models", "ltx-2.3-22b-dev-Q2_K.gguf"), version: null); // vor dem offiziellen im Alphabet
         var library = new ModelLibrary(root.Combine("models"), NullLogger<ModelLibrary>.Instance);
         var downloaded = AddLibraryModel(library, root, "ltx-q2", "ltx-2.3-22b-distilled-1.1-Q2_K.gguf", "2.3.0");
         AddLibraryModel(library, root, "ltx-alt", "ltxv-0.9.8-distilled.gguf", "0.9.8");
@@ -111,12 +131,13 @@ public class VideoTests
 
         var choices = VideoModelCatalog.Find(video, library.Scan());
 
-        Assert.Equal([VideoModelSet.Ltx23Distilled.Name, "ltx-q2", "ltx-alt"], choices.Select(c => c.Name));
-        Assert.Equal([true, true, false], choices.Select(c => c.IsUsable));
+        Assert.Equal([VideoModelSet.Ltx23Distilled.Name, "ltx-2.3-22b-dev-Q2_K", "ltx-q2", "ltx-alt"], choices.Select(c => c.Name));
+        Assert.Equal([true, true, true, false], choices.Select(c => c.IsUsable));
+        Assert.Equal(VideoModelVariant.Dev, choices[1].Variant);
         Assert.True(choices[0].IsBuiltIn);
         Assert.Null(choices[0].ToModelSet().ModelFolder);
 
-        var set = choices[1].ToModelSet();
+        var set = choices[2].ToModelSet();
         Assert.Equal("ltx-2.3-22b-distilled-1.1-Q2_K.gguf", set.Model);
         Assert.Equal(Path.GetDirectoryName(downloaded), set.ModelFolder);
         Assert.Equal(downloaded, set.Files(video)[0]);

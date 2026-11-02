@@ -75,13 +75,24 @@
                             <TextBlock Text="Videomodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding VideoModels}" SelectedItem="{Binding SelectedModel}" AutomationProperties.Name="Videomodell"
                                       AutomationProperties.AutomationId="VideoModel" />
-                            <TextBlock Text="{Binding ModelNote}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,12"
+                            <TextBlock Text="{Binding ModelNote}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,10"
                                        AutomationProperties.AutomationId="VideoModelNote" />
+                            <TextBlock Text="Ablauf" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding Processes}" SelectedItem="{Binding SelectedProcess}" Margin="0,0,0,12" AutomationProperties.Name="Ablauf"
+                                      AutomationProperties.AutomationId="VideoProcess"
+                                      ToolTip="Muss zum Modell passen. Ein dev-Modell mit „Schnell“ gibt ein verrauschtes Video." />
                             <TextBox Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110"
                                      MaxHeight="220" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" SpellCheck.IsEnabled="False"
                                      AutomationProperties.Name="Beschreibung des Videos" AutomationProperties.AutomationId="VideoPrompt" />
                             <TextBlock Style="{StaticResource Text.Hint}" Margin="0,6,0,12" TextWrapping="Wrap"
                                        Text="Beschreib Szene, Bewegung, Kamera und Ton. Auf Englisch klappt es am besten, z.B. „A red fox jumps over a snowy log, crunching snow, soft wind, handheld camera.“" />
+
+                            <StackPanel Visibility="{Binding IsDevProcess, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12">
+                                <TextBlock Text="Negativ-Prompt (was nicht vorkommen soll)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <TextBox Text="{Binding NegativePrompt, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" MinHeight="40"
+                                         AutomationProperties.Name="Negativ-Prompt" AutomationProperties.AutomationId="VideoNegativePrompt" />
+                                <TextBlock Text="{Binding NegativePromptHint}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
 
                             <WrapPanel>
                                 <StackPanel Margin="0,0,12,10">

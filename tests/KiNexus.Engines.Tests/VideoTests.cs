@@ -61,6 +61,24 @@ public class VideoTests
     }
 
     [Fact]
+    public void Builder_Dev_UsesSchedulerAndDefaultNegativePrompt()
+    {
+        var workflow = ComfyWorkflowBuilder.Build(new VideoRequest("x", Frames: 49), Models.AsDev(), "p");
+        var sigmas = workflow[ComfyWorkflowBuilder.NodeId(workflow, "KN_Sigmas")]!;
+
+        Assert.Equal("LTXVScheduler", sigmas["class_type"]!.GetValue<string>());
+        Assert.Equal(20, sigmas["inputs"]!["steps"]!.GetValue<int>());
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_ConcatAV"), sigmas["inputs"]!["latent"]![0]!.GetValue<string>());
+        Assert.Equal(4.0, Inputs(workflow, "KN_Guider")["cfg"]!.GetValue<double>());
+        Assert.Equal("CLIPTextEncode", workflow[ComfyWorkflowBuilder.NodeId(workflow, "KN_NegativePrompt")]!["class_type"]!.GetValue<string>());
+        Assert.Equal(VideoModelSet.DevNegativePrompt, Inputs(workflow, "KN_NegativePrompt")["text"]!.GetValue<string>());
+        AssertAllLinksExist(workflow);
+
+        var own = ComfyWorkflowBuilder.Build(new VideoRequest("x", NegativePrompt: "rain"), Models.AsDev(), "p");
+        Assert.Equal("rain", Inputs(own, "KN_NegativePrompt")["text"]!.GetValue<string>());
+    }
+
+    [Fact]
     public void Builder_WithoutAudio_DropsAudioDecoding()
     {
         var workflow = ComfyWorkflowBuilder.Build(new VideoRequest("x", WithAudio: false), Models, "p");

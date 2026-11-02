@@ -24,6 +24,12 @@ public sealed record VideoFormat(int Width, int Height, string Label)
     public override string ToString() => Label;
 }
 
+/// <summary>Ein Ablauf zur Auswahl: distilled (8 Schritte, CFG 1) oder dev (20 Schritte, CFG 4).</summary>
+public sealed record VideoProcess(bool IsDev, string Label)
+{
+    public override string ToString() => Label;
+}
+
 /// <summary>Eine Länge zur Auswahl, z.B. "4 Sekunden".</summary>
 public sealed record VideoLength(double Seconds, string Label)
 {
@@ -83,7 +89,25 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     }
 
     /// <summary>Die Dateien des gewählten Videomodells. Ohne Wahl: das offizielle LTX-2.3 aus V0.</summary>
-    public VideoModelSet Models => SelectedModel?.ToModelSet() ?? VideoModelSet.Ltx23Distilled;
+    public VideoModelSet Models => SelectedModel?.ToModelSet(SelectedProcess?.IsDev) ?? VideoModelSet.Ltx23Distilled;
+
+    public IReadOnlyList<VideoProcess> Processes { get; } =
+    [
+        new(false, "Schnell: distilled (8 Schritte)"),
+        new(true, "Genau: dev (20 Schritte mit CFG 4, ca. 2- bis 3-mal langsamer)"),
+    ];
+
+    /// <summary>Muss zum Modell passen: Ein dev-Modell mit dem distilled-Ablauf gibt ein verrauschtes Video.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsDevProcess))]
+    private VideoProcess? _selectedProcess;
+
+    public bool IsDevProcess => SelectedProcess?.IsDev == true;
+
+    /// <summary>Was nicht vorkommen soll. Wirkt nur beim dev-Ablauf. Leer = Standard von Lightricks.</summary>
+    [ObservableProperty] private string _negativePrompt = "";
+
+    public string NegativePromptHint => "Leer = Standard: " + VideoModelSet.DevNegativePrompt;
 
     private string VideoModelsDirectory => Path.Combine(_paths.Resolve(_settings.Current.Paths.Models), "video");
 
@@ -116,6 +140,11 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     partial void OnSelectedModelChanged(VideoModelChoice? value)
     {
+        // Ablauf: wie zuletzt für dieses Modell gewählt, sonst aus dem Dateinamen (unbekannt = distilled).
+        var dev = value is not null && _settings.Current.Video.DevByModel.TryGetValue(value.ModelPath, out var chosen)
+            ? chosen
+            : value?.Variant == VideoModelVariant.Dev;
+        SelectedProcess = Processes.First(p => p.IsDev == dev);
         CheckSetup();
         UpdateFit();
     }
@@ -160,17 +189,24 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     private static bool SamePath(string a, string b) =>
         string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
 
-    /// <summary>Merkt sich das Modell für den nächsten Start der App.</summary>
+    /// <summary>Merkt sich Modell und Ablauf für den nächsten Start der App.</summary>
     private async Task RememberModelAsync()
     {
         var path = SelectedModel?.ModelPath;
-        if (path == _settings.Current.Video.ModelPath)
+        var dev = IsDevProcess;
+        var current = _settings.Current.Video;
+        if (path == current.ModelPath && (path is null || (current.DevByModel.TryGetValue(path, out var known) && known == dev)))
         {
             return;
         }
 
         var settings = JsonDefaults.Clone(_settings.Current);
         settings.Video.ModelPath = path;
+        if (path is not null)
+        {
+            settings.Video.DevByModel[path] = dev;
+        }
+
         await _settings.SaveAsync(settings, CancellationToken.None);
     }
 
@@ -289,7 +325,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         VideoRequest.FramesFor(SelectedLength.Seconds, FrameRate),
         FrameRate,
         seed,
-        WithAudio);
+        WithAudio,
+        IsDevProcess && NegativePrompt.Trim().Length > 0 ? NegativePrompt.Trim() : null);
 
     private void UpdateFit()
     {
