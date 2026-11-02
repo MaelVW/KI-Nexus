@@ -2,7 +2,7 @@
 
 **Für:** die KI, die KI-Nexus weiterbaut
 **Von:** Mael, geplant zusammen mit Claude
-**Stand:** 2. November 2026 – **theoretisch**, noch nichts davon ist gebaut
+**Stand:** 2. November 2026 – Phase **V0 (Machbarkeitstest) ist erledigt**, Ergebnisse in `docs/10-Video.md`. V1 bis V4 sind noch nicht gebaut.
 
 > Das ist eine Erweiterung zum Hauptbauplan (`KI-Nexus-Bauplan.md`). Alle Regeln aus Kapitel 1 dort gelten auch hier: Phase für Phase, vorher fragen bei Installationen und Downloads über 1 GB, alles lokal, ehrlich bleiben.
 
@@ -181,8 +181,8 @@ Die genauen Namen und Formate musst du an der installierten Version prüfen:
 python main.py --listen 127.0.0.1 --port 8188 --disable-auto-launch
                --extra-model-paths-config engines/comfyui/kinexus-paths.yaml
                --output-directory data/videos/roh
-               --disable-api-nodes          (keine Cloud-Knoten)
-               --reserve-vram 1             (oder --lowvram, im Test vergleichen)
+               --offline                    (keine Cloud-Knoten, Oberfläche ohne Internet)
+               (V0 lief ohne VRAM-Flags: ComfyUI 0.43 lädt dynamisch, --lowvram wirkt dann nicht)
 ```
 
 - KI-Nexus startet ComfyUI erst beim ersten Video, nicht beim App-Start.
@@ -195,16 +195,16 @@ python main.py --listen 127.0.0.1 --port 8188 --disable-auto-launch
 
 ```
 engines/comfyui/                 ComfyUI, feste Version (Release-ZIP, nicht git pull)
-engines/comfyui/.venv/           eigene Python-Umgebung (uv)
+engines/comfyui/.venv/           eigene Python-Umgebung (uv), Pakete in python/video/pyproject.toml
 engines/comfyui/custom_nodes/    nur ComfyUI-GGUF (und was V0 sonst wirklich braucht), feste Commits
 engines/comfyui/kinexus-paths.yaml   sagt ComfyUI, wo die Modelle liegen
-models/video/<modell>/           Kern-GGUF + model.json
+models/video/diffusion_models/   Kern-GGUF (V3: dazu model.json)
 models/video/text_encoders/      Gemma 3 12B
 models/video/vae/                Video-VAE, Audio-VAE
 models/video/latent_upscale_models/
 data/videos/                     Ergebnisse: 2026-11-02_1530_seed12345.mp4 + .json
 scripts/setup-video.ps1          richtet alles ein (fragt vor Downloads)
-src/KiNexus.Engines/Video/Workflows/*.json   Workflow-Vorlagen
+src/KiNexus.Engines/Video/Workflows/*.json   Workflow-Vorlagen (V0: python/video/workflows/)
 docs/10-Video.md                 Doku und Messwerte (ab V0)
 ```
 
@@ -275,7 +275,7 @@ docs/10-Video.md                 Doku und Messwerte (ab V0)
 - ComfyUI hört nur auf `127.0.0.1`.
 - **Kein ComfyUI-Manager.** Er lädt Listen aus dem Internet und installiert fremden Code per Klick.
 - Custom Nodes nur aus einer festen Liste mit festem Commit. Installiert werden sie nur von `setup-video.ps1`.
-- **Cloud-Knoten aus** (`--disable-api-nodes`). Sonst gibt es in ComfyUI Knoten, die Aufträge an bezahlte Cloud-Dienste schicken. Das widerspricht „keine Cloud-KI“.
+- **Cloud-Knoten aus** (`--offline`; das ältere `--disable-api-nodes` ist in ComfyUI 0.43 nur noch ein Alias dafür). Sonst gibt es in ComfyUI Knoten, die Aufträge an bezahlte Cloud-Dienste schicken. Das widerspricht „keine Cloud-KI“.
 - Nur die eigenen Workflow-Vorlagen der App, keine Workflows aus dem Internet. Ein fremder Workflow kann fremde Custom Nodes verlangen, also fremden Code.
 - **Nur `.gguf` und `.safetensors` laden.** Keine `.ckpt`, `.pt` oder `.bin`: Diese Formate können beim Laden Code ausführen.
 - Ins Internet geht die App weiterhin nur für Hugging Face (Modelle) und für Engine-Updates, wenn ich sie auslöse.
@@ -287,7 +287,7 @@ docs/10-Video.md                 Doku und Messwerte (ab V0)
 
 | # | Inhalt | Abnahme |
 |---|---|---|
-| **V0** | **Machbarkeitstest, noch ohne App.** ComfyUI (feste Version) und ComfyUI-GGUF in `engines/comfyui` einrichten. Fehlende Dateien laden: Gemma 3 12B, VAEs, Upscaler. **Vorher fragen, das sind über 10 GB.** Ein Clip 768×512, 4 s, einmal mit dem offiziellen LTX-2.3 (Q4_K_M) und einmal mit meiner Datei. Messen: Zeit, höchstes VRAM und RAM, Auslagerungsdatei. | Ein MP4 mit Ton liegt vor. Die Messwerte stehen in `docs/10-Video.md`. **Läuft es nicht oder dauert ein Clip über 15 Minuten: stoppen und mit Mael entscheiden.** |
+| **V0** ✅ | **Machbarkeitstest, noch ohne App.** ComfyUI (feste Version) und ComfyUI-GGUF in `engines/comfyui` einrichten. Fehlende Dateien laden: Gemma 3 12B, VAEs, Upscaler. **Vorher fragen, das sind über 10 GB.** Ein Clip 768×512, 4 s, einmal mit dem offiziellen LTX-2.3 (Q4_K_M) und einmal mit meiner Datei. Messen: Zeit, höchstes VRAM und RAM, Auslagerungsdatei. | Ein MP4 mit Ton liegt vor. Die Messwerte stehen in `docs/10-Video.md`. **Läuft es nicht oder dauert ein Clip über 15 Minuten: stoppen und mit Mael entscheiden.** — **Erledigt 2.11.2026:** 768×512, 3.9 s mit Ton in ca. 2½ min. Nur mit dem offiziellen LTX-2.3 (distilled 1.1, Q4_K_M), ohne Upscaler. |
 | V1 | **Engine:** `setup-video.ps1`, `ComfyVideoBackend`: Start/Stopp, Bereitschaft, Auftrag, Fortschritt über WebSocket, Abbrechen, Speicher freigeben. `ComfyWorkflowBuilder`, `VideoRequest` mit Prüfungen. Unit-Tests. | Tests laufen durch. Ein Testlauf erzeugt ein Video nur über die Schnittstelle. |
 | V2 | **Video-Tab:** Auftrag, Vorlagen, Speicher-Ampel, Fortschritt, Abbrechen, Player, Galerie, Chat-Modell entladen | Ich erzeuge im Tab einen Clip, breche einen zweiten ab und spiele den ersten ab. Danach chatte ich wieder normal. |
 | V3 | **Create-Hub:** Videomodelle als eigene Art statt nur Warnung. Statt „Neue KI daraus“ gibt es den Knopf „Im Video-Tab nutzen“. Prüfen, ob die Zusatzdateien da sind, und sie bei Bedarf laden. Die Hugging-Face-Suche zeigt „Videomodell, nutzbar im Video-Tab“. | Ein Videomodell aus der Hugging-Face-Suche ist nach dem Download im Video-Tab nutzbar. |
@@ -298,6 +298,8 @@ docs/10-Video.md                 Doku und Messwerte (ab V0)
 ---
 
 ## 11. Das musst du selbst prüfen
+
+> Die Punkte 1, 2, 5, 7 und 8 sind seit V0 beantwortet: siehe `docs/10-Video.md`.
 
 1. **ComfyUI:**
    - Welche Version unterstützt LTX-2.3 mit Ton?

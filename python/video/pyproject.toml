@@ -1,0 +1,63 @@
+# Video von KI-Nexus (Bauplan Video, Phase V0): Python-Umgebung für ComfyUI.
+# ComfyUI selbst liegt in engines/comfyui (nicht in Git), die Umgebung in engines/comfyui/.venv.
+# Einrichten: in diesem Ordner $env:UV_PROJECT_ENVIRONMENT = "..\..\engines\comfyui\.venv"; uv sync
+# Die Liste folgt requirements.txt von ComfyUI v0.43.0 (nur die nötigen Pakete) und ComfyUI-GGUF.
+
+[project]
+name = "kinexus-video"
+version = "0.1.0"
+description = "Hilfsprozess für KI-Nexus: ComfyUI für Videomodelle (LTX-2.3)"
+requires-python = ">=3.12,<3.13"
+dependencies = [
+    # PyTorch mit CUDA 13.0, gleiche Version wie beim Training (liegt schon im uv-Cache).
+    "torch==2.14.0",
+    "torchvision",
+    "torchsde",
+    # Feste Versionen, die ComfyUI v0.43.0 verlangt.
+    # Ohne Absicht weggelassen: comfyui-workflow-templates und comfyui-embedded-docs.
+    # Das sind nur Vorlagen und Hilfe für die Knoten-Ansicht. ComfyUI meldet dann einen Fehler im Log, läuft aber.
+    "comfyui-frontend-package==1.57.4",
+    "comfy-aimdo==0.6.0",
+    "comfy-kitchen==0.2.40",
+    "numpy>=1.25.0",
+    "einops",
+    "transformers>=4.50.3",
+    "tokenizers>=0.13.3",
+    "sentencepiece",
+    "safetensors>=0.4.2",
+    "aiohttp>=3.11.8",
+    "yarl>=1.18.0",
+    "pyyaml",
+    "Pillow>=10.1.0",
+    "scipy",
+    "tqdm",
+    "psutil",
+    "alembic",
+    "SQLAlchemy>=2.0.0",
+    "filelock",
+    # Videos schreiben (MP4 mit Ton).
+    "av>=17.0.0",
+    "requests",
+    "simpleeval>=1.0.0",
+    "blake3",
+    "pydantic~=2.0",
+    "pydantic-settings~=2.0",
+    # ComfyUI-GGUF: GGUF-Dateien lesen.
+    "gguf>=0.13.0",
+    "protobuf",
+]
+
+[tool.uv]
+package = false
+# Nur Versionen, die mindestens zwei Wochen alt sind. Ausnahme: die Pakete, die ComfyUI fest verlangt.
+exclude-newer = "2026-10-19T00:00:00Z"
+exclude-newer-package = { comfyui-frontend-package = "2026-10-28T00:00:00Z", comfy-aimdo = "2026-10-28T00:00:00Z", comfy-kitchen = "2026-10-28T00:00:00Z" }
+
+[[tool.uv.index]]
+name = "pytorch-cu130"
+url = "https://download.pytorch.org/whl/cu130"
+explicit = true
+
+[tool.uv.sources]
+torch = { index = "pytorch-cu130" }
+torchvision = { index = "pytorch-cu130" }
