@@ -19,4 +19,7 @@ public interface IChatShell
 
     /// <summary>Wählt die KI, wechselt in den Chat-Tab und beginnt einen neuen Chat (z.B. Test-Chat nach "Neue KI").</summary>
     void OpenChatWith(KiProfile ki);
+
+    /// <summary>Wechselt in den Video-Tab und wählt dort dieses Videomodell (GGUF-Datei), z.B. aus dem Create-Hub.</summary>
+    void OpenVideoWith(string modelPath);
 }

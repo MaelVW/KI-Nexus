@@ -1,6 +1,7 @@
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KiNexus.Core.Models;
+using KiNexus.Core.Video;
 using KiNexus.Engines.HuggingFace;
 
 namespace KiNexus.App.ViewModels;
@@ -57,8 +58,11 @@ public sealed partial class DownloadItemViewModel : ObservableObject
     [RelayCommand(CanExecute = nameof(IsCompleted))]
     private void Dismiss() => _downloader.Dismiss(Job);
 
-    [RelayCommand(CanExecute = nameof(IsCompleted))]
+    /// <summary>Nur für Sprachmodelle. Ein Videomodell nutzt man im Video-Tab.</summary>
+    [RelayCommand(CanExecute = nameof(CanCreateKi))]
     private Task CreateKi() => Job.Result is { } model ? _hub.StartWizardAsync(model) : Task.CompletedTask;
+
+    private bool CanCreateKi => IsCompleted && Job.Result is not { IsLanguageModel: false };
 
     private void OnJobChanged(object? sender, EventArgs e) => _hub.Post(Update);
 
@@ -88,6 +92,15 @@ public sealed partial class DownloadItemViewModel : ObservableObject
                 _hub.ShowNotice($"Download fertig: {model.FolderName} ist jetzt ein Grundmodell.", isError: false,
                     "Neue KI daraus", () => _hub.StartWizardAsync(model));
             }
+            else if (DescribeVideo(model) is { } video)
+            {
+                _hub.ShowNotice(video.IsUsable
+                        ? $"Download fertig: {model.FolderName} ist ein Videomodell. {video.Note}"
+                        : $"Download fertig, aber {model.FolderName}: {video.Note}",
+                    isError: !video.IsUsable,
+                    video.IsUsable ? "Im Video-Tab nutzen" : null,
+                    video.IsUsable ? () => { _hub.Shell?.OpenVideoWith(model.ModelPath); return Task.CompletedTask; } : null);
+            }
             else
             {
                 _hub.ShowNotice($"Download fertig, aber {model.FolderName}: {ModelKinds.Explain(model.Manifest.Architecture)} "
@@ -96,5 +109,23 @@ public sealed partial class DownloadItemViewModel : ObservableObject
         }
 
         _lastState = State;
+    }
+
+    /// <summary>Videomodell (ltxv)? Dann das Urteil für den Video-Tab, sonst null.</summary>
+    private static VideoModelChoice? DescribeVideo(LocalModel model)
+    {
+        if (!string.Equals(model.Manifest.Architecture, VideoModelCatalog.LtxArchitecture, StringComparison.OrdinalIgnoreCase))
+        {
+            return null;
+        }
+
+        try
+        {
+            return VideoModelCatalog.Describe(model.ModelPath, model.FolderName, isBuiltIn: false);
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.IO.InvalidDataException or UnauthorizedAccessException)
+        {
+            return null;
+        }
     }
 }

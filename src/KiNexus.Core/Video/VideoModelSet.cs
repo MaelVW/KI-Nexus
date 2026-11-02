@@ -32,13 +32,22 @@ public sealed record VideoModelSet(
         "1.0, 0.99375, 0.9875, 0.98125, 0.975, 0.909375, 0.725, 0.421875, 0.0",
         1.0);
 
+    /// <summary>
+    /// Ordner des Modells, wenn es nicht in models/video/diffusion_models liegt (z.B. models/&lt;ordner&gt;/ von Hugging Face).
+    /// ComfyUI bekommt den Ordner dann zusätzlich in kinexus-paths.yaml.
+    /// </summary>
+    public string? ModelFolder { get; init; }
+
     /// <summary>Anzahl Schritte beim Entrauschen (eine Stufe weniger als Sigmas).</summary>
     public int Steps => Sigmas.Split(',').Length - 1;
 
-    /// <summary>Wo jede Datei liegen muss.</summary>
+    /// <summary>Die Zusatzdateien (Text-Encoder, Projektion, VAEs). Fehlen sie, hilft setup-video.ps1 -Companions.</summary>
+    public IReadOnlyList<string> CompanionFiles(string videoModelsDirectory) => [.. Files(videoModelsDirectory).Skip(1)];
+
+    /// <summary>Wo jede Datei liegen muss. Die erste ist das Modell selbst.</summary>
     public IReadOnlyList<string> Files(string videoModelsDirectory) =>
     [
-        Path.Combine(videoModelsDirectory, "diffusion_models", Model),
+        Path.Combine(ModelFolder ?? Path.Combine(videoModelsDirectory, "diffusion_models"), Model),
         Path.Combine(videoModelsDirectory, "text_encoders", TextEncoder),
         Path.Combine(videoModelsDirectory, "text_encoders", TextProjection),
         Path.Combine(videoModelsDirectory, "vae", VideoVae),

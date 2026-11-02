@@ -6,6 +6,7 @@ using KiNexus.App.Services;
 using KiNexus.Core.Inference;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Models;
+using KiNexus.Core.Video;
 using KiNexus.Engines.Ollama;
 using Microsoft.Extensions.Logging;
 
@@ -20,7 +21,8 @@ public sealed record KiRow(KiProfile Ki, string BaseModelText, string ImagesText
 }
 
 /// <summary>Eine Zeile in "Grundmodelle".</summary>
-public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<KiProfile> UsedBy)
+/// <param name="Video">Bei Videomodellen (Architektur ltxv): Kann der Video-Tab es nutzen? Sonst null.</param>
+public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<KiProfile> UsedBy, VideoModelChoice? Video = null)
 {
     public string Name => Model.FolderName;
     public string SizeText => DisplayFormat.Bytes(Model.Manifest.SizeBytes);
@@ -37,12 +39,23 @@ public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<K
 
     public string UsedByText => UsedBy.Count == 0 ? "von keiner KI genutzt" : "genutzt von " + string.Join(", ", UsedBy.Select(k => k.DisplayName));
 
-    /// <summary>Rote Zeile bei Bild- oder Video-Modellen, z.B. "Kein Sprachmodell: ein Videomodell (ltxv)". Sonst leer.</summary>
-    public string KindWarning => Model.IsLanguageModel
+    /// <summary>
+    /// Rote Zeile bei Bild- oder Video-Modellen, die KI-Nexus nicht nutzen kann, z.B. "Kein Sprachmodell: ein Bildmodell (flux)".
+    /// Videomodelle für den Video-Tab bekommen stattdessen <see cref="VideoNote"/>. Sonst leer.
+    /// </summary>
+    public string KindWarning => Model.IsLanguageModel || IsUsableVideo
         ? ""
-        : $"Kein Sprachmodell: {ModelKinds.NonTextKind(Model.Manifest.Architecture)} ({Model.Manifest.Architecture}). Zum Chatten nicht nutzbar.";
+        : $"Kein Sprachmodell: {ModelKinds.NonTextKind(Model.Manifest.Architecture)} ({Model.Manifest.Architecture}). Zum Chatten nicht nutzbar."
+          + (Video is { } video ? " " + video.Note : "");
 
     public bool HasKindWarning => KindWarning.Length > 0;
+
+    public bool IsLanguageModel => Model.IsLanguageModel;
+
+    /// <summary>Ein Videomodell, das der Video-Tab nutzen kann.</summary>
+    public bool IsUsableVideo => Video is { IsUsable: true };
+
+    public string VideoNote => IsUsableVideo ? "Videomodell: " + Video!.Note : "";
 }
 
 /// <summary>Eine Zeile in "Ollama-Modelle".</summary>
@@ -80,10 +93,11 @@ public sealed partial class CreateHubOverviewViewModel(
         try
         {
             var models = await Task.Run(library.Scan);
+            var videos = await Task.Run(() => DescribeVideos(models));
             ModelRows.Clear();
             foreach (var model in models)
             {
-                ModelRows.Add(new ModelRow(model, hub.Estimate(model), hub.KisUsing(model)));
+                ModelRows.Add(new ModelRow(model, hub.Estimate(model), hub.KisUsing(model), videos.GetValueOrDefault(model.FolderName)));
             }
 
             KiRows.Clear();
@@ -100,6 +114,25 @@ public sealed partial class CreateHubOverviewViewModel(
         {
             IsRefreshing = false;
         }
+    }
+
+    /// <summary>Videomodelle (ltxv): GGUF-Kopf lesen und beurteilen. Unlesbare Dateien bleiben ohne Urteil.</summary>
+    private Dictionary<string, VideoModelChoice> DescribeVideos(IReadOnlyList<LocalModel> models)
+    {
+        var result = new Dictionary<string, VideoModelChoice>(StringComparer.OrdinalIgnoreCase);
+        foreach (var model in models.Where(m => string.Equals(m.Manifest.Architecture, VideoModelCatalog.LtxArchitecture, StringComparison.OrdinalIgnoreCase)))
+        {
+            try
+            {
+                result[model.FolderName] = VideoModelCatalog.Describe(model.ModelPath, model.FolderName, isBuiltIn: false);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or EndOfStreamException)
+            {
+                logger.LogWarning(ex, "Videomodell {Folder} nicht lesbar.", model.FolderName);
+            }
+        }
+
+        return result;
     }
 
     private KiRow CreateKiRow(KiProfile ki, IReadOnlyList<LocalModel> models)
@@ -192,6 +225,10 @@ public sealed partial class CreateHubOverviewViewModel(
         hub.ShowNotice($"{row.Name}: {ModelKinds.Explain(row.Model.Manifest.Architecture)}", isError: true);
         return true;
     }
+
+    /// <summary>Videomodell: in den Video-Tab wechseln und es dort wählen.</summary>
+    [RelayCommand]
+    private void UseInVideo(ModelRow row) => hub.Shell?.OpenVideoWith(row.Model.ModelPath);
 
     [RelayCommand]
     private void OpenFolder(ModelRow row) => shell.OpenFolder(row.Model.FolderPath);

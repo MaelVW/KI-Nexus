@@ -150,6 +150,8 @@ Was das Mikrofon wirklich aufgenommen hat: KI-Nexus mit der Umgebungsvariable `K
 | Video dauert sehr lange | Laptop auf Akku, oder RAM voll (Windows lagert aus) | Netzteil einstecken. Vor dem Start sollten höchstens ca. 10 GB RAM belegt sein |
 | Chat sagt „Gerade entsteht ein Video …“ | Absicht: Der Grafikspeicher reicht nicht für Chat und Video gleichzeitig | Warten, bis das Video fertig ist, oder es im Video-Tab abbrechen |
 | „Das Video lässt sich hier nicht abspielen“ | Windows hat keinen passenden Decoder (z.B. Windows N ohne Media Feature Pack) | „Ordner öffnen“ und das Video mit einem anderen Player ansehen. Media Feature Pack installieren |
+| Videomodell aus Hugging Face: „nicht nutzbar“ | Kein LTX-2.3, oder eine dev-Variante | Eine distilled-Variante von LTX-2.3 laden (z.B. `unsloth/LTX-2.3-GGUF`, Ordner `distilled-1.1`) |
+| „Für … fehlen Dateien“ bei einem Modell aus Hugging Face | Text-Encoder und VAEs fehlen noch | Im Video-Tab „Einrichten (Skript starten)“ oder `scripts\setup-video.ps1 -Companions` |
 | „Das Video liess sich nicht löschen“ | Die Datei ist in einem anderen Programm offen | Das andere Programm schliessen und nochmals versuchen |
 
 ## Build-Fehler „Datei wird von einem anderen Prozess verwendet“

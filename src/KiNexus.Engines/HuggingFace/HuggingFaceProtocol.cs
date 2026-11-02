@@ -98,8 +98,14 @@ public static partial class HuggingFaceProtocol
             .OrderBy(g => g.Files.Sum(f => f.Size))
             .ToList();
 
+        // Gleiche Stufe mehrmals (z.B. "Q2_K" als dev, distilled und distilled-1.1): Ordner oder Dateiname dazuschreiben.
+        var duplicates = groups.GroupBy(g => g.Label, StringComparer.OrdinalIgnoreCase).Where(d => d.Count() > 1).Select(d => d.Key)
+            .ToHashSet(StringComparer.OrdinalIgnoreCase);
+        groups = [.. groups.Select(g => duplicates.Contains(g.Label) ? (Label: $"{g.Label} ({Variant(g.Files[0].Path, g.Label)})", g.Files) : g)];
+
         var recommended = Fallbacks
-            .Select(label => groups.FindIndex(g => string.Equals(g.Label, label, StringComparison.OrdinalIgnoreCase)))
+            .Select(label => groups.FindIndex(g => string.Equals(g.Label, label, StringComparison.OrdinalIgnoreCase)
+                                                   || g.Label.StartsWith(label + " (", StringComparison.OrdinalIgnoreCase)))
             .FirstOrDefault(index => index >= 0, -1);
 
         var options = groups.Select((g, index) => new HfQuantOption(g.Label, g.Files, index == recommended)).ToList();
@@ -122,6 +128,20 @@ public static partial class HuggingFaceProtocol
     }
 
     public static bool IsProjector(HfFile file) => file.FileName.Contains("mmproj", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>Was zwei Dateien mit derselben Stufe unterscheidet: der Ordner, sonst der Dateiname ohne die Stufe.</summary>
+    private static string Variant(string path, string label)
+    {
+        var folder = Path.GetDirectoryName(path)?.Replace('\\', '/');
+        if (!string.IsNullOrEmpty(folder))
+        {
+            return folder.Split('/')[^1];
+        }
+
+        var stem = SplitPart().Replace(Path.GetFileNameWithoutExtension(path), "");
+        var trimmed = stem.Replace(label, "", StringComparison.OrdinalIgnoreCase).Trim('-', '_', '.', ' ');
+        return trimmed.Length > 0 ? trimmed : stem;
+    }
 
     /// <summary>F16 ist die übliche, verlustfreie Wahl für Projektoren. Danach BF16, F32, dann die verkleinerten.</summary>
     private static int ProjectorRank(HfFile file)

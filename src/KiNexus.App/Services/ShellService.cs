@@ -20,6 +20,9 @@ public interface IShellService
 
     /// <summary>Verschiebt Dateien in den Papierkorb (nicht endgültig gelöscht). False, wenn es nicht geklappt hat.</summary>
     bool MoveToRecycleBin(IReadOnlyCollection<string> files);
+
+    /// <summary>Startet ein PowerShell-Skript in einem eigenen, sichtbaren Fenster (z.B. setup-video.ps1). Das Fenster bleibt danach offen.</summary>
+    void RunScriptInWindow(string scriptPath, string arguments);
 }
 
 public sealed class ShellService : IShellService
@@ -48,6 +51,21 @@ public sealed class ShellService : IShellService
         }
 
         Process.Start(new ProcessStartInfo(uri.AbsoluteUri) { UseShellExecute = true });
+    }
+
+    public void RunScriptInWindow(string scriptPath, string arguments)
+    {
+        if (!File.Exists(scriptPath))
+        {
+            throw new FileNotFoundException("Skript nicht gefunden.", scriptPath);
+        }
+
+        // Windows PowerShell 5.1 wie in der Anleitung. -NoExit: Das Fenster bleibt offen, damit man das Ergebnis lesen kann.
+        Process.Start(new ProcessStartInfo("powershell.exe", $"-NoProfile -ExecutionPolicy Bypass -NoExit -File \"{scriptPath}\" {arguments}")
+        {
+            UseShellExecute = true,
+            WorkingDirectory = Path.GetDirectoryName(Path.GetDirectoryName(scriptPath)) ?? "",
+        });
     }
 
     public bool MoveToRecycleBin(IReadOnlyCollection<string> files)

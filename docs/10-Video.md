@@ -7,7 +7,8 @@ Stand: 2. November 2026. Plan und Phasen stehen in [Bauplan-Video.md](Bauplan-Vi
 | V0 | Machbarkeitstest ohne App (dieses Kapitel bis „Noch nicht geprüft“) | ✅ |
 | V1 | Video-Engine in KI-Nexus, noch ohne Oberfläche (Kapitel „V1 – Video-Engine“ unten) | ✅ |
 | V2 | Video-Tab mit Player und Galerie (Kapitel „V2 – Video-Tab“ unten) | ✅ (v1.5.0) |
-| V3–V4 | Create-Hub, Extras | offen |
+| V3 | Videomodelle im Create-Hub und in der Hugging-Face-Suche (Kapitel „V3“ unten) | ✅ (v1.6.0) |
+| V4 | Extras (Bild zu Video, Prompt verbessern, Warteschlange) | offen |
 
 V0 ist ein Test **ohne App**: Schafft der Laptop mit LTX-2.3 überhaupt ein Video? **Ja.** Ein Clip mit 768×512 Pixeln und knapp 4 Sekunden, mit Ton, dauert ca. 2½ Minuten.
 
@@ -277,4 +278,54 @@ Gefunden und behoben während der Abnahme:
 ### Noch nicht geprüft
 
 - Hochkant und 10 Sekunden (die Ampel warnt hier, die Messung fehlt).
-- „In den Papierkorb“ in der App. Die Funktion ist gebaut, aber nicht von Hand ausgelöst, weil der Bestätigungsdialog modal ist.
+- ~~„In den Papierkorb“~~: in V3 geprüft (siehe unten).
+
+---
+
+## V3 – Videomodelle im Create-Hub und in der Hugging-Face-Suche
+
+### Was neu ist
+
+| Wo | Was |
+|---|---|
+| Video-Tab | Auswahl **Videomodell** mit einem Satz zum Modell. Darin stehen das offizielle Modell aus `models\video\diffusion_models` und alle Grundmodelle mit Architektur `ltxv` aus `models\`. Die App merkt sich die Wahl (`video.modelPath`). Fehlen Zusatzdateien, startet „Einrichten (Skript starten)“ `setup-video.ps1 -Companions` (oder `-Models`) in einem eigenen Fenster. |
+| Create-Hub, Grundmodelle | Videomodelle haben keine rote Warnung und keine Ampel mehr. Stattdessen steht dort z.B. „Videomodell: LTX-2.3 distilled, mit Ton. Nutzbar im Video-Tab.“ und der Knopf **„Im Video-Tab nutzen“** statt „Neue KI daraus“ und „Ladetest“. Nicht nutzbare Videomodelle (z.B. LTX-Video 0.9 oder dev) behalten die rote Zeile mit dem Grund. |
+| Hugging-Face-Suche | Etikett **„Videomodell (LTX)“** statt „kein Chat-Modell“. Eine Infozeile erklärt, welche Variante passt. Vor dem Download fragt die App „Videomodell herunterladen“. Danach kommt die Meldung „… ist ein Videomodell“ mit dem Knopf „Im Video-Tab nutzen“. |
+| Hugging-Face-Liste | Gibt es eine Stufe mehrmals im Repository, steht der Ordner oder der Dateiname dabei, z.B. „Q2_K (distilled-1.1)“, „Q2_K (distilled)“, „Q2_K (ltx-2.3-22b-dev)“. Vorher sahen alle drei gleich aus. |
+| ComfyUI | Ein Modell aus einem anderen Ordner kommt als weitere Zeile unter `diffusion_models` in `kinexus-paths.yaml`. Ist der Ordner neu und ComfyUI läuft schon, startet die Engine ComfyUI kurz neu (ca. 15 s). Es wird keine Datei kopiert. |
+| `setup-video.ps1` | Neuer Schalter `-Companions`: lädt nur Text-Encoder, Projektion und VAEs (ca. 11 GB). |
+
+### Welche Videomodelle der Video-Tab nimmt (`VideoModelCatalog.Classify`)
+
+1. Die Architektur muss `ltxv` sein.
+2. Die Version muss LTX-2.3 sein. Steht kein `model_version` in der Datei, erkennt die App 2.3 am eingebetteten `config`: `AVTransformer3DModel` (Bild und Ton) und `"apply_gated_attention": true`.
+   - Die Dateien von Unsloth, auch das offizielle Modell, haben **kein** `model_version`. Das hat erst die Abnahme gezeigt (siehe unten).
+3. Ein `dev` im Dateinamen: nicht nutzbar. Es braucht 20 und mehr Schritte mit CFG, das kann der Video-Tab noch nicht.
+4. Ein `distil` im Dateinamen: nutzbar.
+5. Weder das eine noch das andere (z.B. ein Finetune): nutzbar mit dem Hinweis, dass die App wie bei distilled rechnet. Sieht das Video verrauscht aus, ist es wohl ein dev-Modell.
+
+Text-Encoder, Projektion und VAEs teilen sich alle LTX-2.3-Modelle (die Dateien aus V0).
+
+**Hinweis:** Das gilt für jedes passende LTX-2.3-Modell in `models\`, also technisch auch für deine PinkCherry-Datei. Getestet habe ich nur das offizielle Modell und Q2_K von Unsloth.
+
+### Abnahme (2.11.2026)
+
+| Bauplan-Abnahme: „Ein Videomodell aus der Hugging-Face-Suche ist nach dem Download im Video-Tab nutzbar.“ | Ergebnis |
+|---|---|
+| Suche „LTX-2.3“ | 30 Treffer, die LTX-Repos mit Etikett „Videomodell (LTX)“. Bei `unsloth/LTX-2.3-GGUF` sind die Varianten unterscheidbar. |
+| Download „Q2_K (distilled-1.1)“, 7.4 GB | Rückfrage „Videomodell herunterladen“, Download mit ca. 14 MB/s in ca. 9 Minuten, Prüfsumme ok, liegt in `models\ltx-2.3-22b-distilled-1.1-q2_k\` |
+| Create-Hub | „Videomodell: LTX-2.3 distilled, mit Ton. Nutzbar im Video-Tab.“, Knopf „Im Video-Tab nutzen“ |
+| „Im Video-Tab nutzen“ | Video-Tab offen, Q2_K gewählt, keine Einrichtungs-Meldung |
+| Clip 512×320, 2 s, mit Ton | **Fertig in 2 min 06 s** (ComfyUI-Start 48 s, weil der neue Ordner dazukam). Roter Ball auf einem Holztisch, mit Ton. |
+| „In den Papierkorb“ (offen aus V2) | Rückfrage „Video löschen“ → MP4, PNG und JSON liegen im Windows-Papierkorb, die Galerie hat ein Video weniger |
+
+Gefunden und behoben während der Abnahme:
+
+- **Version nicht erkannt:** Die erste Fassung verlangte `model_version` im GGUF-Kopf. Die Dateien von Unsloth haben den Schlüssel nicht. Nach dem Download meldete die App darum „LTX-Video (Version unbekannt): nicht nutzbar“. Jetzt liest sie die Merkmale aus `config`, und ein Test mit genau diesem Aufbau ist dazugekommen.
+- **Fehler beim Schliessen (aus V2):** `VideoViewModel.DisposeAsync` lief zweimal, vom Hauptfenster und vom DI-Container. Beim zweiten Mal gab es eine Ausnahme, und der Container räumte die übrigen Dienste nicht mehr auf. Jetzt läuft es nur einmal.
+- **„Bilder erzeugen …“ am Anfang:** ComfyUI lädt die VAE oft zuerst. Der Lade-Knoten zählt jetzt nicht mehr als Abschnitt.
+
+### Noch nicht geprüft
+
+- „Einrichten (Skript starten)“ mit fehlenden Zusatzdateien: Sie waren alle da. Getestet sind die Erkennung (Unit-Tests) und das Skript selbst.
+- Ein nicht passendes Videomodell aus der Suche (z.B. dev) bis zum Ende. Getestet sind Etikett und Urteil, nicht der Download.

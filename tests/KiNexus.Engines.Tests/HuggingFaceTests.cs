@@ -149,6 +149,24 @@ public class HuggingFaceProtocolTests
 
         Assert.Equal("Q8_0", Assert.Single(grouped.Options, o => o.IsRecommended).Label);
     }
+
+    [Fact]
+    public void Group_SameQuantSeveralTimes_AddsFolderOrFileName()
+    {
+        // Wie bei unsloth/LTX-2.3-GGUF: dieselbe Stufe als dev (oben) und als distilled (Unterordner).
+        var grouped = HuggingFaceProtocol.Group("unsloth/LTX-2.3-GGUF",
+        [
+            new("ltx-2.3-22b-dev-Q2_K.gguf", 771, "a"),
+            new("distilled/ltx-2.3-22b-distilled-Q2_K.gguf", 772, "b"),
+            new("distilled-1.1/ltx-2.3-22b-distilled-1.1-Q2_K.gguf", 739, "c"),
+            new("ltx-2.3-22b-dev-Q4_K_M.gguf", 1334, "d"),
+            new("distilled-1.1/ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf", 1322, "e"),
+        ]);
+
+        Assert.Equal(["Q2_K (distilled-1.1)", "Q2_K (ltx-2.3-22b-dev)", "Q2_K (distilled)", "Q4_K_M (distilled-1.1)", "Q4_K_M (ltx-2.3-22b-dev)"],
+            grouped.Options.Select(o => o.Label));
+        Assert.Equal("Q4_K_M (distilled-1.1)", Assert.Single(grouped.Options, o => o.IsRecommended).Label);
+    }
 }
 
 public class HuggingFaceClientTests

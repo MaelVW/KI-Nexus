@@ -80,17 +80,26 @@ public static class ComfyCommand
     /// Inhalt von kinexus-paths.yaml: Die Modelle bleiben in models/video, ComfyUI bekommt nur die Pfade.
     /// Der Loader für die Audio-VAE von LTX sucht im Ordner "checkpoints", darum zeigt der auch auf vae.
     /// </summary>
-    public static string PathsYaml(string videoModelsDirectory) => $"""
-        # Von KI-Nexus geschrieben (bei jedem Start von ComfyUI). Hier sucht ComfyUI die Modelle.
-        kinexus:
-          base_path: "{videoModelsDirectory.Replace('\\', '/')}"
-          is_default: true
-          diffusion_models: diffusion_models
-          text_encoders: text_encoders
-          vae: vae
-          checkpoints: vae
-          latent_upscale_models: latent_upscale_models
-          loras: loras
+    /// <param name="extraModelFolders">
+    /// Weitere Ordner mit Videomodellen, z.B. models/&lt;ordner&gt;/ von Hugging Face. ComfyUI liest eine Liste mit einem Ordner
+    /// pro Zeile. Absolute Pfade gelten so, wie sie sind.
+    /// </param>
+    public static string PathsYaml(string videoModelsDirectory, IEnumerable<string>? extraModelFolders = null)
+    {
+        var extra = (extraModelFolders ?? []).Select(folder => "\n    " + folder.Replace('\\', '/')).Distinct(StringComparer.OrdinalIgnoreCase);
+        var diffusionModels = string.Concat(extra) is { Length: > 0 } list ? "|\n    diffusion_models" + list : "diffusion_models";
+        return $"""
+            # Von KI-Nexus geschrieben (bei jedem Start von ComfyUI). Hier sucht ComfyUI die Modelle.
+            kinexus:
+              base_path: "{videoModelsDirectory.Replace('\\', '/')}"
+              is_default: true
+              diffusion_models: {diffusionModels}
+              text_encoders: text_encoders
+              vae: vae
+              checkpoints: vae
+              latent_upscale_models: latent_upscale_models
+              loras: loras
 
-        """;
+            """;
+    }
 }

@@ -18,6 +18,10 @@ public sealed class ModelManifest
     /// <summary>z.B. "ollama:gemma4:26b", "huggingface:Qwen/Qwen3-0.6B-GGUF" oder "datei:C:\…".</summary>
     public string Source { get; set; } = "";
     public string Architecture { get; set; } = "";
+
+    /// <summary>Version aus dem GGUF-Kopf (Schlüssel "model_version"), z.B. "2.3.0" bei LTX-2.3. Nur bei Videomodellen.</summary>
+    public string? ModelVersion { get; set; }
+
     public string? Quantization { get; set; }
     public string? License { get; set; }
     public bool IsMoe { get; set; }
@@ -116,6 +120,7 @@ public sealed class ModelLibrary(string modelsDirectory, ILogger<ModelLibrary> l
         var modelPath = Path.Combine(folder, modelFile);
         var metadata = GgufReader.Read(modelPath);
         var size = System.IO.Directory.EnumerateFiles(folder, "*.gguf").Sum(f => new FileInfo(f).Length);
+        var version = metadata.IsLanguageModel ? null : GgufReader.ReadKeyValues(modelPath).GetValueOrDefault("model_version") as string;
         var manifest = new ModelManifest
         {
             Name = metadata.Name is { Length: > 0 } name && name != "Source" ? name : Path.GetFileNameWithoutExtension(modelFile),
@@ -123,6 +128,7 @@ public sealed class ModelLibrary(string modelsDirectory, ILogger<ModelLibrary> l
             MmprojFile = mmprojFile,
             Source = source,
             Architecture = metadata.Architecture,
+            ModelVersion = version,
             Quantization = metadata.Quantization,
             License = license ?? metadata.License,
             IsMoe = metadata.IsMoe,

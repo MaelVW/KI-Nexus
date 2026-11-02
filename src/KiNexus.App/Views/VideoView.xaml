@@ -60,7 +60,11 @@
                         <StackPanel>
                             <TextBlock Text="Noch nicht eingerichtet" Style="{StaticResource StepTitle}" />
                             <TextBlock Text="{Binding SetupProblem}" TextWrapping="Wrap" AutomationProperties.AutomationId="VideoSetup" />
-                            <Button Content="Nochmals prüfen" Command="{Binding CheckSetupCommand}" HorizontalAlignment="Left" Margin="0,10,0,0" />
+                            <WrapPanel Margin="0,10,0,0">
+                                <Button Content="Einrichten (Skript starten)" Command="{Binding RunSetupCommand}" Margin="0,0,8,0"
+                                        ToolTip="Startet scripts\setup-video.ps1 in einem eigenen Fenster. Es lädt fehlende Dateien mit Prüfsumme." />
+                                <Button Content="Nochmals prüfen" Command="{Binding CheckSetupCommand}" />
+                            </WrapPanel>
                         </StackPanel>
                     </Border>
 
@@ -68,6 +72,11 @@
                     <Border Style="{StaticResource StepCard}">
                         <StackPanel IsEnabled="{Binding IsIdle}">
                             <TextBlock Text="Auftrag" Style="{StaticResource StepTitle}" />
+                            <TextBlock Text="Videomodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                            <ComboBox ItemsSource="{Binding VideoModels}" SelectedItem="{Binding SelectedModel}" AutomationProperties.Name="Videomodell"
+                                      AutomationProperties.AutomationId="VideoModel" />
+                            <TextBlock Text="{Binding ModelNote}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,12"
+                                       AutomationProperties.AutomationId="VideoModelNote" />
                             <TextBox Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110"
                                      MaxHeight="220" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" SpellCheck.IsEnabled="False"
                                      AutomationProperties.Name="Beschreibung des Videos" AutomationProperties.AutomationId="VideoPrompt" />

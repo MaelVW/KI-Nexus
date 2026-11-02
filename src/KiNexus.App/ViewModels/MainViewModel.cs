@@ -154,6 +154,12 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         }
     }
 
+    public void OpenVideoWith(string modelPath)
+    {
+        SelectedTab = Video;
+        _ = Video.SelectModelAsync(modelPath);
+    }
+
     /// <summary>Liste neu aufbauen. Die gewählte KI bleibt gewählt, wenn es sie noch gibt.</summary>
     private void RefreshKis()
     {

@@ -7,7 +7,9 @@ internal static class GgufTestFile
 {
     /// <param name="type">"mmproj" für einen Bild-Projektor.</param>
     /// <param name="tokenizer">false = wie ein Bild- oder Video-Modell für ComfyUI, ohne Tokenizer.</param>
-    public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128, string? type = null, bool tokenizer = true)
+    /// <param name="texts">Weitere Text-Schlüssel, z.B. "model_version" und "config" wie bei LTX-2.3.</param>
+    public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128, string? type = null, bool tokenizer = true,
+        IReadOnlyDictionary<string, string>? texts = null)
     {
         using var writer = new BinaryWriter(File.Create(path), Encoding.UTF8);
         var entries = new List<Action>
@@ -38,6 +40,11 @@ internal static class GgufTestFile
         if (expertCount is int experts)
         {
             entries.Add(() => { WriteKey(writer, $"{architecture}.expert_count"); writer.Write(4u); writer.Write((uint)experts); });
+        }
+
+        foreach (var (key, value) in texts ?? new Dictionary<string, string>())
+        {
+            entries.Add(() => WriteString(writer, key, value));
         }
 
         writer.Write(0x46554747u); // "GGUF"

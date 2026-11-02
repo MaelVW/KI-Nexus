@@ -6,6 +6,24 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.6.0] – 2026-11-02 – Video V3: Videomodelle im Create-Hub
+
+### Neu
+
+- **Modellwahl im Video-Tab:** das offizielle LTX-2.3 und alle passenden Videomodelle aus `models/` (z.B. von Hugging Face). Die App merkt sich die Wahl (`video.modelPath`).
+- **Create-Hub:** Videomodelle zeigen „Nutzbar im Video-Tab“ und den Knopf „Im Video-Tab nutzen“ statt „Neue KI daraus“ und „Ladetest“. Für Videomodelle gibt es keine Ampel.
+- **Hugging-Face-Suche:** Etikett „Videomodell (LTX)“, eigene Rückfrage vor dem Download, nach dem Download „Im Video-Tab nutzen“. Gleiche Stufen mehrmals im Repository haben jetzt den Ordner im Namen, z.B. „Q2_K (distilled-1.1)“.
+- **ComfyUI** bekommt Modelle aus anderen Ordnern über `kinexus-paths.yaml`, ohne Kopie. Bei einem neuen Ordner startet es kurz neu.
+- `setup-video.ps1 -Companions`: nur Text-Encoder, Projektion und VAEs. Der Video-Tab startet das Skript auf Knopfdruck in einem eigenen Fenster.
+- Abnahme: `unsloth/LTX-2.3-GGUF` Q2_K (distilled-1.1) in der App gesucht, geladen und im Video-Tab genutzt (Clip in 2 min 06 s). „In den Papierkorb“ geprüft.
+- 410 Unit-Tests (vorher 397).
+
+### Behoben
+
+- LTX-2.3-Dateien ohne `model_version` (z.B. von Unsloth) galten als „Version unbekannt“. Jetzt erkennt die App die Version am eingebetteten `config`.
+- Beim Schliessen der App lief das Aufräumen des Video-Tabs zweimal und brach mit einer Ausnahme ab (seit 1.5.0).
+- Kurz „Bilder erzeugen …“ am Anfang eines Videos.
+
 ## [1.5.0] – 2026-11-02 – Video (Bauplan Video, V0 bis V2)
 
 ### Neu

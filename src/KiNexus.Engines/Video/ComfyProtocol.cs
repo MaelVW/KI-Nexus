@@ -96,7 +96,8 @@ public static class ComfyProtocol
         "KN_Model" => VideoPhase.LoadingModel,
         "KN_Denoise" => VideoPhase.Denoising,
         "KN_DecodeAudio" => VideoPhase.DecodingAudio,
-        "KN_VideoVae" or "KN_DecodeVideo" => VideoPhase.DecodingVideo,
+        // Nicht "KN_VideoVae": ComfyUI lädt die VAE oft schon ganz am Anfang. Sonst stünde dort kurz "Bilder erzeugen".
+        "KN_DecodeVideo" => VideoPhase.DecodingVideo,
         "KN_CreateVideo" or "KN_Save" => VideoPhase.Saving,
         _ => null,
     };

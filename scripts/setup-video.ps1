@@ -9,6 +9,7 @@
        PyTorch ist dieselbe Version wie beim Training. Liegt sie schon im uv-Cache, kostet das kaum Platz.
     3. Schreibt engines\comfyui\kinexus-paths.yaml: ComfyUI findet die Modelle in models\video.
     4. Nur mit -Models: lädt das offizielle LTX-2.3 (distilled, Q4_K_M) mit Text-Encoder und VAEs, zusammen ca. 24 GB.
+       Nur mit -Companions: nur Text-Encoder, Projektion und VAEs (ca. 11 GB), z.B. für ein Videomodell von Hugging Face.
        Jede Datei wird mit ihrer SHA-256-Prüfsumme geprüft. Abgebrochene Downloads gehen beim nächsten Mal weiter.
     5. Prüft, ob PyTorch die Grafikkarte findet.
     Nichts wird systemweit installiert. engines\comfyui\ und models\video\ kann man jederzeit löschen.
@@ -17,9 +18,12 @@
     .\scripts\setup-video.ps1
 .EXAMPLE
     .\scripts\setup-video.ps1 -Models
+.EXAMPLE
+    .\scripts\setup-video.ps1 -Companions
 #>
 param(
-    [switch]$Models
+    [switch]$Models,
+    [switch]$Companions
 )
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -121,13 +125,17 @@ $files = @(
     @{ Folder = "vae"; Name = "ltx-2.3-22b-distilled_video_vae.safetensors"; Url = "$ltx/vae/ltx-2.3-22b-distilled_video_vae.safetensors"; Gb = 1.4; Sha = "e68d6d8f8a42942ac9b862cc315beb3bc30805a8876c7ad63ba5bf7a2b8e168a" },
     @{ Folder = "vae"; Name = "ltx-2.3-22b-distilled_audio_vae.safetensors"; Url = "$ltx/vae/ltx-2.3-22b-distilled_audio_vae.safetensors"; Gb = 0.3; Sha = "3cd6a6eb8cb28f5ecc12f1f3126952b2a3d2b0b42ad3270e63cefafafe0d9b57" }
 )
+if ($Companions -and -not $Models) {
+    # Nur die Zusatzdateien: Das Videomodell selbst kommt z.B. von Hugging Face (Create-Hub).
+    $files = @($files | Where-Object { $_.Folder -ne "diffusion_models" })
+}
 $missing = @($files | Where-Object { -not (Test-Path (Join-Path (Join-Path $ModelsDir $_.Folder) $_.Name)) })
 
 Write-Host "4/5  Modelle (LTX-2.3 distilled, Gemma 3 12B, VAEs) ..."
 if ($missing.Count -eq 0) {
     Write-Host "  Alle Modelldateien sind da."
 }
-elseif (-not $Models) {
+elseif (-not $Models -and -not $Companions) {
     $gb = ($missing | Measure-Object -Property Gb -Sum).Sum
     Write-Host ("  Es fehlen {0} Dateien (ca. {1:N1} GB). Laden mit: .\scripts\setup-video.ps1 -Models" -f $missing.Count, $gb)
 }

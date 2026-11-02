@@ -176,6 +176,16 @@ public class VideoTests
     }
 
     [Fact]
+    public void PathsYaml_ListsExtraModelFolders()
+    {
+        var yaml = ComfyCommand.PathsYaml(@"C:\Projekt\models\video", [@"C:\Projekt\models\ltx-q2", @"C:\Projekt\models\ltx-q2", @"C:\Projekt\models\anders"]);
+
+        // ComfyUI liest eine Liste mit einem Ordner pro Zeile (YAML-Block "|"). Doppelte fallen weg.
+        Assert.Contains("  diffusion_models: |\n    diffusion_models\n    C:/Projekt/models/ltx-q2\n    C:/Projekt/models/anders\n  text_encoders", yaml.ReplaceLineEndings("\n"),
+            StringComparison.Ordinal);
+    }
+
+    [Fact]
     public void Installation_ExplainsTheSetupScript()
     {
         using var root = new TempDirectory();

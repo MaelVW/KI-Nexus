@@ -31,6 +31,9 @@ public sealed class ComfyVideoBackend(
     private readonly SemaphoreSlim _startLock = new(1, 1);
     private readonly SemaphoreSlim _jobLock = new(1, 1);
     private readonly Lock _logLock = new();
+
+    /// <summary>Zusätzliche Modell-Ordner (ausserhalb von models/video). ComfyUI kennt sie nur, wenn sie beim Start in der YAML-Datei standen.</summary>
+    private readonly HashSet<string> _modelFolders = new(StringComparer.OrdinalIgnoreCase);
     private Process? _process;
     private StreamWriter? _log;
     private bool _stopping;
@@ -92,6 +95,13 @@ public sealed class ComfyVideoBackend(
 
         try
         {
+            // Ein Modell aus einem neuen Ordner: ComfyUI liest die Ordner nur beim Start. Darum kurz neu starten (ca. 15 s).
+            if (models.ModelFolder is { } folder && _modelFolders.Add(Path.GetFullPath(folder)) && IsRunning)
+            {
+                logger.LogInformation("Neuer Modell-Ordner {Folder}: ComfyUI startet neu.", folder);
+                await StopAsync().ConfigureAwait(false);
+            }
+
             if (!IsRunning)
             {
                 yield return new VideoStage(VideoPhase.Starting, ComfyProtocol.Describe(VideoPhase.Starting));
@@ -419,7 +429,7 @@ public sealed class ComfyVideoBackend(
             Directory.CreateDirectory(Path.Combine(options.WorkDirectory, folder));
         }
 
-        File.WriteAllText(installation.PathsFile, ComfyCommand.PathsYaml(options.VideoModelsDirectory));
+        File.WriteAllText(installation.PathsFile, ComfyCommand.PathsYaml(options.VideoModelsDirectory, _modelFolders));
         OpenLog();
         var arguments = ComfyCommand.Arguments(installation, options);
         WriteLog($"===== ComfyUI {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}: python {string.Join(' ', arguments)}");

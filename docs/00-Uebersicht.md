@@ -21,7 +21,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | Video V0 | Machbarkeitstest Videomodell (ComfyUI + LTX-2.3, noch ohne App), siehe `docs/10-Video.md` | ✅ erledigt |
 | Video V1 | Video-Engine: `IVideoBackend` mit ComfyUI, `scripts/setup-video.ps1`, noch ohne Oberfläche | ✅ erledigt |
 | Video V2 | Video-Tab: Auftrag mit Speicher-Ampel, Fortschritt, Abbrechen, Player, Galerie, Chat-Sperre während des Videos | ✅ fertig (v1.5.0) |
-| Video V3–V4 | Create-Hub, Extras (siehe `docs/Bauplan-Video.md`) | offen |
+| Video V3 | Videomodelle im Create-Hub und in der Hugging-Face-Suche, Modellwahl im Video-Tab | ✅ fertig (v1.6.0) |
+| Video V4 | Extras: Bild zu Video, Prompt verbessern, Warteschlange (siehe `docs/Bauplan-Video.md`) | offen |
 
 ## Ordner
 

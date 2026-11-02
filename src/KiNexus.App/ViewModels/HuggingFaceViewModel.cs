@@ -4,6 +4,7 @@ using CommunityToolkit.Mvvm.Input;
 using KiNexus.App.Services;
 using KiNexus.Core.IO;
 using KiNexus.Core.Models;
+using KiNexus.Core.Video;
 using KiNexus.Engines.HuggingFace;
 using Microsoft.Extensions.Logging;
 
@@ -44,6 +45,20 @@ public sealed record HfResultRow(HfModel Model)
             return ModelKinds.NonTextTag(Model.Tags);
         }
     }
+
+    /// <summary>
+    /// Ein LTX-Videomodell: nicht zum Chatten, aber vielleicht für den Video-Tab (geprüft wird nach dem Download im GGUF-Kopf).
+    /// Erkannt an der Architektur oder am Schlagwort "ltx-video".
+    /// </summary>
+    public bool IsLtxVideo => string.Equals(Model.GgufArchitecture, VideoModelCatalog.LtxArchitecture, StringComparison.OrdinalIgnoreCase)
+                              || (Model.Tags ?? []).Any(tag => string.Equals(tag, "ltx-video", StringComparison.OrdinalIgnoreCase));
+
+    /// <summary>Kurzer Text für das Etikett in der Liste.</summary>
+    public string KindBadge => IsLtxVideo ? "Videomodell (LTX)" : "kein Chat-Modell";
+
+    public string KindTooltip => IsLtxVideo
+        ? "Videomodell: nutzbar im Video-Tab, wenn es LTX-2.3 distilled ist. KI-Nexus prüft das nach dem Download."
+        : $"Art: {NotChatReason}. Zum Chatten nicht geeignet.";
 
     /// <summary>Für Screenreader: Die Liste liest diesen Text vor.</summary>
     public override string ToString() => Model.Id;
@@ -199,7 +214,13 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
                 : $"Lizenz: {row.LicenseText}. Q4_K_M ist meist ein guter Standard: klein und kaum schlechter als das Original."
                   + (recommended is not null && recommended != HuggingFaceProtocol.RecommendedQuant ? $" Das gibt es hier nicht, darum ist {recommended} empfohlen." : "")
                   + " Die Ampel ist eine Schätzung für 8192 Token Kontext.";
-            if (row.IsNotChat)
+            if (row.IsLtxVideo)
+            {
+                FilesInfo = $"Lizenz: {row.LicenseText}. Videomodell (LTX): Nach dem Download prüft KI-Nexus, ob es LTX-2.3 ist, und bietet es im Video-Tab an. "
+                    + "Nimm eine distilled-Variante (8 Schritte), dev kann der Video-Tab noch nicht. Q4_K_M ist ein guter Standard, Q2_K/Q3_K sind kleiner und etwas ungenauer. "
+                    + "Die Ampel unten gilt nur für Sprachmodelle.";
+            }
+            else if (row.IsNotChat)
             {
                 FilesInfo += $" Achtung: Das ist kein Chat-Modell ({row.NotChatReason}). KI-Nexus kann damit nicht chatten.";
             }
@@ -244,8 +265,19 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
             return;
         }
 
-        // Kein Chat-Modell (z.B. ein Videomodell): lieber nachfragen, bevor viele Gigabyte geladen werden.
-        if (result.NotChatReason is { } reason && !_dialogs.Confirm("Kein Chat-Modell",
+        // Videomodell (LTX): für den Video-Tab. Trotzdem nachfragen, es sind viele Gigabyte.
+        if (result.IsLtxVideo)
+        {
+            if (!_dialogs.Confirm("Videomodell herunterladen",
+                    $"{result.Model.Id} ({row.Label}) ist ein Videomodell für den Video-Tab, kein Chat-Modell. Der Download braucht {row.SizeText}. "
+                    + "Für Videos braucht es zusätzlich Text-Encoder und VAEs (ca. 11 GB, einmal, über den Video-Tab). Herunterladen?", "Herunterladen"))
+            {
+                return;
+            }
+        }
+
+        // Kein Chat-Modell (z.B. ein Bildmodell): lieber nachfragen, bevor viele Gigabyte geladen werden.
+        else if (result.NotChatReason is { } reason && !_dialogs.Confirm("Kein Chat-Modell",
                 $"{result.Model.Id} ist kein Chat-Modell ({reason}). KI-Nexus kann damit wahrscheinlich nicht chatten. "
                 + $"Der Download braucht {row.SizeText}. Trotzdem herunterladen?", "Trotzdem laden"))
         {

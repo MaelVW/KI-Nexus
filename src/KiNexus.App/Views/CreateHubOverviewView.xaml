@@ -125,18 +125,30 @@
                                                Text="{Binding LicenseText, StringFormat='Lizenz: {0}'}" />
                                     <TextBlock Foreground="{StaticResource Brush.Error}" FontSize="{StaticResource FontSize.Small}" TextWrapping="Wrap"
                                                Text="{Binding KindWarning}" Visibility="{Binding HasKindWarning, Converter={StaticResource BoolToVisibility}}" />
+                                    <TextBlock Foreground="{DynamicResource Brush.Accent}" FontSize="{StaticResource FontSize.Small}" TextWrapping="Wrap"
+                                               Text="{Binding VideoNote}" Visibility="{Binding IsUsableVideo, Converter={StaticResource BoolToVisibility}}" />
                                 </StackPanel>
-                                <ContentControl Grid.Column="1" Content="{Binding Fit}" Focusable="False" VerticalAlignment="Center" />
+                                <!-- Die Ampel gilt für Sprachmodelle. Für Videos schätzt der Video-Tab selbst. -->
+                                <ContentControl Grid.Column="1" Content="{Binding Fit}" Focusable="False" VerticalAlignment="Center"
+                                                Visibility="{Binding IsLanguageModel, Converter={StaticResource BoolToVisibility}}" />
                                 <TextBlock Grid.Column="2" Text="{Binding SizeText}" VerticalAlignment="Center" />
                                 <TextBlock Grid.Column="3" Text="{Binding QuantText}" VerticalAlignment="Center" Style="{StaticResource Text.Muted}" ToolTip="Quantisierung (Stufe der Verkleinerung)" />
                                 <TextBlock Grid.Column="4" VerticalAlignment="Center" Style="{StaticResource Text.Muted}" Text="{Binding ImagesText, StringFormat='Bilder: {0}'}" />
                                 <StackPanel Grid.Column="5" Orientation="Horizontal">
                                     <Button Style="{StaticResource RowButton}" Content="{StaticResource Label.NewKi}"
+                                            Visibility="{Binding IsLanguageModel, Converter={StaticResource BoolToVisibility}}"
                                             Command="{Binding DataContext.NewKiFromCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='Neue KI aus {0}'}" />
                                     <Button Style="{StaticResource RowButton}" Content="{StaticResource Label.TestLoad}" ToolTip="Prüft, ob llama.cpp das Modell laden kann (lädt kurz und entlädt wieder)."
+                                            Visibility="{Binding IsLanguageModel, Converter={StaticResource BoolToVisibility}}"
                                             Command="{Binding DataContext.TestLoadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='Ladetest für {0}'}" />
+                                    <Button Style="{StaticResource RowButton}" ToolTip="Wechselt in den Video-Tab und wählt dort dieses Modell."
+                                            Visibility="{Binding IsUsableVideo, Converter={StaticResource BoolToVisibility}}"
+                                            Command="{Binding DataContext.UseInVideoCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='{}{0} im Video-Tab nutzen'}">
+                                        <TextBlock Text="Im Video-Tab nutzen" />
+                                    </Button>
                                     <Button Style="{StaticResource DeleteButton}" Margin="8,0,0,0" ToolTip="Ordner öffnen"
                                             Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='Ordner von {0} öffnen'}">

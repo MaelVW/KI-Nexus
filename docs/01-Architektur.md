@@ -48,7 +48,17 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand Video V2)
+## Wichtige Klassen (Stand Video V3)
+
+### Neu in Video V3: Videomodelle im Create-Hub
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `VideoModelCatalog`, `VideoModelChoice` | Core | Videomodelle finden (eingebaut und aus `models/`) und beurteilen: LTX-2.3 mit Ton, distilled oder unbekannt = nutzbar. Version aus `model_version` oder aus dem `config`. |
+| `VideoModelSet.ModelFolder` | Core | Ordner eines Modells ausserhalb von `models/video`. ComfyUI bekommt ihn in `kinexus-paths.yaml`. |
+| `ModelManifest.ModelVersion` | Core | Version aus dem GGUF-Kopf, falls vorhanden. |
+| `HuggingFaceProtocol.Group` | Engines | Gleiche Stufen mehrmals im Repository: Ordner oder Dateiname im Namen. |
+| `IChatShell.OpenVideoWith`, `IShellService.RunScriptInWindow` | App | Vom Create-Hub in den Video-Tab mit diesem Modell. `setup-video.ps1` in einem eigenen Fenster starten. |
 
 ### Neu in Video V2: Video-Tab
 

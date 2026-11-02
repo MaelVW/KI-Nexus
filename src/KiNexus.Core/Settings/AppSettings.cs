@@ -36,6 +36,9 @@ public sealed class VideoSettings
 
     /// <summary>ComfyUI nach so vielen Minuten ohne Video beenden (gibt RAM und VRAM frei). 0 = erst beim Schliessen der App.</summary>
     public int IdleStopMinutes { get; set; } = DefaultIdleStopMinutes;
+
+    /// <summary>Zuletzt gewähltes Videomodell (Pfad zur GGUF-Datei). Null = das offizielle LTX-2.3 aus setup-video.ps1.</summary>
+    public string? ModelPath { get; set; }
 }
 
 /// <summary>Ordner. Relative Pfade gelten ab dem Projektordner.</summary>

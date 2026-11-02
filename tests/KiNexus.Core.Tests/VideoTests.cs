@@ -68,6 +68,84 @@ public class VideoTests
         Assert.DoesNotContain(root.Combine("vae", models.VideoVae), missing);
     }
 
+    // ----------------------------------------------------------------- Videomodelle finden und beurteilen (V3)
+
+    /// <summary>So wie im config-Schlüssel echter LTX-2.3-Dateien (gekürzt).</summary>
+    private const string AvConfig = """{"transformer": {"_class_name": "AVTransformer3DModel", "num_layers": 48, "apply_gated_attention": true}}""";
+
+    [Theory]
+    [InlineData("ltxv", "2.3.0", AvConfig, "ltx-2.3-22b-distilled-1.1-Q2_K.gguf", true, "distilled")]
+    // Unsloth-Dateien haben kein "model_version": Dann zählt der config.
+    [InlineData("ltxv", null, AvConfig, "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf", true, "distilled")]
+    [InlineData("ltxv", null, """{"transformer": {"_class_name": "AVTransformer3DModel", "apply_gated_attention": false}}""", "ltx-2-19b-distilled.gguf", false, "Version unbekannt")]
+    [InlineData("ltxv", "2.3.0", AvConfig, "PinkCherry_FineTune_Q5_K_M.gguf", true, "steht nicht in der Datei")]
+    [InlineData("ltxv", "2.3.0", null, "eigenes-modell.gguf", true, "8 Schritte")]
+    [InlineData("ltxv", "2.3.0", AvConfig, "ltx-2.3-22b-dev-Q4_K_M.gguf", false, "dev")]
+    [InlineData("ltxv", "0.9.8", AvConfig, "ltxv-13b-0.9.8-distilled.gguf", false, "0.9.8")]
+    [InlineData("ltxv", null, null, "alt.gguf", false, "Version unbekannt")]
+    [InlineData("ltxv", "2.3.0", """{"transformer": {"_class_name": "Transformer3DModel"}}""", "x-distilled.gguf", false, "ohne Ton")]
+    [InlineData("wan", "2.2", null, "wan-distilled.gguf", false, "Kein LTX-Modell")]
+    public void Catalog_ClassifiesVideoModels(string architecture, string? version, string? config, string fileName, bool usable, string note)
+    {
+        var (isUsable, text) = VideoModelCatalog.Classify(architecture, version, config, fileName);
+
+        Assert.Equal(usable, isUsable);
+        Assert.Contains(note, text, StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Catalog_FindsBuiltInAndLibraryModels()
+    {
+        using var root = new TempDirectory();
+        var video = root.Combine("models", "video");
+        Directory.CreateDirectory(Path.Combine(video, "diffusion_models"));
+        var official = Path.Combine(video, "diffusion_models", VideoModelSet.Ltx23Distilled.Model);
+        WriteLtx(official, version: null); // wie die echte Datei von Unsloth: ohne model_version
+        var library = new ModelLibrary(root.Combine("models"), NullLogger<ModelLibrary>.Instance);
+        var downloaded = AddLibraryModel(library, root, "ltx-q2", "ltx-2.3-22b-distilled-1.1-Q2_K.gguf", "2.3.0");
+        AddLibraryModel(library, root, "ltx-alt", "ltxv-0.9.8-distilled.gguf", "0.9.8");
+        var chat = root.Combine("models", "qwen");
+        Directory.CreateDirectory(chat);
+        GgufTestFile.Write(Path.Combine(chat, "qwen.gguf"));
+        library.WriteManifestFor(chat, "qwen.gguf", null, "datei:x", null);
+
+        var choices = VideoModelCatalog.Find(video, library.Scan());
+
+        Assert.Equal([VideoModelSet.Ltx23Distilled.Name, "ltx-q2", "ltx-alt"], choices.Select(c => c.Name));
+        Assert.Equal([true, true, false], choices.Select(c => c.IsUsable));
+        Assert.True(choices[0].IsBuiltIn);
+        Assert.Null(choices[0].ToModelSet().ModelFolder);
+
+        var set = choices[1].ToModelSet();
+        Assert.Equal("ltx-2.3-22b-distilled-1.1-Q2_K.gguf", set.Model);
+        Assert.Equal(Path.GetDirectoryName(downloaded), set.ModelFolder);
+        Assert.Equal(downloaded, set.Files(video)[0]);
+        Assert.Equal(VideoModelSet.Ltx23Distilled.TextEncoder, set.TextEncoder);
+        Assert.Equal(4, set.CompanionFiles(video).Count);
+        Assert.Equal("2.3.0", library.Scan().Single(m => m.FolderName == "ltx-q2").Manifest.ModelVersion);
+        Assert.Null(library.Scan().Single(m => m.FolderName == "qwen").Manifest.ModelVersion);
+    }
+
+    private static void WriteLtx(string path, string? version)
+    {
+        var texts = new Dictionary<string, string> { ["config"] = AvConfig };
+        if (version is not null)
+        {
+            texts["model_version"] = version;
+        }
+
+        GgufTestFile.Write(path, "ltxv", expertCount: null, tokenizer: false, texts: texts);
+    }
+
+    private static string AddLibraryModel(ModelLibrary library, TempDirectory root, string folder, string file, string version)
+    {
+        var path = root.Combine("models", folder, file);
+        Directory.CreateDirectory(Path.GetDirectoryName(path)!);
+        WriteLtx(path, version);
+        library.WriteManifestFor(Path.GetDirectoryName(path)!, file, null, "huggingface:unsloth/LTX-2.3-GGUF", null);
+        return path;
+    }
+
     // ----------------------------------------------------------------- Bibliothek
 
     private static CancellationToken Ct => TestContext.Current.CancellationToken;
