@@ -9,7 +9,7 @@ Stand: 2. November 2026. Plan und Phasen stehen in [Bauplan-Video.md](Bauplan-Vi
 | V2 | Video-Tab mit Player und Galerie (Kapitel „V2 – Video-Tab“ unten) | ✅ (v1.5.0) |
 | V3 | Videomodelle im Create-Hub und in der Hugging-Face-Suche (Kapitel „V3“ unten) | ✅ (v1.6.0) |
 | V3.1 | dev-Modelle (20 Schritte, CFG 4, Negativ-Prompt), Wahl des Ablaufs (Kapitel „V3.1“ unten) | ✅ (v1.7.0) |
-| V4 | Extras (Bild zu Video, Prompt verbessern, Warteschlange) | offen |
+| V4 | Bild zu Video, Prompt verbessern, Warteschlange (Kapitel „V4“ unten) | ✅ (v1.8.0) |
 
 V0 ist ein Test **ohne App**: Schafft der Laptop mit LTX-2.3 überhaupt ein Video? **Ja.** Ein Clip mit 768×512 Pixeln und knapp 4 Sekunden, mit Ton, dauert ca. 2½ Minuten.
 
@@ -360,4 +360,49 @@ Anlass: Ein Modell ohne „dev“ oder „distilled“ im Namen lief mit dem dis
 | Clip 512×320, 2 s, mit Ton | **Fertig in 4 min 08 s** (20 Schritte à ca. 3.5 s mit CFG). distilled Q2_K brauchte für dasselbe 2 min 06 s. Das Bild ist scharf, nicht verrauscht: Der rote Ball rollt über den Tisch und fällt hinunter. |
 
 Noch nicht geprüft: dev in 768×512 und 4 s. Geschätzt dauert das ca. 6–8 Minuten.
+
+---
+
+## V4 – Bild zu Video, Prompt verbessern, Warteschlange
+
+### Bild zu Video
+
+- Im Auftrag gibt es **„Startbild (optional)“** mit „Bild wählen …“ und „Entfernen“, dazu eine kleine Vorschau.
+- Hinweis im Tab: Nimm eigene Bilder. Bilder von anderen Personen nur mit deren Einverständnis.
+- **Ablauf in ComfyUI:**
+  - Das Bild kommt als Kopie nach `data\comfyui\input` (kein Upload: ComfyUI läuft auf demselben Laptop).
+  - `LoadImage` → `ImageScale` (auf das Format zugeschnitten, Mitte, lanczos) → `LTXVPreprocess` (Kompression 35 wie bei Lightricks, sonst bleibt das Bild oft stehen) → `LTXVImgToVideoInplace` (Stärke 1, ins Video-Latent) → wie bisher.
+- **Galerie:** Eine Kopie des Startbilds liegt als `<video>_start.png` neben dem Video. So geht „Nochmal“ auch dann, wenn das Original weg ist. „In den Papierkorb“ nimmt die Kopie mit.
+
+### Prompt verbessern
+
+- Der Knopf **„Prompt verbessern (KI)“** unter dem Prompt.
+- Die KI aus der Kopfleiste macht aus der Idee, auch auf Deutsch, **einen englischen Absatz** mit 60 bis 120 Wörtern: Hauptsache, Bewegung, Ort, Kamera, Licht, Ton. Länge, Format und Startbild bekommt sie mit (`VideoPromptWriter`).
+- „Rückgängig“ holt den alten Text zurück.
+- **Speicher:** Hat erst das Verbessern das Chat-Modell geladen, entlädt die App es danach wieder. Das Video braucht den Grafikspeicher.
+
+### Warteschlange
+
+- **„In die Warteschlange“** neben „Video erzeugen“: Läuft schon ein Video, kommt der Auftrag danach dran.
+- Jeder Auftrag merkt sich Prompt, Format, Länge, Ton, Seed, Startbild, Modell und Ablauf. Das Formular bleibt darum bedienbar, während ein Video entsteht.
+- Die Liste zeigt die wartenden Aufträge. Man kann sie einzeln herausnehmen oder alle mit „Leeren“ entfernen.
+- „Abbrechen“ stoppt nur das laufende Video, danach geht es mit dem nächsten weiter.
+
+### Abnahme (2.11.2026)
+
+| Bauplan-Abnahme | Ergebnis |
+|---|---|
+| „Eine KI verbessert meinen Prompt“ | Qwen schnell, deutsche Idee „Ein Golden Retriever sitzt im Gras, schaut in die Kamera und wedelt mit dem Schwanz. Vögel zwitschern.“ → nach 15 s ein englischer Absatz mit Fell, Licht, Kamera („static at eye level“) und Ton. Danach war Qwen wieder entladen (VRAM 0). |
+| „Ich mache aus einem eigenen Foto einen Clip“ | Als Foto diente ein Standbild aus einem früheren Testvideo (Hund vor rotem Haus). Clip 512×320, 2 s, mit Ton, **fertig in 1 min 34 s**. Das Video beginnt genau mit dem Bild, dann setzt sich der Hund hin und schaut in die Kamera, wie im Prompt. |
+| Warteschlange | Während „Papierboot“ lief, Prompt geändert und „Kaffeetasse“ in die Warteschlange gelegt: Beide entstanden nacheinander (je ca. 1 min 32 s), die Galerie zeigt beide. |
+
+Gefunden und behoben während der Abnahme:
+
+- **Formular gesperrt:** Während ein Video entstand, war das ganze Formular gesperrt. In die Warteschlange kam so nur dasselbe Video nochmals. Jetzt bleibt das Formular bedienbar.
+- **Falscher Titel:** Der Dateidialog für das Startbild hiess „Bilder anhängen“ (vom Chat). Jetzt: „Startbild für das Video wählen“.
+
+### Noch nicht geprüft
+
+- Ein echtes Foto von dir, hochkant, und Bild zu Video mit einem dev-Modell.
+- Eine lange Warteschlange (über Nacht). Dafür beendet sich ComfyUI erst 10 Minuten nach dem letzten Video.
 

@@ -240,7 +240,8 @@ public sealed class ComfyVideoBackend(
     private async IAsyncEnumerable<VideoProgress> RunJobAsync(VideoRequest request, VideoModelSet models, [EnumeratorCancellation] CancellationToken ct)
     {
         var prefix = string.Create(CultureInfo.InvariantCulture, $"{DateTime.Now:yyyy-MM-dd_HHmmss}_seed{request.Seed}");
-        var workflow = ComfyWorkflowBuilder.Build(request, models, prefix);
+        var startImage = CopyStartImage(request, prefix);
+        var workflow = ComfyWorkflowBuilder.Build(request, models, prefix, startImage);
         var titles = ComfyWorkflowBuilder.Titles(workflow);
         var denoiseNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_Denoise");
         var saveNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_Save");
@@ -331,6 +332,24 @@ public sealed class ComfyVideoBackend(
 
         logger.LogInformation("Video-Auftrag {Prompt} beendet nach {Seconds:F0} s: {Result}.", promptId, clock.Elapsed.TotalSeconds, end?.GetType().Name ?? "abgerissen");
         yield return end ?? new VideoFailed(@"Die Verbindung zu ComfyUI ist abgerissen. Details in data\logs\video.log.");
+    }
+
+    /// <summary>
+    /// Bild zu Video: Das Startbild kommt in den Eingabe-Ordner von ComfyUI (data/comfyui/input). Eine Kopie statt Upload:
+    /// ComfyUI läuft auf demselben Laptop. Null = kein Startbild.
+    /// </summary>
+    private string? CopyStartImage(VideoRequest request, string prefix)
+    {
+        if (request.StartImagePath is not { } source)
+        {
+            return null;
+        }
+
+        var name = prefix + "_start" + Path.GetExtension(source).ToLowerInvariant();
+        var input = Path.Combine(options.WorkDirectory, "input");
+        Directory.CreateDirectory(input);
+        File.Copy(source, Path.Combine(input, name), overwrite: true);
+        return name;
     }
 
     private async Task<(string? PromptId, string? Error)> QueueAsync(JsonObject workflow, string clientId, CancellationToken ct)

@@ -22,7 +22,7 @@ public interface IDialogService
     string? PickFolder(string title, string? initialPath);
 
     /// <summary>Lässt Bilder wählen (png, jpg, gif, bmp). Leer, wenn abgebrochen.</summary>
-    IReadOnlyList<string> PickImages();
+    IReadOnlyList<string> PickImages(string title = "Bilder anhängen");
 
     /// <summary>Fragt nach, z.B. vor dem Löschen. True = bestätigt.</summary>
     bool Confirm(string title, string message, string confirmText);
@@ -57,12 +57,12 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
         return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FolderName : null;
     }
 
-    public IReadOnlyList<string> PickImages()
+    public IReadOnlyList<string> PickImages(string title = "Bilder anhängen")
     {
         var patterns = string.Join(";", AttachmentStore.AllowedExtensions.Select(e => "*" + e));
         var dialog = new OpenFileDialog
         {
-            Title = "Bilder anhängen",
+            Title = title,
             Filter = $"Bilder ({patterns})|{patterns}",
             Multiselect = true,
         };

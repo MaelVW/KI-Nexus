@@ -30,6 +30,18 @@ public sealed record VideoProcess(bool IsDev, string Label)
     public override string ToString() => Label;
 }
 
+/// <summary>Ein Auftrag in der Warteschlange: was, mit welchem Modell und Ablauf.</summary>
+public sealed record VideoJob(VideoRequest Request, VideoModelSet Models)
+{
+    /// <summary>z.B. "768×512 · 4 s · LTX-2.3 distilled (Q4_K_M) · A golden retriever …".</summary>
+    public string Label => string.Create(CultureInfo.InvariantCulture,
+        $"{Request.Width}×{Request.Height} · {Request.Seconds:0} s{(Request.StartImagePath is null ? "" : " · mit Startbild")} · {Models.Name} · {Short(Request.Prompt)}");
+
+    private static string Short(string text) => text.Length <= 70 ? text : text[..67] + "…";
+
+    public override string ToString() => Label;
+}
+
 /// <summary>Eine Länge zur Auswahl, z.B. "4 Sekunden".</summary>
 public sealed record VideoLength(double Seconds, string Label)
 {
@@ -64,6 +76,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     private CancellationTokenSource? _job;
     private CancellationTokenSource? _idleStop;
     private bool _activated;
+    private bool _queueRunning;
+    private string? _promptBeforeImprove;
     private bool _disposed;
 
     public VideoViewModel(IVideoBackend backend, VideoLibrary library, ModelLibrary models, AppPaths paths, EngineManager engines, TrainingWorker training,
@@ -132,7 +146,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ModelNote))]
-    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand), nameof(EnqueueCommand))]
     private VideoModelChoice? _selectedModel;
 
     /// <summary>Ein Satz zum gewählten Modell, z.B. "LTX-2.3 distilled, mit Ton. Nutzbar im Video-Tab."</summary>
@@ -214,7 +228,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSetupProblem))]
-    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand), nameof(EnqueueCommand))]
     private string _setupProblem = "";
 
     public bool HasSetupProblem => SetupProblem.Length > 0;
@@ -289,7 +303,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     ];
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(GenerateCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(EnqueueCommand), nameof(ImprovePromptCommand))]
     private string _prompt = "";
 
     [ObservableProperty] private VideoFormat _selectedFormat;
@@ -326,7 +340,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         FrameRate,
         seed,
         WithAudio,
-        IsDevProcess && NegativePrompt.Trim().Length > 0 ? NegativePrompt.Trim() : null);
+        IsDevProcess && NegativePrompt.Trim().Length > 0 ? NegativePrompt.Trim() : null,
+        StartImagePath);
 
     private void UpdateFit()
     {
@@ -353,10 +368,116 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         }
     }
 
+    // ----------------------------------------------------------- Bild zu Video
+
+    /// <summary>Bild zu Video: das erste Bild des Videos. Null = Text zu Video.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasStartImage))]
+    private string? _startImagePath;
+
+    public bool HasStartImage => StartImagePath is not null;
+
+    /// <summary>Nur eigene Bilder oder mit Einverständnis der abgebildeten Person (Bauplan Video, Kapitel 9).</summary>
+    public string StartImageHint =>
+        "Das Bild wird auf das Format zugeschnitten (Mitte). Nimm eigene Bilder. Bilder von anderen Personen nur mit deren Einverständnis.";
+
+    [RelayCommand]
+    private void PickStartImage()
+    {
+        if (_dialogs.PickImages("Startbild für das Video wählen").FirstOrDefault() is { } image)
+        {
+            StartImagePath = image;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearStartImage() => StartImagePath = null;
+
+    // ----------------------------------------------------------- Prompt verbessern
+
+    /// <summary>Das Hauptfenster: Welche KI ist in der Kopfleiste gewählt? Setzt das MainViewModel.</summary>
+    public IChatShell? Shell { get; set; }
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(ImprovePromptCommand))]
+    private bool _isImproving;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(UndoPromptCommand))]
+    private bool _canUndoPrompt;
+
+    private bool CanImprove => !IsImproving && !IsGenerating && Prompt.Trim().Length > 0;
+
+    /// <summary>
+    /// Die KI aus der Kopfleiste schreibt aus der Idee einen ausführlichen englischen Prompt. Hat erst das Verbessern
+    /// das Chat-Modell geladen, wird es danach wieder entladen: Das Video braucht den Grafikspeicher.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanImprove))]
+    private async Task ImprovePromptAsync()
+    {
+        if (Shell?.SelectedKi is not { } ki)
+        {
+            ShowStatus("Wähle oben in der Kopfleiste eine KI. Sie verbessert dann den Prompt.", isError: true);
+            return;
+        }
+
+        var loadedBefore = _engines.LoadedKi is not null;
+        IsImproving = true;
+        ShowStatus($"{ki.DisplayName} verbessert den Prompt …");
+        var answer = new System.Text.StringBuilder();
+        try
+        {
+            var messages = VideoPromptWriter.Messages(Prompt, SelectedLength.Seconds, SelectedFormat.Width, SelectedFormat.Height, HasStartImage);
+            await foreach (var chunk in _engines.StreamAsync(new ChatRequest(ki, messages, Think: false, MaxTokens: 400), null, CancellationToken.None))
+            {
+                answer.Append(chunk.Text);
+            }
+
+            var improved = VideoPromptWriter.Clean(answer.ToString());
+            if (improved.Length < 20)
+            {
+                ShowStatus($"{ki.DisplayName} hat keinen brauchbaren Prompt geliefert. Versuch es nochmals oder mit einer anderen KI.", isError: true);
+                return;
+            }
+
+            _promptBeforeImprove = Prompt;
+            Prompt = improved;
+            CanUndoPrompt = true;
+            ShowStatus($"{ki.DisplayName} hat den Prompt verbessert. Gefällt er dir nicht: „Rückgängig“.");
+        }
+        catch (Exception ex) when (ex is InferenceException or HttpRequestException or IOException)
+        {
+            _logger.LogWarning(ex, "Prompt verbessern fehlgeschlagen.");
+            ShowStatus("Prompt verbessern hat nicht geklappt: " + ex.Message, isError: true);
+        }
+        finally
+        {
+            IsImproving = false;
+            if (!loadedBefore && _engines.LoadedKi is not null)
+            {
+                await _engines.UnloadAsync(CancellationToken.None);
+            }
+
+            UpdateFit();
+        }
+    }
+
+    [RelayCommand(CanExecute = nameof(CanUndoPrompt))]
+    private void UndoPrompt()
+    {
+        if (_promptBeforeImprove is { } before)
+        {
+            Prompt = before;
+        }
+
+        _promptBeforeImprove = null;
+        CanUndoPrompt = false;
+    }
+
     // ----------------------------------------------------------- Erzeugen
 
     [ObservableProperty]
-    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(CancelCommand), nameof(StopBackendCommand))]
+    [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(CancelCommand), nameof(StopBackendCommand), nameof(ImprovePromptCommand))]
     [NotifyCanExecuteChangedFor(nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand), nameof(DeleteVideoCommand))]
     [NotifyPropertyChangedFor(nameof(IsIdle))]
     private bool _isGenerating;
@@ -369,10 +490,46 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     [ObservableProperty] private string _progressText = "";
 
-    private bool CanGenerate => !IsGenerating && !HasSetupProblem && Prompt.Trim().Length > 0 && SelectedModel is not { IsUsable: false };
+    private bool CanGenerate => !IsGenerating && !_queueRunning && CanCreateJob;
 
+    private bool CanCreateJob => !HasSetupProblem && Prompt.Trim().Length > 0 && SelectedModel is not { IsUsable: false };
+
+    /// <summary>Sofort erzeugen: Der Auftrag kommt an den Anfang der Warteschlange.</summary>
     [RelayCommand(CanExecute = nameof(CanGenerate))]
     private async Task GenerateAsync()
+    {
+        if (CreateJob() is not { } job)
+        {
+            return;
+        }
+
+        Queue.Insert(0, job);
+        OnQueueChanged();
+        await RunQueueAsync();
+    }
+
+    /// <summary>Für später, z.B. über Nacht: Läuft schon ein Video, kommt dieses danach dran.</summary>
+    [RelayCommand(CanExecute = nameof(CanCreateJob))]
+    private async Task EnqueueAsync()
+    {
+        if (CreateJob() is not { } job)
+        {
+            return;
+        }
+
+        Queue.Add(job);
+        OnQueueChanged();
+        if (_queueRunning)
+        {
+            ShowStatus(Queue.Count == 1 ? "In der Warteschlange: 1 Video wartet." : $"In der Warteschlange: {Queue.Count} Videos warten.");
+            return;
+        }
+
+        await RunQueueAsync();
+    }
+
+    /// <summary>Baut den Auftrag aus dem Formular. Ohne "Seed behalten" bekommt jedes Video einen neuen Seed.</summary>
+    private VideoJob? CreateJob()
     {
         if (!KeepSeed || !long.TryParse(SeedText, NumberStyles.Integer, CultureInfo.InvariantCulture, out var seed) || seed < 0)
         {
@@ -384,6 +541,18 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         if (request.Problem() is { } problem)
         {
             ShowStatus(problem, isError: true);
+            return null;
+        }
+
+        _ = RememberModelAsync();
+        return new VideoJob(request, Models);
+    }
+
+    /// <summary>Arbeitet die Warteschlange ab, ein Video nach dem anderen. Abbrechen stoppt nur das laufende Video.</summary>
+    private async Task RunQueueAsync()
+    {
+        if (_queueRunning || Queue.Count == 0)
+        {
             return;
         }
 
@@ -405,8 +574,49 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
             await _engines.UnloadAsync(CancellationToken.None);
         }
 
-        await RememberModelAsync();
-        await RunAsync(request);
+        _queueRunning = true;
+        GenerateCommand.NotifyCanExecuteChanged();
+        try
+        {
+            while (Queue.Count > 0)
+            {
+                var job = Queue[0];
+                Queue.RemoveAt(0);
+                OnQueueChanged();
+                await RunAsync(job);
+            }
+        }
+        finally
+        {
+            _queueRunning = false;
+            GenerateCommand.NotifyCanExecuteChanged();
+        }
+    }
+
+    public ObservableCollection<VideoJob> Queue { get; } = [];
+
+    public bool HasQueue => Queue.Count > 0;
+
+    public string QueueText => Queue.Count == 1 ? "1 Video wartet:" : $"{Queue.Count} Videos warten:";
+
+    private void OnQueueChanged()
+    {
+        OnPropertyChanged(nameof(HasQueue));
+        OnPropertyChanged(nameof(QueueText));
+    }
+
+    [RelayCommand]
+    private void RemoveQueued(VideoJob job)
+    {
+        Queue.Remove(job);
+        OnQueueChanged();
+    }
+
+    [RelayCommand]
+    private void ClearQueue()
+    {
+        Queue.Clear();
+        OnQueueChanged();
     }
 
     [RelayCommand(CanExecute = nameof(IsGenerating))]
@@ -416,8 +626,9 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         _job?.Cancel();
     }
 
-    private async Task RunAsync(VideoRequest request)
+    private async Task RunAsync(VideoJob videoJob)
     {
+        var request = videoJob.Request;
         _idleStop?.Cancel();
         using var block = _engines.Block("Gerade entsteht ein Video. Der Grafikspeicher ist voll. Chatten geht wieder, wenn es fertig ist.");
         using var job = new CancellationTokenSource();
@@ -433,9 +644,9 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         _logger.LogInformation("Video gestartet: {Width}×{Height}, {Frames} Bilder, Seed {Seed}.", request.Width, request.Height, request.Frames, request.Seed);
         try
         {
-            await foreach (var progress in _backend.GenerateAsync(request, Models, job.Token))
+            await foreach (var progress in _backend.GenerateAsync(request, videoJob.Models, job.Token))
             {
-                await OnProgressAsync(progress, request);
+                await OnProgressAsync(progress, videoJob);
             }
         }
         catch (Exception ex) when (ex is IOException or InvalidOperationException or UnauthorizedAccessException)
@@ -455,7 +666,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         }
     }
 
-    private async Task OnProgressAsync(VideoProgress progress, VideoRequest request)
+    private async Task OnProgressAsync(VideoProgress progress, VideoJob job)
     {
         switch (progress)
         {
@@ -474,7 +685,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
                 StageText = "Fertig in " + Duration(_clock.Elapsed.TotalSeconds) + ".";
                 ProgressText = "";
                 // In der Galerie steht dieselbe Dauer wie hier: alles, was du gewartet hast (auch der Start von ComfyUI).
-                await AddToGalleryAsync(done with { Seconds = Math.Round(_clock.Elapsed.TotalSeconds, 1) }, request);
+                await AddToGalleryAsync(done with { Seconds = Math.Round(_clock.Elapsed.TotalSeconds, 1) }, job);
                 break;
             case VideoFailed failed:
                 StageText = "Fehler.";
@@ -623,11 +834,11 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         OnPropertyChanged(nameof(HasNoVideos));
     }
 
-    private async Task AddToGalleryAsync(VideoDone done, VideoRequest request)
+    private async Task AddToGalleryAsync(VideoDone done, VideoJob job)
     {
         try
         {
-            var entry = await _library.AddAsync(done, request, Models, CancellationToken.None);
+            var entry = await _library.AddAsync(done, job.Request, job.Models, CancellationToken.None);
             Videos.Insert(0, entry);
             SelectedVideo = entry;
             OnPropertyChanged(nameof(HasNoVideos));
@@ -654,6 +865,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         SelectedLength = Lengths.MinBy(l => Math.Abs(l.Seconds - video.Seconds)) ?? SelectedLength;
         WithAudio = video.WithAudio;
         SeedText = video.Seed.ToString(CultureInfo.InvariantCulture);
+        StartImagePath = video.StartImagePath;
     }
 
     [RelayCommand(CanExecute = nameof(CanRepeat))]

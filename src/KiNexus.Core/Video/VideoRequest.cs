@@ -10,6 +10,7 @@ namespace KiNexus.Core.Video;
 /// <param name="Frames">Anzahl Bilder, z.B. 97 = knapp 4 s bei 25 Bildern pro Sekunde.</param>
 /// <param name="Seed">Startzahl fürs Rauschen. Gleicher Seed und gleicher Prompt ergeben dasselbe Video.</param>
 /// <param name="NegativePrompt">Was nicht vorkommen soll. Wirkt nur, wenn das Modell mit CFG über 1 rechnet.</param>
+/// <param name="StartImagePath">Bild zu Video: Dieses Bild ist das erste Bild des Videos. Null = Text zu Video.</param>
 public sealed record VideoRequest(
     string Prompt,
     int Width = 768,
@@ -18,8 +19,12 @@ public sealed record VideoRequest(
     double FrameRate = 25,
     long Seed = 42,
     bool WithAudio = true,
-    string? NegativePrompt = null)
+    string? NegativePrompt = null,
+    string? StartImagePath = null)
 {
+    /// <summary>Bildformate, die ComfyUI als Startbild liest.</summary>
+    public static readonly IReadOnlyList<string> ImageExtensions = [".png", ".jpg", ".jpeg", ".webp", ".bmp"];
+
     public const int SizeStep = 32;
     public const int MinSize = 256;
     public const int MaxSize = 1280;
@@ -49,7 +54,25 @@ public sealed record VideoRequest(
             return Text($"Die Anzahl Bilder muss 8·n + 1 sein, zwischen {MinFrames} und {MaxFrames} (jetzt {Frames}).");
         }
 
-        return FrameRate is < 1 or > 60 ? Text($"Bilder pro Sekunde müssen zwischen 1 und 60 liegen (jetzt {FrameRate}).") : null;
+        if (FrameRate is < 1 or > 60)
+        {
+            return Text($"Bilder pro Sekunde müssen zwischen 1 und 60 liegen (jetzt {FrameRate}).");
+        }
+
+        if (StartImagePath is { } image)
+        {
+            if (!ImageExtensions.Contains(Path.GetExtension(image).ToLowerInvariant()))
+            {
+                return "Das Startbild muss ein PNG, JPG, WEBP oder BMP sein.";
+            }
+
+            if (!File.Exists(image))
+            {
+                return $"Das Startbild gibt es nicht mehr: {image}";
+            }
+        }
+
+        return null;
     }
 
     /// <summary>Rechnet eine Länge in Sekunden auf die nächste gültige Anzahl Bilder um (8·n + 1, mindestens 9).</summary>

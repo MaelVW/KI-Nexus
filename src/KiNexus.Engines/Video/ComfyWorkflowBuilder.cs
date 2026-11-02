@@ -12,7 +12,8 @@ public static class ComfyWorkflowBuilder
     public const string TextToVideoTemplate = "ltx23-text-zu-video.json";
 
     /// <param name="filenamePrefix">Name der Videodatei ohne Endung. ComfyUI hängt "_00001_.mp4" an.</param>
-    public static JsonObject Build(VideoRequest request, VideoModelSet models, string filenamePrefix)
+    /// <param name="startImageName">Bild zu Video: Dateiname des Startbilds im Eingabe-Ordner von ComfyUI.</param>
+    public static JsonObject Build(VideoRequest request, VideoModelSet models, string filenamePrefix, string? startImageName = null)
     {
         if (request.Problem() is { } problem)
         {
@@ -51,7 +52,51 @@ public static class ComfyWorkflowBuilder
             RemoveAudio(workflow);
         }
 
+        if (request.StartImagePath is not null)
+        {
+            AddStartImage(workflow, request, startImageName ?? throw new ArgumentException("Für Bild zu Video fehlt der Name des Startbilds.", nameof(startImageName)));
+        }
+
         return workflow;
+    }
+
+    /// <summary>
+    /// Bild zu Video: Startbild laden, auf die Grösse des Videos zuschneiden (Mitte), leicht komprimieren wie bei Lightricks
+    /// (sonst bleibt das Bild oft stehen) und als erstes Bild ins Latent setzen. Das Modell rechnet von dort weiter.
+    /// </summary>
+    private static void AddStartImage(JsonObject workflow, VideoRequest request, string imageName)
+    {
+        var vae = NodeId(workflow, "KN_VideoVae");
+        var videoLatent = NodeId(workflow, "KN_VideoLatent");
+        AddNode(workflow, "30", "LoadImage", "KN_StartImage", new JsonObject { ["image"] = imageName });
+        AddNode(workflow, "31", "ImageScale", "KN_StartScale", new JsonObject
+        {
+            ["image"] = new JsonArray("30", 0),
+            ["upscale_method"] = "lanczos",
+            ["width"] = request.Width,
+            ["height"] = request.Height,
+            ["crop"] = "center",
+        });
+        AddNode(workflow, "32", "LTXVPreprocess", "KN_StartPreprocess", new JsonObject { ["image"] = new JsonArray("31", 0), ["img_compression"] = 35 });
+        AddNode(workflow, "33", "LTXVImgToVideoInplace", "KN_ImageToVideo", new JsonObject
+        {
+            ["vae"] = new JsonArray(vae, 0),
+            ["image"] = new JsonArray("32", 0),
+            ["latent"] = new JsonArray(videoLatent, 0),
+            ["strength"] = 1.0,
+            ["bypass"] = false,
+        });
+        Inputs(workflow, "KN_ConcatAV")["video_latent"] = new JsonArray("33", 0);
+    }
+
+    private static void AddNode(JsonObject workflow, string id, string classType, string title, JsonObject inputs)
+    {
+        if (workflow.ContainsKey(id))
+        {
+            throw new InvalidOperationException($"Die Vorlage hat schon einen Knoten {id}.");
+        }
+
+        workflow[id] = new JsonObject { ["class_type"] = classType, ["_meta"] = new JsonObject { ["title"] = title }, ["inputs"] = inputs };
     }
 
     /// <summary>Knoten-Nummer → Titel, z.B. "15" → "KN_Denoise". Damit übersetzt das Backend die Meldungen von ComfyUI.</summary>

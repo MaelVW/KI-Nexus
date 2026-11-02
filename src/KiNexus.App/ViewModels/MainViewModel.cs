@@ -66,6 +66,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         ];
         createHub.Shell = this;
         training.Shell = this;
+        video.Shell = this;
         Training = training;
         Video = video;
         _selectedTab = Tabs.FirstOrDefault(tab => tab.Id == settings.Current.Window.LastTab) ?? Chat;

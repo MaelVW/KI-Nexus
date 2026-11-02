@@ -48,7 +48,16 @@ Wir nutzen das `CommunityToolkit.Mvvm`:
 - `[ObservableProperty]` auf einem Feld `_name` erzeugt die Eigenschaft `Name` mit Änderungs-Meldung.
 - `[RelayCommand]` auf einer Methode `Save()` erzeugt den Befehl `SaveCommand`.
 
-## Wichtige Klassen (Stand Video V3)
+## Wichtige Klassen (Stand Video V4)
+
+### Neu in Video V4: Bild zu Video, Prompt verbessern, Warteschlange
+
+| Klasse | Projekt | Aufgabe |
+|---|---|---|
+| `VideoRequest.StartImagePath`, `VideoEntry.StartImage` | Core | Startbild prüfen (Format, vorhanden). Die Galerie behält eine Kopie. |
+| `VideoPromptWriter` | Core | Systemprompt und Nachricht für „Prompt verbessern“, Antwort aufräumen. |
+| `ComfyWorkflowBuilder` (Startbild) | Engines | Knoten `KN_StartImage`, `KN_StartScale`, `KN_StartPreprocess`, `KN_ImageToVideo` einfügen. |
+| `VideoJob`, Warteschlange im `VideoViewModel` | App | Aufträge mit allen Einstellungen nacheinander abarbeiten. |
 
 ### Neu in Video V3: Videomodelle im Create-Hub
 

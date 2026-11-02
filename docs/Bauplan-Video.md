@@ -2,7 +2,7 @@
 
 **Für:** die KI, die KI-Nexus weiterbaut
 **Von:** Mael, geplant zusammen mit Claude
-**Stand:** 2. November 2026 – **V0 bis V3 sind erledigt** (V2 = v1.5.0, V3 = v1.6.0, dev-Modelle = v1.7.0), Ergebnisse in `docs/10-Video.md`. V4 ist noch nicht gebaut.
+**Stand:** 2. November 2026 – **V0 bis V4 sind erledigt** (V2 = v1.5.0, V3 = v1.6.0, dev-Modelle = v1.7.0, V4 = v1.8.0), Ergebnisse in `docs/10-Video.md`. V4 ist noch nicht gebaut.
 
 > Das ist eine Erweiterung zum Hauptbauplan (`KI-Nexus-Bauplan.md`). Alle Regeln aus Kapitel 1 dort gelten auch hier: Phase für Phase, vorher fragen bei Installationen und Downloads über 1 GB, alles lokal, ehrlich bleiben.
 
@@ -291,7 +291,7 @@ docs/10-Video.md                 Doku und Messwerte (ab V0)
 | V1 ✅ | **Engine:** `setup-video.ps1`, `ComfyVideoBackend`: Start/Stopp, Bereitschaft, Auftrag, Fortschritt über WebSocket, Abbrechen, Speicher freigeben. `ComfyWorkflowBuilder`, `VideoRequest` mit Prüfungen. Unit-Tests. | Tests laufen durch. Ein Testlauf erzeugt ein Video nur über die Schnittstelle. — **Erledigt 2.11.2026:** 385 Tests grün. Der echte Testlauf erzeugt ein Video über `IVideoBackend` und bricht ein zweites ab (`docs/10-Video.md`). |
 | V2 ✅ | **Video-Tab:** Auftrag, Vorlagen, Speicher-Ampel, Fortschritt, Abbrechen, Player, Galerie, Chat-Modell entladen | Ich erzeuge im Tab einen Clip, breche einen zweiten ab und spiele den ersten ab. Danach chatte ich wieder normal. — **Erledigt 2.11.2026 (v1.5.0):** alle vier Punkte in der App geprüft. Es gibt nur die Vorlage „Schnell“ (distilled), „Qualität“ braucht das dev-Modell. Den Negativ-Prompt gibt es noch nicht in der Oberfläche, weil er bei CFG 1 nicht wirkt. |
 | V3 ✅ | **Create-Hub:** Videomodelle als eigene Art statt nur Warnung. Statt „Neue KI daraus“ gibt es den Knopf „Im Video-Tab nutzen“. Prüfen, ob die Zusatzdateien da sind, und sie bei Bedarf laden. Die Hugging-Face-Suche zeigt „Videomodell, nutzbar im Video-Tab“. | Ein Videomodell aus der Hugging-Face-Suche ist nach dem Download im Video-Tab nutzbar. — **Erledigt 2.11.2026 (v1.6.0):** Q2_K von Unsloth gesucht, geladen und im Video-Tab genutzt. Zusatzdateien lädt das Skript `setup-video.ps1 -Companions` in einem eigenen Fenster, nicht der Downloader der App. Der ist fest auf Modell-Ordner mit model.json gebaut. |
-| V4 | **Extras:** Bild zu Video, „Prompt verbessern“ mit einer KI, Warteschlange | Ich mache aus einem eigenen Foto einen Clip. Eine KI verbessert meinen Prompt. |
+| V4 ✅ | **Extras:** Bild zu Video, „Prompt verbessern“ mit einer KI, Warteschlange | Ich mache aus einem eigenen Foto einen Clip. Eine KI verbessert meinen Prompt. — **Erledigt 2.11.2026 (v1.8.0):** Bild zu Video, Prompt verbessern und Warteschlange in der App geprüft. Als Foto ein eigenes Testbild, ein echtes Foto von Mael steht noch aus. |
 
 **Warum V0 zuerst:** Ob mein Laptop das überhaupt schafft, ist die grösste Unsicherheit. Fällt V0 durch, sparen wir uns V1 bis V4 oder warten auf den Server (M9).
 

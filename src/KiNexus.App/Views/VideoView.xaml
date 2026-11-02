@@ -70,7 +70,8 @@
 
                     <!-- Auftrag -->
                     <Border Style="{StaticResource StepCard}">
-                        <StackPanel IsEnabled="{Binding IsIdle}">
+                        <!-- Bleibt bedienbar, während ein Video entsteht: So kann man den nächsten Auftrag für die Warteschlange vorbereiten. -->
+                        <StackPanel>
                             <TextBlock Text="Auftrag" Style="{StaticResource StepTitle}" />
                             <TextBlock Text="Videomodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding VideoModels}" SelectedItem="{Binding SelectedModel}" AutomationProperties.Name="Videomodell"
@@ -86,6 +87,36 @@
                                      AutomationProperties.Name="Beschreibung des Videos" AutomationProperties.AutomationId="VideoPrompt" />
                             <TextBlock Style="{StaticResource Text.Hint}" Margin="0,6,0,12" TextWrapping="Wrap"
                                        Text="Beschreib Szene, Bewegung, Kamera und Ton. Auf Englisch klappt es am besten, z.B. „A red fox jumps over a snowy log, crunching snow, soft wind, handheld camera.“" />
+                            <WrapPanel Margin="0,-6,0,12">
+                                <Button Content="Prompt verbessern (KI)" Command="{Binding ImprovePromptCommand}" Margin="0,0,8,0"
+                                        AutomationProperties.AutomationId="VideoImprovePrompt"
+                                        ToolTip="Die KI aus der Kopfleiste macht aus deiner Idee (auch auf Deutsch) einen ausführlichen englischen Prompt." />
+                                <Button Style="{StaticResource Button.Ghost}" Content="Rückgängig" Command="{Binding UndoPromptCommand}"
+                                        AutomationProperties.AutomationId="VideoUndoPrompt" />
+                            </WrapPanel>
+
+                            <TextBlock Text="Startbild (optional, Bild zu Video)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                            <Grid Margin="0,0,0,12">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="Auto" />
+                                    <ColumnDefinition Width="*" />
+                                </Grid.ColumnDefinitions>
+                                <Border Width="96" Height="64" Background="Black" CornerRadius="{StaticResource Radius.Small}" ClipToBounds="True" Margin="0,0,10,0"
+                                        Visibility="{Binding HasStartImage, Converter={StaticResource BoolToVisibility}}">
+                                    <Image Source="{Binding StartImagePath, Converter={StaticResource Thumbnail}}" Stretch="Uniform" />
+                                </Border>
+                                <StackPanel Grid.Column="1">
+                                    <WrapPanel>
+                                        <Button Content="Bild wählen …" Command="{Binding PickStartImageCommand}" Margin="0,0,8,0"
+                                                AutomationProperties.AutomationId="VideoPickImage" />
+                                        <Button Style="{StaticResource Button.Ghost}" Content="Entfernen" Command="{Binding ClearStartImageCommand}"
+                                                Visibility="{Binding HasStartImage, Converter={StaticResource BoolToVisibility}}" />
+                                    </WrapPanel>
+                                    <TextBlock Text="{Binding StartImagePath}" Style="{StaticResource Text.Hint}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"
+                                               AutomationProperties.AutomationId="VideoStartImage" />
+                                    <TextBlock Text="{Binding StartImageHint}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,2,0,0" />
+                                </StackPanel>
+                            </Grid>
 
                             <StackPanel Visibility="{Binding IsDevProcess, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12">
                                 <TextBlock Text="Negativ-Prompt (was nicht vorkommen soll)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
@@ -137,8 +168,34 @@
                     <WrapPanel Margin="0,-6,0,16">
                         <Button Style="{StaticResource Button.Primary}" Content="Video erzeugen" Command="{Binding GenerateCommand}" Margin="0,0,8,0"
                                 AutomationProperties.AutomationId="VideoGenerate" />
-                        <Button Content="Abbrechen" Command="{Binding CancelCommand}" AutomationProperties.AutomationId="VideoCancel" />
+                        <Button Content="Abbrechen" Command="{Binding CancelCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="VideoCancel" />
+                        <Button Content="In die Warteschlange" Command="{Binding EnqueueCommand}" AutomationProperties.AutomationId="VideoEnqueue"
+                                ToolTip="Läuft schon ein Video, kommt dieses danach dran. So kannst du mehrere Videos nacheinander erzeugen, z.B. über Nacht." />
                     </WrapPanel>
+
+                    <!-- Warteschlange -->
+                    <Border Style="{StaticResource StepCard}" Visibility="{Binding HasQueue, Converter={StaticResource BoolToVisibility}}">
+                        <StackPanel>
+                            <DockPanel>
+                                <Button DockPanel.Dock="Right" Style="{StaticResource Button.Ghost}" Content="Leeren" Command="{Binding ClearQueueCommand}" />
+                                <TextBlock Text="{Binding QueueText}" Style="{StaticResource StepTitle}" VerticalAlignment="Center" />
+                            </DockPanel>
+                            <ItemsControl ItemsSource="{Binding Queue}" AutomationProperties.Name="Warteschlange" AutomationProperties.AutomationId="VideoQueue">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:VideoJob}">
+                                        <DockPanel Margin="0,0,0,6" AutomationProperties.Name="{Binding Label}">
+                                            <Button DockPanel.Dock="Right" Style="{StaticResource Button.Icon}" AutomationProperties.Name="Aus der Warteschlange nehmen"
+                                                    Command="{Binding DataContext.RemoveQueuedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" ToolTip="Aus der Warteschlange nehmen">
+                                                <TextBlock Style="{StaticResource Text.Icon}" FontSize="12" Text="{x:Static app:Glyphs.Close}" />
+                                            </Button>
+                                            <TextBlock Text="{Binding Label}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center" FontSize="{StaticResource FontSize.Small}" />
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
+                    </Border>
 
                     <!-- Fortschritt -->
                     <Border Style="{StaticResource StepCard}">

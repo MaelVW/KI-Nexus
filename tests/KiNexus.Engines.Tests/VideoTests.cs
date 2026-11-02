@@ -79,6 +79,24 @@ public class VideoTests
     }
 
     [Fact]
+    public void Builder_StartImage_PutsImageIntoVideoLatent()
+    {
+        using var root = new TempDirectory();
+        var image = root.Combine("foto.png");
+        File.WriteAllText(image, "png");
+        var workflow = ComfyWorkflowBuilder.Build(new VideoRequest("x", Width: 512, Height: 768, StartImagePath: image), Models, "p", "p_start.png");
+
+        Assert.Equal("p_start.png", Inputs(workflow, "KN_StartImage")["image"]!.GetValue<string>());
+        Assert.Equal(512, Inputs(workflow, "KN_StartScale")["width"]!.GetValue<int>());
+        Assert.Equal(768, Inputs(workflow, "KN_StartScale")["height"]!.GetValue<int>());
+        Assert.Equal("center", Inputs(workflow, "KN_StartScale")["crop"]!.GetValue<string>());
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_ImageToVideo"), Inputs(workflow, "KN_ConcatAV")["video_latent"]![0]!.GetValue<string>());
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_VideoLatent"), Inputs(workflow, "KN_ImageToVideo")["latent"]![0]!.GetValue<string>());
+        AssertAllLinksExist(workflow);
+        Assert.Throws<ArgumentException>(() => ComfyWorkflowBuilder.Build(new VideoRequest("x", StartImagePath: image), Models, "p"));
+    }
+
+    [Fact]
     public void Builder_WithoutAudio_DropsAudioDecoding()
     {
         var workflow = ComfyWorkflowBuilder.Build(new VideoRequest("x", WithAudio: false), Models, "p");

@@ -6,6 +6,17 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.8.0] – 2026-11-02 – Video V4: Bild zu Video, Prompt verbessern, Warteschlange
+
+### Neu
+
+- **Bild zu Video:** Startbild wählen. Das Video beginnt mit diesem Bild (`LTXVImgToVideoInplace`, zugeschnitten auf das Format). Die Galerie behält eine Kopie des Startbilds.
+- **Prompt verbessern:** Die KI aus der Kopfleiste macht aus einer Idee, auch auf Deutsch, einen englischen Video-Prompt. Mit „Rückgängig“. Danach wird das Chat-Modell wieder entladen, wenn es erst dafür geladen wurde.
+- **Warteschlange:** „In die Warteschlange“ legt Aufträge mit allen Einstellungen ab, sie laufen nacheinander. Das Formular bleibt bedienbar, während ein Video entsteht.
+- Der Dateidialog für Bilder hat einen eigenen Titel pro Zweck.
+- Abnahme in der App: Prompt verbessert (Qwen, 15 s), Bild zu Video in 1 min 34 s, zwei Videos über die Warteschlange.
+- 418 Unit-Tests (vorher 411).
+
 ## [1.7.0] – 2026-11-02 – Video V3.1: dev-Modelle
 
 ### Neu

@@ -19,6 +19,11 @@ public sealed record VideoEntry
     public long Seed { get; init; }
     public bool WithAudio { get; init; }
 
+    /// <summary>Bild zu Video: Dateiname der Kopie des Startbilds in data/videos, z.B. "…_start.png". Null = Text zu Video.</summary>
+    public string? StartImage { get; init; }
+
+    [JsonIgnore] public string? StartImagePath { get; init; }
+
     /// <summary>Name des Videomodells, z.B. "LTX-2.3 distilled (Q4_K_M)".</summary>
     public string Model { get; init; } = "";
 
@@ -35,7 +40,7 @@ public sealed record VideoEntry
     [JsonIgnore] public double Seconds => FrameRate > 0 ? Frames / FrameRate : 0;
 
     /// <summary>Derselbe Auftrag nochmals, z.B. für "Nochmal mit gleichem Seed".</summary>
-    public VideoRequest ToRequest() => new(Prompt, Width, Height, Frames, FrameRate, Seed, WithAudio);
+    public VideoRequest ToRequest() => new(Prompt, Width, Height, Frames, FrameRate, Seed, WithAudio, StartImagePath: StartImagePath);
 }
 
 /// <summary>
@@ -63,6 +68,14 @@ public sealed partial class VideoLibrary(string directory, ILogger<VideoLibrary>
             File.Move(thumbnail, thumbnailPath);
         }
 
+        // Bild zu Video: eine Kopie des Startbilds, damit "Nochmal" auch geht, wenn das Original weg ist.
+        string? startImage = null;
+        if (request.StartImagePath is { } source && File.Exists(source))
+        {
+            startImage = id + "_start" + Path.GetExtension(source).ToLowerInvariant();
+            File.Copy(source, Path.Combine(directory, startImage), overwrite: true);
+        }
+
         var entry = new VideoEntry
         {
             Id = id,
@@ -73,6 +86,8 @@ public sealed partial class VideoLibrary(string directory, ILogger<VideoLibrary>
             FrameRate = request.FrameRate,
             Seed = request.Seed,
             WithAudio = request.WithAudio,
+            StartImage = startImage,
+            StartImagePath = startImage is null ? null : Path.Combine(directory, startImage),
             Model = models.Name,
             GenerationSeconds = done.Seconds,
             CreatedAt = DateTimeOffset.Now,
@@ -111,7 +126,14 @@ public sealed partial class VideoLibrary(string directory, ILogger<VideoLibrary>
                 }
 
                 var thumbnail = Path.Combine(directory, id + ".png");
-                entries.Add(entry with { Id = id, VideoPath = video, ThumbnailPath = File.Exists(thumbnail) ? thumbnail : null });
+                var start = entry.StartImage is { } name ? Path.Combine(directory, name) : null;
+                entries.Add(entry with
+                {
+                    Id = id,
+                    VideoPath = video,
+                    ThumbnailPath = File.Exists(thumbnail) ? thumbnail : null,
+                    StartImagePath = start is not null && File.Exists(start) ? start : null,
+                });
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
             {
@@ -124,7 +146,10 @@ public sealed partial class VideoLibrary(string directory, ILogger<VideoLibrary>
 
     /// <summary>Alle Dateien eines Videos (MP4, Vorschaubild, JSON), z.B. zum Löschen.</summary>
     public IReadOnlyList<string> FilesOf(VideoEntry entry) =>
-        [.. new[] { ".mp4", ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists)];
+    [
+        .. new[] { ".mp4", ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists),
+        .. entry.StartImagePath is { } start && File.Exists(start) ? [start] : Array.Empty<string>(),
+    ];
 
     /// <summary>ComfyUI hängt "_00001_" an. Das braucht der Name nicht.</summary>
     internal static string CleanName(string name)
