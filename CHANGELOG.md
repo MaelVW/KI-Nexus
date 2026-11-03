@@ -14,6 +14,7 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 - **Updates in der App:** Einstellungen → Updates → „Nach Updates suchen“ (nur auf Klick, nie beim Start, eine einzige Anfrage an GitHub). „Jetzt aktualisieren“ schliesst die App, ersetzt die Programmteile und startet neu. Chats, Einstellungen, Modelle, Engines, Python-Umgebungen und KIs bleiben.
 - **Releases:** `scripts/release.ps1` gibt eine Version als GitHub Release frei (Tag und Text aus dem Changelog). Updates gibt es nur für freigegebene Versionen.
 - Ein Entwickler-Ordner (git) wird nie vom Update überschrieben.
+- `install.ps1` ist nur ASCII und ohne BOM, damit es mit `irm | iex` und mit `powershell -File` läuft.
 - Doku: `docs/12-Updates.md`. 478 Unit-Tests.
 
 ## [1.12.0] – 2026-11-03 – Training 2, T1: Weitertrainieren mit Versionen

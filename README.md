@@ -21,7 +21,7 @@ In PowerShell ein Befehl:
 irm https://raw.githubusercontent.com/MaelVW/KI-Nexus/main/scripts/install.ps1 | iex
 ```
 
-Er lädt die neueste freigegebene Version nach `%USERPROFILE%\KI-Nexus`, baut sie und startet sie. Voraussetzung: das .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`).
+Er lädt die neueste freigegebene Version nach `%USERPROFILE%\KI-Nexus`, baut sie und startet sie. Für einen anderen oder schon bestehenden Ordner: siehe `docs/12-Updates.md`. Voraussetzung: das .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`).
 **Aktualisieren:** in der App unter Einstellungen → Updates → „Nach Updates suchen“. KI-Nexus sucht nur, wenn du klickst. Deine Chats, Modelle und KIs bleiben. Details: `docs/12-Updates.md`.
 
 ## Starten

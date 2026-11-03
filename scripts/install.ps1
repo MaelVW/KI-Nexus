@@ -1,4 +1,6 @@
-﻿<#
+<#
+    Nur ASCII und ohne BOM: So geht die Datei mit "irm | iex" (als Text) und mit "powershell -File" (Windows PowerShell 5.1).
+
 .SYNOPSIS
     Installiert KI-Nexus oder bringt es auf die neueste freigegebene Version (GitHub Release).
 
@@ -12,10 +14,10 @@
 
     Was das Skript macht:
     1. Fragt GitHub nach dem neuesten Release (nur diese eine Anfrage und der Download, keine Daten von dir).
-    2. Lädt den Quellcode dieses Releases als ZIP und packt ihn aus.
+    2. Laedt den Quellcode dieses Releases als ZIP und packt ihn aus.
     3. Ersetzt die Programmteile (src, tests, docs, scripts, python ohne .venv, Dateien im Hauptordner).
        Deine Daten bleiben: data\ (Chats, Einstellungen, Galerie), models\, engines\, die Python-Umgebungen
-       und deine KIs in kis\ (neue Beispiel-KIs kommen dazu, bestehende werden nie überschrieben).
+       und deine KIs in kis\ (neue Beispiel-KIs kommen dazu, bestehende werden nie ueberschrieben).
     4. Startet Start-KI-Nexus.bat: Es baut die App (braucht das .NET 10 SDK) und startet sie.
 
     Ein Entwickler-Ordner (mit .git) wird nicht angefasst. Dort aktualisiert man mit "git pull".
@@ -31,7 +33,7 @@
 .PARAMETER Force
     Auch installieren, wenn die Version schon dieselbe ist.
 .PARAMETER FromZip
-    Für Tests: statt von GitHub diese ZIP nehmen (gleicher Aufbau wie das ZIP eines Releases, z.B. von "git archive").
+    Fuer Tests: statt von GitHub diese ZIP nehmen (gleicher Aufbau wie das ZIP eines Releases, z.B. von "git archive").
 #>
 param(
     [string]$Path = (Join-Path $env:USERPROFILE "KI-Nexus"),
@@ -53,11 +55,11 @@ Write-Host ""
 Write-Host "KI-Nexus installieren / aktualisieren" -ForegroundColor Cyan
 Write-Host "Ordner: $Path"
 
-# ---------------------------------------------------------------- 1. Prüfen
+# ---------------------------------------------------------------- 1. Pruefen
 
 if ((Test-Path (Join-Path $Path ".git"))) {
     Write-Host ""
-    Write-Host "Das ist ein Entwickler-Ordner (git). Das Skript überschreibt ihn nicht." -ForegroundColor Yellow
+    Write-Host "Das ist ein Entwickler-Ordner (git). Das Skript ueberschreibt ihn nicht." -ForegroundColor Yellow
     Write-Host "Aktualisieren mit:  git pull   und danach Start-KI-Nexus.bat"
     return
 }
@@ -80,7 +82,7 @@ else {
         $release = if ($Tag) { Invoke-RestMethod -Uri "$Api/releases/tags/$Tag" -Headers $Headers } else { Invoke-RestMethod -Uri "$Api/releases/latest" -Headers $Headers }
     }
     catch {
-        throw "Kein Release gefunden. Gibt es auf GitHub schon eine freigegebene Version, und ist das Repository öffentlich? ($($_.Exception.Message))"
+        throw "Kein Release gefunden. Gibt es auf GitHub schon eine freigegebene Version, und ist das Repository oeffentlich? ($($_.Exception.Message))"
     }
 }
 $tagName = $release.tag_name
@@ -115,13 +117,13 @@ if (-not $sdkOk) {
 if ($WaitForPid -gt 0) {
     Write-Host "2/4  Warte, bis KI-Nexus geschlossen ist ..."
     for ($i = 0; $i -lt 120 -and (Get-Process -Id $WaitForPid -ErrorAction SilentlyContinue); $i++) { Start-Sleep -Milliseconds 500 }
-    if (Get-Process -Id $WaitForPid -ErrorAction SilentlyContinue) { throw "KI-Nexus läuft noch. Schliesse es und starte das Update nochmals." }
+    if (Get-Process -Id $WaitForPid -ErrorAction SilentlyContinue) { throw "KI-Nexus laeuft noch. Schliesse es und starte das Update nochmals." }
 }
 else {
-    Write-Host "2/4  Prüfe, ob KI-Nexus läuft ..."
+    Write-Host "2/4  Pruefe, ob KI-Nexus laeuft ..."
 }
 while (Get-Process -Name "KI-Nexus" -ErrorAction SilentlyContinue | Where-Object { $_.Path -and $_.Path.StartsWith($Path, [StringComparison]::OrdinalIgnoreCase) }) {
-    Read-Host "  KI-Nexus läuft noch aus diesem Ordner. Schliesse es und drücke Enter"
+    Read-Host "  KI-Nexus laeuft noch aus diesem Ordner. Schliesse es und druecke Enter"
 }
 
 # ---------------------------------------------------------------- 3. Laden und auspacken
@@ -159,12 +161,12 @@ try {
         Invoke-Robocopy @((Join-Path $src "python"), (Join-Path $Path "python"), "/E", "/XD", ".venv", "__pycache__")
     }
 
-    # kis\: nur KIs, die es noch nicht gibt. Deine eigenen und geänderten bleiben, wie sie sind.
+    # kis\: nur KIs, die es noch nicht gibt. Deine eigenen und geaenderten bleiben, wie sie sind.
     if (Test-Path (Join-Path $src "kis")) {
         Invoke-Robocopy @((Join-Path $src "kis"), (Join-Path $Path "kis"), "/E", "/XC", "/XN", "/XO")
     }
 
-    # Weitere Ordner aus dem Release (nicht data, models, engines): ergänzen.
+    # Weitere Ordner aus dem Release (nicht data, models, engines): ergaenzen.
     $skip = @("src", "tests", "docs", "scripts", "python", "kis", "data", "models", "engines")
     Get-ChildItem $src -Directory | Where-Object { $skip -notcontains $_.Name } | ForEach-Object {
         Invoke-Robocopy @($_.FullName, (Join-Path $Path $_.Name), "/E")

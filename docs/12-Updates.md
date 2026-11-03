@@ -13,7 +13,13 @@ irm https://raw.githubusercontent.com/MaelVW/KI-Nexus/main/scripts/install.ps1 |
 ```
 
 - Lädt die neueste freigegebene Version nach `%USERPROFILE%\KI-Nexus`, baut sie und startet sie.
-- Anderer Ordner: Skript herunterladen und `.\install.ps1 -Path D:\KI-Nexus` ausführen.
+- **Anderer Ordner** (z.B. eine schon heruntergeladene ältere Version, die aktualisiert werden soll):
+
+  ```powershell
+  & ([scriptblock]::Create((irm https://raw.githubusercontent.com/MaelVW/KI-Nexus/main/scripts/install.ps1))) -Path "D:\KI-Nexus"
+  ```
+
+  Das setzt die neueste Version über den bestehenden Ordner. Chats, Einstellungen, Modelle und KIs bleiben.
 - Voraussetzung: das **.NET 10 SDK** (`winget install Microsoft.DotNet.SDK.10`). Fehlt es, sagt das Skript Bescheid und installiert nichts selbst.
 - Danach wie gewohnt: llama.cpp lädt `Start-KI-Nexus.bat` beim ersten Start (fragt vorher), Sprache, Training und Video mit den Skripten in `scripts\`.
 
@@ -64,9 +70,9 @@ Danach finden alle anderen die Version mit „Nach Updates suchen“. Nicht frei
 |---|---|
 | Suche, Versionen vergleichen | `src/KiNexus.Engines/Updates/UpdateClient.cs` (Entwürfe und Vorab-Versionen zählen nicht) |
 | Knopf und Text | Einstellungen, Bereich „Updates“ (`SettingsViewModel`) |
-| Installieren und Aktualisieren | `scripts/install.ps1` (lädt das ZIP, das GitHub für jeden Tag anbietet; `-FromZip` für Tests) |
+| Installieren und Aktualisieren | `scripts/install.ps1` (lädt das ZIP, das GitHub für jeden Tag anbietet; `-FromZip` für Tests). **Nur ASCII und ohne BOM**: Mit BOM scheitert `irm \| iex`, weil das unsichtbare Zeichen vor dem Kommentarblock steht. Ohne BOM, aber mit Umlauten, würde Windows PowerShell 5.1 die Datei bei `-File` falsch lesen. |
 | Freigeben | `scripts/release.ps1` |
 
-Getestet (3.11.2026): Unit-Tests für Suche und Vergleich (ohne Netzwerk). `install.ps1 -FromZip` mit einer ZIP im Aufbau von GitHub: frisch installiert, danach als Update. `data`, `models`, `engines`, `.venv`, eigene und geänderte KIs blieben, eine entfernte Datei verschwand. Der installierte Ordner liess sich bauen. Den git-Ordner hat das Skript nicht angefasst.
+Getestet (3.11.2026): `install.ps1` als Text mit Parametern (wie mit `irm`), als `iex` und als Datei (`powershell -File`). Unit-Tests für Suche und Vergleich (ohne Netzwerk). `install.ps1 -FromZip` mit einer ZIP im Aufbau von GitHub: frisch installiert, danach als Update. `data`, `models`, `engines`, `.venv`, eigene und geänderte KIs blieben, eine entfernte Datei verschwand. Der installierte Ordner liess sich bauen. Den git-Ordner hat das Skript nicht angefasst.
 
 Noch nicht geprüft: der echte Weg über GitHub (das Repository ist noch privat, es gibt noch kein Release) und der Knopf „Jetzt aktualisieren“ in der App.
