@@ -65,7 +65,8 @@ public static class ComfyWorkflowBuilder
     /// so lädt das Modell nur einmal. Gleicher Seed, gleicher Prompt und gleiche Anzahl ergeben dieselben Bilder.
     /// </summary>
     /// <param name="filenamePrefix">Name der Bilddateien ohne Endung, z.B. "bilder/2026-11-03_101500_seed42".</param>
-    public static JsonObject BuildImage(ImageRequest request, ImageModelSet models, string filenamePrefix)
+    /// <param name="referenceNames">Referenzbilder: Dateinamen im Eingabe-Ordner von ComfyUI, in derselben Reihenfolge wie im Auftrag.</param>
+    public static JsonObject BuildImage(ImageRequest request, ImageModelSet models, string filenamePrefix, IReadOnlyList<string>? referenceNames = null)
     {
         if (request.Problem() is { } problem)
         {
@@ -91,7 +92,10 @@ public static class ComfyWorkflowBuilder
                 sigmas["height"] = request.Height;
                 Inputs(workflow, "KN_Seed")["noise_seed"] = request.Seed;
                 Inputs(workflow, "KN_Guider")["cfg"] = models.Guidance;
+                AddReferences(workflow, referenceNames ?? []);
                 break;
+            case ImageModelFamily.ZImageTurbo when referenceNames is { Count: > 0 }:
+                throw new ArgumentException($"{models.Name} kann keine Referenzbilder nutzen.", nameof(referenceNames));
             case ImageModelFamily.ZImageTurbo:
                 var denoise = Inputs(workflow, "KN_Denoise");
                 denoise["seed"] = request.Seed;
@@ -101,6 +105,47 @@ public static class ComfyWorkflowBuilder
         }
 
         return workflow;
+    }
+
+    /// <summary>
+    /// FLUX.2 klein: Jedes Referenzbild wird auf höchstens 1024 Pixel (lange Seite) verkleinert, mit der VAE ins Latent
+    /// gerechnet und per ReferenceLatent an den Prompt gehängt. Mehrere hängen hintereinander (in B0 geprüft).
+    /// ImageScaleToMaxDimension statt ImageScaleToTotalPixels: Dieser braucht das Paket kornia, das nicht installiert ist.
+    /// </summary>
+    private static void AddReferences(JsonObject workflow, IReadOnlyList<string> referenceNames)
+    {
+        var vae = NodeId(workflow, "KN_Vae");
+        var positive = new JsonArray(NodeId(workflow, "KN_Prompt"), 0);
+        for (var i = 0; i < referenceNames.Count; i++)
+        {
+            var id = 40 + 4 * i;
+            var number = i + 1;
+            AddNode(workflow, Id(id), "LoadImage", $"KN_Reference{number}", new JsonObject { ["image"] = referenceNames[i] });
+            AddNode(workflow, Id(id + 1), "ImageScaleToMaxDimension", $"KN_ReferenceScale{number}", new JsonObject
+            {
+                ["image"] = new JsonArray(Id(id), 0),
+                ["upscale_method"] = "lanczos",
+                ["largest_size"] = 1024,
+            });
+            AddNode(workflow, Id(id + 2), "VAEEncode", $"KN_ReferenceEncode{number}", new JsonObject
+            {
+                ["pixels"] = new JsonArray(Id(id + 1), 0),
+                ["vae"] = new JsonArray(vae, 0),
+            });
+            AddNode(workflow, Id(id + 3), "ReferenceLatent", $"KN_ReferenceLatent{number}", new JsonObject
+            {
+                ["conditioning"] = positive,
+                ["latent"] = new JsonArray(Id(id + 2), 0),
+            });
+            positive = new JsonArray(Id(id + 3), 0);
+        }
+
+        if (referenceNames.Count > 0)
+        {
+            Inputs(workflow, "KN_Guider")["positive"] = positive;
+        }
+
+        static string Id(int number) => number.ToString(System.Globalization.CultureInfo.InvariantCulture);
     }
 
     public static string TemplateFor(ImageModelFamily family) => family switch

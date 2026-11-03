@@ -104,6 +104,29 @@ tests\KiNexus.Engines.Tests\bin\Debug\net10.0-windows\KiNexus.Engines.Tests.exe 
 | Video aus dem Bild (768×512, 4 s, mit Ton) | **2 min 11 s.** Das Video beginnt mit der Hütte, die Kamera fährt wie beschrieben heran. |
 | Galerie | Alle 27, Bilder 4, Videos 23. Passt zu den Dateien in `data/images` und `data/videos`. Bild: grosse Ansicht und Startbild-Knopf. Video: Player. |
 
+## Referenzbilder (Nachtrag, Wunsch von Mael)
+
+Bei Bildern kann man **bis zu 3 Referenzbilder** mitgeben. Das Modell orientiert sich daran: dieselbe Person, dasselbe Tier, derselbe Ort oder Stil. Im Prompt steht, was damit passieren soll.
+
+- Nur **FLUX.2 klein**: Es kann von Haus aus erzeugen *und* nach Vorlagen bearbeiten. Z-Image Turbo kann das nicht (dafür bräuchte es die Variante „Z-Image Omni“). Ist Z-Image gewählt, sagt der Hinweis das, und die Referenzen werden nicht mitgeschickt.
+- Ablauf in ComfyUI pro Referenz: `LoadImage` → `ImageScaleToMaxDimension` (lange Seite 1024) → `VAEEncode` → `ReferenceLatent`. Mehrere hängen hintereinander am Prompt.
+- `ImageScaleToTotalPixels` wäre der übliche Knoten, er braucht aber das Python-Paket `kornia`, das in unserer Umgebung fehlt (bewusst schlank).
+- Die Galerie behält eine Kopie jeder Referenz (`<id>_ref1.png` …), damit „Nochmal“ und „Prompt übernehmen“ auch gehen, wenn das Original weg ist.
+- Neu im Studio: Bereich „Referenzbilder (optional)“ mit Vorschau und Entfernen, und an jedem Bild der Galerie der Knopf **„Als Referenz für ein Bild“**.
+
+**Test ohne App** (`python/image/ref_test.py`, Hund aus B0 als Referenz):
+
+| Auftrag | Zeit | Ergebnis |
+|---|---|---|
+| 1 Referenz: „der Hund aus dem Bild mit rotem Strickschal im Schnee“ | 15 s | Derselbe Hund (Gesicht, Fell, Halsband), jetzt mit Schal im Winterwald. |
+| 2 Referenzen: „der Hund aus Bild 1 vor der Hütte aus Bild 2“ | 20 s | Der Hund sitzt im Schnee vor genau dieser Hütte mit den Bergen. |
+
+Jede Referenz kostet also ca. 5 s. VRAM blieb bei 7.1 GB.
+
+**Über die Schnittstelle:** Der echte Testlauf (`RealRun_CreatesImagesThroughTheInterface`) macht als zweiten Auftrag ein Bild mit dem ersten als Referenz: bestanden.
+
+**Abnahme in der App** (3. November 2026, Release-Build): Hütten-Bild in der Galerie gewählt, „Als Referenz für ein Bild“, Prompt „dieselbe Hütte im Sommer, Wiese, Kühe“. **21 s** inkl. Start von ComfyUI. Es ist dieselbe Hütte (Fenster, Kamin, Balkon), jetzt auf einer Sommerwiese mit Kühen. Nur das Dach hat noch Schnee. In der Galerie steht „1 Ref.“, die Kopie `…_ref1.png` liegt daneben.
+
 ## Noch nicht geprüft
 
 - Grössere Formate als 1216×832 und vier Bilder in 1024×1024 auf einmal (Speicher).

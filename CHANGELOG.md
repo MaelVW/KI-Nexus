@@ -6,6 +6,16 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.10.0] – 2026-11-03 – Bild: Referenzbilder
+
+### Neu
+
+- **Referenzbilder bei Bildern:** bis zu 3 Bilder, an denen sich FLUX.2 klein orientiert (dieselbe Person, dasselbe Tier, derselbe Ort). Im Prompt sagt man, was damit passieren soll. Jede Referenz kostet ca. 5 s.
+- Im Studio: Bereich „Referenzbilder (optional)“ und an jedem Bild der Galerie „Als Referenz für ein Bild“.
+- Die Galerie behält Kopien der Referenzen, „Prompt übernehmen“ und „Nochmal“ nehmen sie mit.
+- Z-Image Turbo kann keine Referenzen. Der Hinweis im Studio sagt das.
+- Abnahme in der App: Hütte als Referenz, „dieselbe Hütte im Sommer“ in 21 s. Echter Lauf mit Referenz über die Schnittstelle bestanden. 440 Unit-Tests.
+
 ## [1.9.0] – 2026-11-03 – Bild B0–B2: Bildgenerierung im Studio
 
 ### Neu

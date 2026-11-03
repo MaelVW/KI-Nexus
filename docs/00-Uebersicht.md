@@ -25,6 +25,7 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | Video V4 | Bild zu Video, Prompt verbessern (KI), Warteschlange | ✅ fertig (v1.8.0) |
 | Bild B0 | Zwei Bildmodelle gemessen (FLUX.2 klein, Z-Image Turbo), Empfehlung FLUX.2 klein, siehe `docs/11-Bild.md` | ✅ erledigt |
 | Bild B1–B2 | Bild-Engine, Studio-Tab (Video \| Bild), Galerie mit Filter, „Als Startbild für ein Video“ | ✅ fertig (v1.9.0) |
+| Bild Referenzen | Referenzbilder für FLUX.2 klein (bis 3), „Als Referenz für ein Bild“ | ✅ fertig (v1.10.0) |
 
 ## Ordner
 

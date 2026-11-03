@@ -27,6 +27,11 @@ public sealed record VideoEntry
 
     public int BatchCount { get; init; } = 1;
 
+    /// <summary>Bild: Dateinamen der Kopien der Referenzbilder in data/images, z.B. "…_ref1.png". Leer = ohne Referenz.</summary>
+    public IReadOnlyList<string> ReferenceImages { get; init; } = [];
+
+    [JsonIgnore] public IReadOnlyList<string> ReferenceImagePaths { get; init; } = [];
+
     public required string Prompt { get; init; }
     public int Width { get; init; }
     public int Height { get; init; }

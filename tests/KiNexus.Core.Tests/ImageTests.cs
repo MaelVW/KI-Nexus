@@ -55,6 +55,24 @@ public class ImageTests
     }
 
     [Fact]
+    public async Task Library_KeepsCopiesOfReferenceImages()
+    {
+        using var root = new TempDirectory();
+        var library = new ImageLibrary(root.Combine("images"), NullLogger<ImageLibrary>.Instance);
+        var reference = root.Combine("hund.JPG");
+        File.WriteAllText(reference, "jpg");
+        var request = new ImageRequest("Der Hund mit Schal", Count: 2, ReferenceImages: [reference]);
+
+        var entries = await library.AddAsync(new ImageDone(RawImages(root, "ref", 2), 15), request, ImageModelSet.Flux2Klein4B, Ct);
+        File.Delete(reference);
+
+        Assert.Equal(["ref_1_ref1.jpg"], entries[0].ReferenceImages);
+        var loaded = await library.LoadAllAsync(Ct);
+        Assert.All(loaded, e => Assert.True(File.Exists(Assert.Single(e.ReferenceImagePaths))));
+        Assert.Equal(3, library.FilesOf(loaded[0]).Count);
+    }
+
+    [Fact]
     public async Task VideoEntries_WithoutKind_AreVideos()
     {
         using var root = new TempDirectory();

@@ -46,6 +46,9 @@ public sealed record ImageModelSet(
 
     public static IReadOnlyList<ImageModelSet> Known { get; } = [Flux2Klein4B, ZImageTurbo];
 
+    /// <summary>Kann sich das Modell an Referenzbildern orientieren? FLUX.2 klein ja (ReferenceLatent), Z-Image Turbo nicht.</summary>
+    public bool SupportsReferences => Family == ImageModelFamily.Flux2Klein;
+
     /// <summary>Wo jede Datei liegen muss. Die erste ist das Modell selbst.</summary>
     public IReadOnlyList<string> Files(string imageModelsDirectory) =>
     [

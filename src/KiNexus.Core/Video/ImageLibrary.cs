@@ -27,6 +27,16 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
             var id = UniqueId(VideoLibrary.CleanName(Path.GetFileNameWithoutExtension(source)) + (done.ImagePaths.Count > 1 ? $"_{i + 1}" : ""));
             var path = Path.Combine(directory, id + ".png");
             File.Move(source, path);
+
+            // Kopien der Referenzbilder, damit "Nochmal" auch geht, wenn die Originale weg sind.
+            var references = new List<string>();
+            foreach (var (reference, number) in (request.ReferenceImages ?? []).Where(File.Exists).Select((r, n) => (r, n + 1)))
+            {
+                var name = $"{id}_ref{number}{Path.GetExtension(reference).ToLowerInvariant()}";
+                File.Copy(reference, Path.Combine(directory, name), overwrite: true);
+                references.Add(name);
+            }
+
             var entry = new VideoEntry
             {
                 Id = id,
@@ -37,6 +47,8 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
                 Seed = request.Seed,
                 BatchIndex = i,
                 BatchCount = done.ImagePaths.Count,
+                ReferenceImages = references,
+                ReferenceImagePaths = [.. references.Select(name => Path.Combine(directory, name))],
                 Model = models.Name,
                 GenerationSeconds = done.Seconds,
                 // Gleiche Zeit plus eine Millisekunde pro Bild: So bleibt die Reihenfolge in der Galerie fest.
@@ -78,7 +90,14 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
                     continue;
                 }
 
-                entries.Add(entry with { Id = id, Kind = VideoEntry.ImageKind, VideoPath = image, ThumbnailPath = image });
+                entries.Add(entry with
+                {
+                    Id = id,
+                    Kind = VideoEntry.ImageKind,
+                    VideoPath = image,
+                    ThumbnailPath = image,
+                    ReferenceImagePaths = [.. entry.ReferenceImages.Select(name => Path.Combine(directory, name)).Where(File.Exists)],
+                });
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
             {
@@ -89,9 +108,12 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
         return [.. entries.OrderByDescending(e => e.CreatedAt)];
     }
 
-    /// <summary>PNG und JSON eines Bilds, z.B. zum Löschen.</summary>
+    /// <summary>PNG, JSON und Referenzbilder eines Bilds, z.B. zum Löschen.</summary>
     public IReadOnlyList<string> FilesOf(VideoEntry entry) =>
-        [.. new[] { ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists)];
+    [
+        .. new[] { ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists),
+        .. entry.ReferenceImagePaths.Where(File.Exists),
+    ];
 
     private string UniqueId(string baseName)
     {

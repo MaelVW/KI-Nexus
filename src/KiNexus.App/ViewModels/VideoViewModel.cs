@@ -73,7 +73,14 @@ public sealed record ImageJob(ImageRequest Request, ImageModelSet Models) : Stud
 {
     /// <summary>z.B. "2 Bilder · 1024×1024 · FLUX.2 klein 4B (Q8_0) · A golden retriever …".</summary>
     public override string Label => string.Create(CultureInfo.InvariantCulture,
-        $"{(Request.Count == 1 ? "1 Bild" : $"{Request.Count} Bilder")} · {Request.Width}×{Request.Height} · {Models.Name} · {Short(Request.Prompt)}");
+        $"{(Request.Count == 1 ? "1 Bild" : $"{Request.Count} Bilder")} · {Request.Width}×{Request.Height}{References} · {Models.Name} · {Short(Request.Prompt)}");
+
+    private string References => Request.ReferenceImages?.Count switch
+    {
+        null or 0 => "",
+        1 => " · 1 Referenz",
+        var n => $" · {n} Referenzen",
+    };
 
     public override int Steps => Models.Steps;
 }
@@ -233,7 +240,71 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(EnqueueCommand))]
     private ImageModelSet _selectedImageModel;
 
-    partial void OnSelectedImageModelChanged(ImageModelSet value) => CheckSetup();
+    partial void OnSelectedImageModelChanged(ImageModelSet value)
+    {
+        CheckSetup();
+        OnPropertyChanged(nameof(ReferencesSupported));
+        OnPropertyChanged(nameof(ReferenceHint));
+        AddReferenceCommand.NotifyCanExecuteChanged();
+    }
+
+    // ----------------------------------------------------------- Referenzbilder (nur Bild)
+
+    /// <summary>Bilder, an denen sich das Bildmodell orientiert (höchstens <see cref="ImageRequest.MaxReferences"/>).</summary>
+    public ObservableCollection<string> ReferenceImages { get; } = [];
+
+    public bool HasReferences => ReferenceImages.Count > 0;
+
+    public bool ReferencesSupported => SelectedImageModel.SupportsReferences;
+
+    public string ReferenceHint => ReferencesSupported
+        ? $"Bis {ImageRequest.MaxReferences} Bilder, an denen sich das Modell orientiert (Person, Tier, Ort, Stil). Sag im Prompt, was damit passieren soll, "
+          + "z.B. „The dog from the first image in front of the hut from the second image“. Jede Referenz kostet ca. 5 s. "
+          + "Bilder von anderen Personen nur mit deren Einverständnis."
+        : $"{SelectedImageModel.Name} kann keine Referenzbilder nutzen. Dafür FLUX.2 klein wählen.";
+
+    private bool CanAddReference => ReferencesSupported && ReferenceImages.Count < ImageRequest.MaxReferences;
+
+    [RelayCommand(CanExecute = nameof(CanAddReference))]
+    private void AddReference()
+    {
+        foreach (var image in _dialogs.PickImages("Referenzbilder wählen").Take(ImageRequest.MaxReferences - ReferenceImages.Count))
+        {
+            AddReferencePath(image);
+        }
+    }
+
+    [RelayCommand]
+    private void RemoveReference(string path)
+    {
+        ReferenceImages.Remove(path);
+        OnReferencesChanged();
+    }
+
+    [RelayCommand]
+    private void ClearReferences()
+    {
+        ReferenceImages.Clear();
+        OnReferencesChanged();
+    }
+
+    private void AddReferencePath(string path)
+    {
+        if (ReferenceImages.Count >= ImageRequest.MaxReferences || ReferenceImages.Any(r => SamePath(r, path)))
+        {
+            return;
+        }
+
+        ReferenceImages.Add(path);
+        OnReferencesChanged();
+    }
+
+    private void OnReferencesChanged()
+    {
+        OnPropertyChanged(nameof(HasReferences));
+        AddReferenceCommand.NotifyCanExecuteChanged();
+        UseAsReferenceCommand.NotifyCanExecuteChanged();
+    }
 
     public IReadOnlyList<VideoFormat> ImageFormats { get; } = [.. ImageRequest.Formats.Select(f => new VideoFormat(f.Width, f.Height, f.Name))];
 
@@ -669,7 +740,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
         if (IsImageMode)
         {
-            var image = new ImageRequest(Prompt.Trim(), SelectedImageFormat.Width, SelectedImageFormat.Height, ImageCount, seed);
+            var references = ReferencesSupported && ReferenceImages.Count > 0 ? ReferenceImages.ToList() : null;
+            var image = new ImageRequest(Prompt.Trim(), SelectedImageFormat.Width, SelectedImageFormat.Height, ImageCount, seed, references);
             if (image.Problem() is { } imageProblem)
             {
                 ShowStatus(imageProblem, isError: true);
@@ -954,7 +1026,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedInfo), nameof(HasSelectedImage), nameof(HasSelectedVideo))]
     [NotifyCanExecuteChangedFor(nameof(ReusePromptCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand), nameof(DeleteVideoCommand))]
-    [NotifyCanExecuteChangedFor(nameof(UseAsStartImageCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UseAsStartImageCommand), nameof(UseAsReferenceCommand))]
     private VideoEntry? _selectedVideo;
 
     public bool HasSelection => SelectedVideo is not null;
@@ -1014,7 +1086,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     {
         null => "",
         { IsImage: true } v => string.Create(CultureInfo.InvariantCulture,
-            $"Bild · {v.Width}×{v.Height}{(v.BatchCount > 1 ? $" · {v.BatchIndex + 1} von {v.BatchCount}" : "")} · Seed {v.Seed} · {v.Model} · erzeugt in {Duration(v.GenerationSeconds)} · {v.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}"),
+            $"Bild · {v.Width}×{v.Height}{(v.BatchCount > 1 ? $" · {v.BatchIndex + 1} von {v.BatchCount}" : "")}{(v.ReferenceImages.Count > 0 ? $" · {v.ReferenceImages.Count} Ref." : "")} · Seed {v.Seed} · {v.Model} · erzeugt in {Duration(v.GenerationSeconds)} · {v.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}"),
         var v => string.Create(CultureInfo.InvariantCulture,
             $"{v.Width}×{v.Height} · {v.Seconds:0.0} s · {(v.WithAudio ? "mit Ton" : "ohne Ton")} · Seed {v.Seed} · erzeugt in {Duration(v.GenerationSeconds)} · {v.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}"),
     };
@@ -1087,6 +1159,13 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
             SelectedImageFormat = ImageFormats.FirstOrDefault(f => f.Width == video.Width && f.Height == video.Height) ?? SelectedImageFormat;
             ImageCount = Math.Clamp(video.BatchCount, 1, ImageRequest.MaxCount);
             SelectedImageModel = ImageModels.FirstOrDefault(m => m.Name == video.Model) ?? SelectedImageModel;
+            ReferenceImages.Clear();
+            foreach (var reference in video.ReferenceImagePaths)
+            {
+                ReferenceImages.Add(reference);
+            }
+
+            OnReferencesChanged();
             SeedText = video.Seed.ToString(CultureInfo.InvariantCulture);
             return;
         }
@@ -1154,6 +1233,27 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         ShowStatus("Das Bild ist jetzt das Startbild. Beschreib links, wie es sich bewegen soll, und klick auf „Video erzeugen“.");
     }
 
+    private bool CanUseAsReference => HasSelectedImage && ReferenceImages.Count < ImageRequest.MaxReferences;
+
+    /// <summary>Das gewählte Bild wird Referenz für das nächste Bild. Das Studio wechselt auf Bild und, falls nötig, auf FLUX.2 klein.</summary>
+    [RelayCommand(CanExecute = nameof(CanUseAsReference))]
+    private void UseAsReference()
+    {
+        if (SelectedVideo is not { IsImage: true } image)
+        {
+            return;
+        }
+
+        Mode = StudioMode.Image;
+        if (!SelectedImageModel.SupportsReferences && ImageModels.FirstOrDefault(m => m.SupportsReferences) is { } flux)
+        {
+            SelectedImageModel = flux;
+        }
+
+        AddReferencePath(image.VideoPath);
+        ShowStatus($"Das Bild ist jetzt Referenz {ReferenceImages.Count}. Beschreib links, was damit passieren soll, und klick auf „Bilder erzeugen“.");
+    }
+
     [RelayCommand]
     private void OpenFolder() => _shell.OpenFolder(SelectedVideo is { IsImage: true } ? _images.Directory : _library.Directory);
 
@@ -1180,6 +1280,12 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         if (video.IsImage && SamePathOrNull(StartImagePath, video.VideoPath))
         {
             StartImagePath = null;
+        }
+
+        if (video.IsImage && ReferenceImages.FirstOrDefault(r => SamePath(r, video.VideoPath)) is { } reference)
+        {
+            ReferenceImages.Remove(reference);
+            OnReferencesChanged();
         }
 
         _allEntries.Remove(video);

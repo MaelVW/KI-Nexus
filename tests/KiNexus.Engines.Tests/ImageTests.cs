@@ -68,6 +68,51 @@ public class ImageTests
     }
 
     [Fact]
+    public void Builder_ChainsReferenceImages()
+    {
+        using var root = new TempDirectory();
+        var refs = new[] { root.Combine("a.png"), root.Combine("b.jpg") };
+        foreach (var file in refs)
+        {
+            File.WriteAllText(file, "bild");
+        }
+
+        var request = new ImageRequest("The dog from the first image in front of the hut from the second.", ReferenceImages: refs);
+        var workflow = ComfyWorkflowBuilder.BuildImage(request, ImageModelSet.Flux2Klein4B, "bilder/test", ["x_ref1.png", "x_ref2.jpg"]);
+
+        Assert.Equal("x_ref1.png", Inputs(workflow, "KN_Reference1")["image"]!.GetValue<string>());
+        Assert.Equal("x_ref2.jpg", Inputs(workflow, "KN_Reference2")["image"]!.GetValue<string>());
+        Assert.Equal(1024, Inputs(workflow, "KN_ReferenceScale1")["largest_size"]!.GetValue<int>());
+        // Kette: Prompt → Referenz 1 → Referenz 2 → Guider.
+        var first = ComfyWorkflowBuilder.NodeId(workflow, "KN_ReferenceLatent1");
+        var second = ComfyWorkflowBuilder.NodeId(workflow, "KN_ReferenceLatent2");
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_Prompt"), Inputs(workflow, "KN_ReferenceLatent1")["conditioning"]![0]!.GetValue<string>());
+        Assert.Equal(first, Inputs(workflow, "KN_ReferenceLatent2")["conditioning"]![0]!.GetValue<string>());
+        Assert.Equal(second, Inputs(workflow, "KN_Guider")["positive"]![0]!.GetValue<string>());
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_Vae"), Inputs(workflow, "KN_ReferenceEncode2")["vae"]![0]!.GetValue<string>());
+        AssertAllLinksExist(workflow);
+
+        var plain = ComfyWorkflowBuilder.BuildImage(new ImageRequest("x"), ImageModelSet.Flux2Klein4B, "bilder/test");
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(plain, "KN_Prompt"), Inputs(plain, "KN_Guider")["positive"]![0]!.GetValue<string>());
+        Assert.Throws<ArgumentException>(() => ComfyWorkflowBuilder.BuildImage(request, ImageModelSet.ZImageTurbo, "x", ["x_ref1.png"]));
+    }
+
+    [Fact]
+    public void Request_ChecksReferenceImages()
+    {
+        using var root = new TempDirectory();
+        var image = root.Combine("a.png");
+        File.WriteAllText(image, "bild");
+
+        Assert.Null(new ImageRequest("x", ReferenceImages: [image]).Problem());
+        Assert.Contains("höchstens 3", new ImageRequest("x", ReferenceImages: [image, image, image, image]).Problem(), StringComparison.Ordinal);
+        Assert.Contains("gibt es nicht mehr", new ImageRequest("x", ReferenceImages: [root.Combine("weg.png")]).Problem(), StringComparison.Ordinal);
+        Assert.Contains("PNG, JPG", new ImageRequest("x", ReferenceImages: [root.Combine("a.gif")]).Problem(), StringComparison.Ordinal);
+        Assert.True(ImageModelSet.Flux2Klein4B.SupportsReferences);
+        Assert.False(ImageModelSet.ZImageTurbo.SupportsReferences);
+    }
+
+    [Fact]
     public void Builder_RejectsInvalidRequest()
     {
         Assert.Throws<ArgumentException>(() => ComfyWorkflowBuilder.BuildImage(new ImageRequest(""), ImageModelSet.Flux2Klein4B, "x"));
@@ -140,6 +185,12 @@ public class ImageTests
         Assert.All(done.ImagePaths, path => Assert.True(new FileInfo(path).Length > 50_000, path));
         Assert.Contains(events, e => e is VideoStep);
         Assert.Equal(VideoBackendState.Ready, backend.State);
+
+        // Zweiter Auftrag: das erste Bild als Referenz.
+        var withReference = new ImageRequest("The same cup of coffee on a snowy window sill, winter morning, photo.", 768, 768, Seed: 4,
+            ReferenceImages: [done.ImagePaths[0]]);
+        var second = await Collect(backend.GenerateImageAsync(withReference, models, TestContext.Current.CancellationToken));
+        Assert.True(Assert.IsType<ImageDone>(second[^1]).ImagePaths.Count == 1, second[^1].ToString());
         await backend.FreeMemoryAsync(TestContext.Current.CancellationToken);
     }
 

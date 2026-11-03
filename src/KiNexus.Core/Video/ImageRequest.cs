@@ -7,15 +7,25 @@ namespace KiNexus.Core.Video;
 /// Breite und Höhe müssen durch 16 teilbar sein (FLUX.2 und Z-Image rechnen in 16er-Blöcken).
 /// </summary>
 /// <param name="Prompt">Beschreibung des Bilds. Auf Englisch klappt es am besten, Deutsch geht meistens auch.</param>
-/// <param name="Count">Anzahl Bilder mit demselben Prompt (1–4). Jedes bekommt seinen eigenen Seed: Seed, Seed + 1, …</param>
+/// <param name="Count">Anzahl Bilder mit demselben Prompt (1–4). Sie entstehen in einem Durchgang mit einem Seed und sind trotzdem verschieden.</param>
 /// <param name="Seed">Startzahl fürs Rauschen. Gleicher Seed und gleicher Prompt ergeben dasselbe Bild.</param>
+/// <param name="ReferenceImages">
+/// Bilder, an denen sich das Modell orientiert (z.B. dieselbe Person, dasselbe Tier, derselbe Ort). Im Prompt sagt man,
+/// was damit passieren soll, z.B. „der Hund aus dem ersten Bild vor der Hütte aus dem zweiten“. Nur FLUX.2 klein kann das.
+/// </param>
 public sealed record ImageRequest(
     string Prompt,
     int Width = 1024,
     int Height = 1024,
     int Count = 1,
-    long Seed = 42)
+    long Seed = 42,
+    IReadOnlyList<string>? ReferenceImages = null)
 {
+    /// <summary>Mehr Referenzen brauchen mehr Grafikspeicher und Zeit (jede ca. 5 s). In B0 mit zwei geprüft.</summary>
+    public const int MaxReferences = 3;
+
+    public bool HasReferences => ReferenceImages is { Count: > 0 };
+
     public const int SizeStep = 16;
     public const int MinSize = 512;
 
@@ -48,6 +58,25 @@ public sealed record ImageRequest(
         if (Count is < 1 or > MaxCount)
         {
             return Text($"Es gehen 1 bis {MaxCount} Bilder pro Auftrag (jetzt {Count}).");
+        }
+
+        var references = ReferenceImages ?? [];
+        if (references.Count > MaxReferences)
+        {
+            return Text($"Es gehen höchstens {MaxReferences} Referenzbilder (jetzt {references.Count}).");
+        }
+
+        foreach (var image in references)
+        {
+            if (!VideoRequest.ImageExtensions.Contains(Path.GetExtension(image).ToLowerInvariant()))
+            {
+                return "Referenzbilder müssen PNG, JPG, WEBP oder BMP sein.";
+            }
+
+            if (!File.Exists(image))
+            {
+                return $"Das Referenzbild gibt es nicht mehr: {image}";
+            }
         }
 
         return null;

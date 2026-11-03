@@ -144,6 +144,42 @@
                                 </StackPanel>
                             </WrapPanel>
 
+                            <!-- Bild: Referenzbilder -->
+                            <StackPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12">
+                                <TextBlock Text="Referenzbilder (optional)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <ItemsControl ItemsSource="{Binding ReferenceImages}" AutomationProperties.Name="Referenzbilder"
+                                              AutomationProperties.AutomationId="ImageReferences">
+                                    <ItemsControl.ItemsPanel>
+                                        <ItemsPanelTemplate>
+                                            <WrapPanel />
+                                        </ItemsPanelTemplate>
+                                    </ItemsControl.ItemsPanel>
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate>
+                                            <Grid Width="96" Height="72" Margin="0,0,8,8" ToolTip="{Binding}" AutomationProperties.Name="{Binding}">
+                                                <Border Background="Black" CornerRadius="{StaticResource Radius.Small}" ClipToBounds="True">
+                                                    <Image Source="{Binding Converter={StaticResource Thumbnail}}" Stretch="Uniform" />
+                                                </Border>
+                                                <Button Style="{StaticResource Button.Icon}" HorizontalAlignment="Right" VerticalAlignment="Top" Margin="2"
+                                                        Background="#B0000000" AutomationProperties.Name="Referenz entfernen" ToolTip="Entfernen"
+                                                        Command="{Binding DataContext.RemoveReferenceCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                        CommandParameter="{Binding}">
+                                                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="10" Foreground="White" Text="{x:Static app:Glyphs.Close}" />
+                                                </Button>
+                                            </Grid>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                                <WrapPanel>
+                                    <Button Content="Bild hinzufügen …" Command="{Binding AddReferenceCommand}" Margin="0,0,8,0"
+                                            AutomationProperties.AutomationId="ImageAddReference" />
+                                    <Button Style="{StaticResource Button.Ghost}" Content="Alle entfernen" Command="{Binding ClearReferencesCommand}"
+                                            Visibility="{Binding HasReferences, Converter={StaticResource BoolToVisibility}}" />
+                                </WrapPanel>
+                                <TextBlock Text="{Binding ReferenceHint}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           AutomationProperties.AutomationId="ImageReferenceHint" />
+                            </StackPanel>
+
                             <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Startbild (optional, Bild zu Video)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <Grid Margin="0,0,0,12">
@@ -314,6 +350,9 @@
                             <Button Style="{StaticResource Button.Primary}" Content="Als Startbild für ein Video" Command="{Binding UseAsStartImageCommand}" Margin="0,0,8,8"
                                     Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="StudioUseAsStart"
                                     ToolTip="Wechselt auf Video. Das Bild wird das erste Bild des Videos." />
+                            <Button Content="Als Referenz für ein Bild" Command="{Binding UseAsReferenceCommand}" Margin="0,0,8,8"
+                                    Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="StudioUseAsReference"
+                                    ToolTip="Wechselt auf Bild. Das neue Bild orientiert sich an diesem (z.B. dieselbe Person oder derselbe Ort)." />
                             <Button Content="Prompt übernehmen" Command="{Binding ReusePromptCommand}" Margin="0,0,8,8"
                                     ToolTip="Prompt, Format, Seed und die übrigen Einstellungen ins Formular links übernehmen" />
                             <Button Content="Nochmal (gleicher Seed)" Command="{Binding RepeatSameSeedCommand}" Margin="0,0,8,8"

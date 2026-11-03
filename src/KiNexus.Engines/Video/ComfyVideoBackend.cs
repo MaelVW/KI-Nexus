@@ -234,7 +234,12 @@ public sealed class ComfyVideoBackend(
         return installation.Problem() ?? MissingImageFiles(models);
     }
 
-    private string? CheckImageJob(ImageRequest request, ImageModelSet models) => request.Problem() ?? MissingImageFiles(models);
+    private string? CheckImageJob(ImageRequest request, ImageModelSet models) =>
+        request.Problem()
+        ?? (request.HasReferences && !models.SupportsReferences
+            ? $"{models.Name} kann keine Referenzbilder nutzen. Nimm FLUX.2 klein oder entferne die Referenzbilder."
+            : null)
+        ?? MissingImageFiles(models);
 
     private string? MissingImageFiles(ImageModelSet models)
     {
@@ -289,9 +294,10 @@ public sealed class ComfyVideoBackend(
     {
         // Eigener Unterordner "bilder" im Ausgabe-Ordner von ComfyUI, damit Bilder und Videos getrennt bleiben.
         var prefix = string.Create(CultureInfo.InvariantCulture, $"bilder/{DateTime.Now:yyyy-MM-dd_HHmmss}_seed{request.Seed}");
-        var workflow = ComfyWorkflowBuilder.BuildImage(request, models, prefix);
-        logger.LogInformation("Bild-Auftrag: {Model}, {Width}×{Height}, {Count} Bilder, Seed {Seed}.",
-            models.Name, request.Width, request.Height, request.Count, request.Seed);
+        var references = CopyReferenceImages(request, prefix);
+        var workflow = ComfyWorkflowBuilder.BuildImage(request, models, prefix, references);
+        logger.LogInformation("Bild-Auftrag: {Model}, {Width}×{Height}, {Count} Bilder, {References} Referenzen, Seed {Seed}.",
+            models.Name, request.Width, request.Height, request.Count, references.Count, request.Seed);
         return ExecuteAsync(workflow, "Bild", ComfyProtocol.DescribeImage, (files, seconds) =>
         {
             var images = files.GetValueOrDefault("KN_Save")?.Where(File.Exists).ToList() ?? [];
@@ -413,6 +419,23 @@ public sealed class ComfyVideoBackend(
         Directory.CreateDirectory(input);
         File.Copy(source, Path.Combine(input, name), overwrite: true);
         return name;
+    }
+
+    /// <summary>Referenzbilder in den Eingabe-Ordner von ComfyUI kopieren, wie das Startbild beim Video.</summary>
+    private List<string> CopyReferenceImages(ImageRequest request, string prefix)
+    {
+        var names = new List<string>();
+        var input = Path.Combine(options.WorkDirectory, "input");
+        var baseName = Path.GetFileName(prefix);
+        foreach (var (source, number) in (request.ReferenceImages ?? []).Select((s, n) => (s, n + 1)))
+        {
+            Directory.CreateDirectory(input);
+            var name = $"{baseName}_ref{number}{Path.GetExtension(source).ToLowerInvariant()}";
+            File.Copy(source, Path.Combine(input, name), overwrite: true);
+            names.Add(name);
+        }
+
+        return names;
     }
 
     private async Task<(string? PromptId, string? Error)> QueueAsync(JsonObject workflow, string clientId, CancellationToken ct)
