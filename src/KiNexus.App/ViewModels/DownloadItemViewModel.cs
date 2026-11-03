@@ -98,8 +98,17 @@ public sealed partial class DownloadItemViewModel : ObservableObject
                         ? $"Download fertig: {model.FolderName} ist ein Videomodell. {video.Note}"
                         : $"Download fertig, aber {model.FolderName}: {video.Note}",
                     isError: !video.IsUsable,
-                    video.IsUsable ? "Im Video-Tab nutzen" : null,
+                    video.IsUsable ? "Im Studio nutzen" : null,
                     video.IsUsable ? () => { _hub.Shell?.OpenVideoWith(model.ModelPath); return Task.CompletedTask; } : null);
+            }
+            else if (DescribeImage(model, _hub.ModelsDirectory) is { } image)
+            {
+                _hub.ShowNotice(image.IsUsable
+                        ? $"Download fertig: {model.FolderName} ist ein Bildmodell. {image.Note}"
+                        : $"Download fertig, aber {model.FolderName}: {image.Note}",
+                    isError: !image.IsUsable,
+                    image.IsUsable ? "Im Studio nutzen" : null,
+                    image.IsUsable ? () => { _hub.Shell?.OpenVideoWith(model.ModelPath); return Task.CompletedTask; } : null);
             }
             else
             {
@@ -109,6 +118,24 @@ public sealed partial class DownloadItemViewModel : ObservableObject
         }
 
         _lastState = State;
+    }
+
+    /// <summary>Bildmodell (flux, lumina2)? Dann das Urteil fürs Studio, sonst null.</summary>
+    private static ImageModelChoice? DescribeImage(LocalModel model, string modelsDirectory)
+    {
+        if (!ImageModelCatalog.IsImageArchitecture(model.Manifest.Architecture))
+        {
+            return null;
+        }
+
+        try
+        {
+            return ImageModelCatalog.Describe(model.ModelPath, model.FolderName, isBuiltIn: false, System.IO.Path.Combine(modelsDirectory, "image"));
+        }
+        catch (Exception ex) when (ex is System.IO.IOException or System.IO.InvalidDataException or UnauthorizedAccessException or System.IO.EndOfStreamException)
+        {
+            return null;
+        }
     }
 
     /// <summary>Videomodell (ltxv)? Dann das Urteil für den Video-Tab, sonst null.</summary>

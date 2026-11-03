@@ -21,8 +21,9 @@ public sealed record KiRow(KiProfile Ki, string BaseModelText, string ImagesText
 }
 
 /// <summary>Eine Zeile in "Grundmodelle".</summary>
-/// <param name="Video">Bei Videomodellen (Architektur ltxv): Kann der Video-Tab es nutzen? Sonst null.</param>
-public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<KiProfile> UsedBy, VideoModelChoice? Video = null)
+/// <param name="Video">Bei Videomodellen (Architektur ltxv): Kann das Studio es nutzen? Sonst null.</param>
+/// <param name="Image">Bei Bildmodellen (Architektur flux oder lumina2): Kann das Studio es nutzen? Sonst null.</param>
+public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<KiProfile> UsedBy, VideoModelChoice? Video = null, ImageModelChoice? Image = null)
 {
     public string Name => Model.FolderName;
     public string SizeText => DisplayFormat.Bytes(Model.Manifest.SizeBytes);
@@ -43,10 +44,11 @@ public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<K
     /// Rote Zeile bei Bild- oder Video-Modellen, die KI-Nexus nicht nutzen kann, z.B. "Kein Sprachmodell: ein Bildmodell (flux)".
     /// Videomodelle für den Video-Tab bekommen stattdessen <see cref="VideoNote"/>. Sonst leer.
     /// </summary>
-    public string KindWarning => Model.IsLanguageModel || IsUsableVideo
+    public string KindWarning => Model.IsLanguageModel || IsUsableVideo || IsUsableImage
         ? ""
         : $"Kein Sprachmodell: {ModelKinds.NonTextKind(Model.Manifest.Architecture)} ({Model.Manifest.Architecture}). Zum Chatten nicht nutzbar."
-          + (Video is { } video ? " " + video.Note : "");
+          + (Video is { } video ? " " + video.Note : "")
+          + (Image is { } image ? " " + image.Note : "");
 
     public bool HasKindWarning => KindWarning.Length > 0;
 
@@ -55,7 +57,13 @@ public sealed record ModelRow(LocalModel Model, FitEstimate Fit, IReadOnlyList<K
     /// <summary>Ein Videomodell, das der Video-Tab nutzen kann.</summary>
     public bool IsUsableVideo => Video is { IsUsable: true };
 
-    public string VideoNote => IsUsableVideo ? "Videomodell: " + Video!.Note : "";
+    /// <summary>Ein Bildmodell, das das Studio nutzen kann.</summary>
+    public bool IsUsableImage => Image is { IsUsable: true };
+
+    /// <summary>Video- oder Bildmodell fürs Studio: Dann gibt es den Knopf "Im Studio nutzen".</summary>
+    public bool IsUsableInStudio => IsUsableVideo || IsUsableImage;
+
+    public string VideoNote => IsUsableVideo ? "Videomodell: " + Video!.Note : IsUsableImage ? "Bildmodell: " + Image!.Note : "";
 }
 
 /// <summary>Eine Zeile in "Ollama-Modelle".</summary>
@@ -94,10 +102,12 @@ public sealed partial class CreateHubOverviewViewModel(
         {
             var models = await Task.Run(library.Scan);
             var videos = await Task.Run(() => DescribeVideos(models));
+            var images = await Task.Run(() => DescribeImages(models));
             ModelRows.Clear();
             foreach (var model in models)
             {
-                ModelRows.Add(new ModelRow(model, hub.Estimate(model), hub.KisUsing(model), videos.GetValueOrDefault(model.FolderName)));
+                ModelRows.Add(new ModelRow(model, hub.Estimate(model), hub.KisUsing(model), videos.GetValueOrDefault(model.FolderName),
+                    images.GetValueOrDefault(model.FolderName)));
             }
 
             KiRows.Clear();
@@ -129,6 +139,26 @@ public sealed partial class CreateHubOverviewViewModel(
             catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or EndOfStreamException)
             {
                 logger.LogWarning(ex, "Videomodell {Folder} nicht lesbar.", model.FolderName);
+            }
+        }
+
+        return result;
+    }
+
+    /// <summary>Bildmodelle (flux, lumina2): GGUF-Kopf und Tensoren lesen und beurteilen.</summary>
+    private Dictionary<string, ImageModelChoice> DescribeImages(IReadOnlyList<LocalModel> models)
+    {
+        var result = new Dictionary<string, ImageModelChoice>(StringComparer.OrdinalIgnoreCase);
+        var imageDirectory = Path.Combine(hub.ModelsDirectory, "image");
+        foreach (var model in models.Where(m => ImageModelCatalog.IsImageArchitecture(m.Manifest.Architecture)))
+        {
+            try
+            {
+                result[model.FolderName] = ImageModelCatalog.Describe(model.ModelPath, model.FolderName, isBuiltIn: false, imageDirectory);
+            }
+            catch (Exception ex) when (ex is IOException or InvalidDataException or UnauthorizedAccessException or EndOfStreamException)
+            {
+                logger.LogWarning(ex, "Bildmodell {Folder} nicht lesbar.", model.FolderName);
             }
         }
 
@@ -226,7 +256,7 @@ public sealed partial class CreateHubOverviewViewModel(
         return true;
     }
 
-    /// <summary>Videomodell: in den Video-Tab wechseln und es dort wählen.</summary>
+    /// <summary>Video- oder Bildmodell: ins Studio wechseln und es dort wählen.</summary>
     [RelayCommand]
     private void UseInVideo(ModelRow row) => hub.Shell?.OpenVideoWith(row.Model.ModelPath);
 

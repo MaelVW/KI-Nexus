@@ -66,7 +66,9 @@ public static class ComfyWorkflowBuilder
     /// </summary>
     /// <param name="filenamePrefix">Name der Bilddateien ohne Endung, z.B. "bilder/2026-11-03_101500_seed42".</param>
     /// <param name="referenceNames">Referenzbilder: Dateinamen im Eingabe-Ordner von ComfyUI, in derselben Reihenfolge wie im Auftrag.</param>
-    public static JsonObject BuildImage(ImageRequest request, ImageModelSet models, string filenamePrefix, IReadOnlyList<string>? referenceNames = null)
+    /// <param name="sourceName">Bild zu Bild: Dateiname der Vorlage im Eingabe-Ordner von ComfyUI. Null = ohne Vorlage.</param>
+    public static JsonObject BuildImage(ImageRequest request, ImageModelSet models, string filenamePrefix, IReadOnlyList<string>? referenceNames = null,
+        string? sourceName = null)
     {
         if (request.Problem() is { } problem)
         {
@@ -93,6 +95,17 @@ public static class ComfyWorkflowBuilder
                 Inputs(workflow, "KN_Seed")["noise_seed"] = request.Seed;
                 Inputs(workflow, "KN_Guider")["cfg"] = models.Guidance;
                 AddReferences(workflow, referenceNames ?? []);
+                if (sourceName is not null)
+                {
+                    // Nur die letzten Rausch-Stufen rechnen: Stärke 0.8 = die letzten 80 %.
+                    AddNode(workflow, "60", "SplitSigmasDenoise", "KN_Strength", new JsonObject
+                    {
+                        ["sigmas"] = new JsonArray(NodeId(workflow, "KN_Sigmas"), 0),
+                        ["denoise"] = request.Strength,
+                    });
+                    Inputs(workflow, "KN_Denoise")["sigmas"] = new JsonArray("60", 1);
+                }
+
                 break;
             case ImageModelFamily.ZImageTurbo when referenceNames is { Count: > 0 }:
                 throw new ArgumentException($"{models.Name} kann keine Referenzbilder nutzen.", nameof(referenceNames));
@@ -101,10 +114,48 @@ public static class ComfyWorkflowBuilder
                 denoise["seed"] = request.Seed;
                 denoise["steps"] = models.Steps;
                 denoise["cfg"] = models.Guidance;
+                if (sourceName is not null)
+                {
+                    denoise["denoise"] = request.Strength;
+                }
+
                 break;
         }
 
+        if (sourceName is not null)
+        {
+            AddSource(workflow, request, sourceName);
+        }
+
         return workflow;
+    }
+
+    /// <summary>
+    /// Bild zu Bild: Vorlage laden, auf das Format zuschneiden (Mitte), mit der VAE ins Latent rechnen und für jedes Bild
+    /// wiederholen. Dieses Latent ersetzt das leere. Das Rauschen kommt beim Entrauschen dazu, darum werden die Bilder verschieden.
+    /// </summary>
+    private static void AddSource(JsonObject workflow, ImageRequest request, string sourceName)
+    {
+        AddNode(workflow, "61", "LoadImage", "KN_Source", new JsonObject { ["image"] = sourceName });
+        AddNode(workflow, "62", "ImageScale", "KN_SourceScale", new JsonObject
+        {
+            ["image"] = new JsonArray("61", 0),
+            ["upscale_method"] = "lanczos",
+            ["width"] = request.Width,
+            ["height"] = request.Height,
+            ["crop"] = "center",
+        });
+        AddNode(workflow, "63", "VAEEncode", "KN_SourceEncode", new JsonObject
+        {
+            ["pixels"] = new JsonArray("62", 0),
+            ["vae"] = new JsonArray(NodeId(workflow, "KN_Vae"), 0),
+        });
+        AddNode(workflow, "64", "RepeatLatentBatch", "KN_SourceLatent", new JsonObject
+        {
+            ["samples"] = new JsonArray("63", 0),
+            ["amount"] = request.Count,
+        });
+        Inputs(workflow, "KN_Denoise")["latent_image"] = new JsonArray("64", 0);
     }
 
     /// <summary>

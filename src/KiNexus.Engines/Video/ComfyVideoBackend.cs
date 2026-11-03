@@ -83,7 +83,7 @@ public sealed class ComfyVideoBackend(
         RunExclusiveAsync(CheckJob(request, models), models.ModelFolder, "Erzeugt ein Video …", token => RunJobAsync(request, models, token), ct);
 
     public IAsyncEnumerable<VideoProgress> GenerateImageAsync(ImageRequest request, ImageModelSet models, CancellationToken ct) =>
-        RunExclusiveAsync(CheckImageJob(request, models), null, "Erzeugt Bilder …", token => RunImageJobAsync(request, models, token), ct);
+        RunExclusiveAsync(CheckImageJob(request, models), models.ModelFolder, "Erzeugt Bilder …", token => RunImageJobAsync(request, models, token), ct);
 
     /// <summary>
     /// Gemeinsamer Rahmen für Video und Bild: Es läuft nur ein Auftrag, ComfyUI startet bei Bedarf, danach ist es wieder bereit.
@@ -295,7 +295,8 @@ public sealed class ComfyVideoBackend(
         // Eigener Unterordner "bilder" im Ausgabe-Ordner von ComfyUI, damit Bilder und Videos getrennt bleiben.
         var prefix = string.Create(CultureInfo.InvariantCulture, $"bilder/{DateTime.Now:yyyy-MM-dd_HHmmss}_seed{request.Seed}");
         var references = CopyReferenceImages(request, prefix);
-        var workflow = ComfyWorkflowBuilder.BuildImage(request, models, prefix, references);
+        var source = CopySourceImage(request, prefix);
+        var workflow = ComfyWorkflowBuilder.BuildImage(request, models, prefix, references, source);
         logger.LogInformation("Bild-Auftrag: {Model}, {Width}×{Height}, {Count} Bilder, {References} Referenzen, Seed {Seed}.",
             models.Name, request.Width, request.Height, request.Count, references.Count, request.Seed);
         return ExecuteAsync(workflow, "Bild", ComfyProtocol.DescribeImage, (files, seconds) =>
@@ -417,6 +418,21 @@ public sealed class ComfyVideoBackend(
         var name = prefix + "_start" + Path.GetExtension(source).ToLowerInvariant();
         var input = Path.Combine(options.WorkDirectory, "input");
         Directory.CreateDirectory(input);
+        File.Copy(source, Path.Combine(input, name), overwrite: true);
+        return name;
+    }
+
+    /// <summary>Bild zu Bild: die Vorlage in den Eingabe-Ordner von ComfyUI kopieren. Null = ohne Vorlage.</summary>
+    private string? CopySourceImage(ImageRequest request, string prefix)
+    {
+        if (request.SourceImage is not { } source)
+        {
+            return null;
+        }
+
+        var input = Path.Combine(options.WorkDirectory, "input");
+        Directory.CreateDirectory(input);
+        var name = $"{Path.GetFileName(prefix)}_vorlage{Path.GetExtension(source).ToLowerInvariant()}";
         File.Copy(source, Path.Combine(input, name), overwrite: true);
         return name;
     }

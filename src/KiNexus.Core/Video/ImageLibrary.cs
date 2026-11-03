@@ -37,6 +37,13 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
                 references.Add(name);
             }
 
+            string? sourceCopy = null;
+            if (request.SourceImage is { } sourceImage && File.Exists(sourceImage))
+            {
+                sourceCopy = $"{id}_vorlage{Path.GetExtension(sourceImage).ToLowerInvariant()}";
+                File.Copy(sourceImage, Path.Combine(directory, sourceCopy), overwrite: true);
+            }
+
             var entry = new VideoEntry
             {
                 Id = id,
@@ -49,6 +56,9 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
                 BatchCount = done.ImagePaths.Count,
                 ReferenceImages = references,
                 ReferenceImagePaths = [.. references.Select(name => Path.Combine(directory, name))],
+                SourceImage = sourceCopy,
+                SourceImagePath = sourceCopy is null ? null : Path.Combine(directory, sourceCopy),
+                Strength = request.Strength,
                 Model = models.Name,
                 GenerationSeconds = done.Seconds,
                 // Gleiche Zeit plus eine Millisekunde pro Bild: So bleibt die Reihenfolge in der Galerie fest.
@@ -97,6 +107,7 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
                     VideoPath = image,
                     ThumbnailPath = image,
                     ReferenceImagePaths = [.. entry.ReferenceImages.Select(name => Path.Combine(directory, name)).Where(File.Exists)],
+                    SourceImagePath = entry.SourceImage is { } source && File.Exists(Path.Combine(directory, source)) ? Path.Combine(directory, source) : null,
                 });
             }
             catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
@@ -113,6 +124,7 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
     [
         .. new[] { ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists),
         .. entry.ReferenceImagePaths.Where(File.Exists),
+        .. entry.SourceImagePath is { } source && File.Exists(source) ? [source] : Array.Empty<string>(),
     ];
 
     private string UniqueId(string baseName)

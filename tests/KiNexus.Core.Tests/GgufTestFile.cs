@@ -8,8 +8,9 @@ internal static class GgufTestFile
     /// <param name="type">"mmproj" für einen Bild-Projektor.</param>
     /// <param name="tokenizer">false = wie ein Bild- oder Video-Modell für ComfyUI, ohne Tokenizer.</param>
     /// <param name="texts">Weitere Text-Schlüssel, z.B. "model_version" und "config" wie bei LTX-2.3.</param>
+    /// <param name="tensors">Einträge in der Liste der Tensoren (Name und Grösse), ohne Daten. Z.B. "txt_in.weight" = [7680, 3072] wie bei FLUX.2 klein 4B.</param>
     public static void Write(string path, string architecture = "gemma4", int fileType = 15, int? expertCount = 128, string? type = null, bool tokenizer = true,
-        IReadOnlyDictionary<string, string>? texts = null)
+        IReadOnlyDictionary<string, string>? texts = null, IReadOnlyDictionary<string, ulong[]>? tensors = null)
     {
         using var writer = new BinaryWriter(File.Create(path), Encoding.UTF8);
         var entries = new List<Action>
@@ -49,9 +50,21 @@ internal static class GgufTestFile
 
         writer.Write(0x46554747u); // "GGUF"
         writer.Write(3u);          // Version
-        writer.Write(0ul);         // Tensoren
+        writer.Write((ulong)(tensors?.Count ?? 0)); // Tensoren
         writer.Write((ulong)entries.Count);
         entries.ForEach(write => write());
+        foreach (var (name, shape) in tensors ?? new Dictionary<string, ulong[]>())
+        {
+            WriteRaw(writer, name);
+            writer.Write((uint)shape.Length);
+            foreach (var size in shape)
+            {
+                writer.Write(size);
+            }
+
+            writer.Write(8u);  // Typ Q8_0
+            writer.Write(0ul); // Position
+        }
     }
 
     private static void WriteKey(BinaryWriter writer, string key)

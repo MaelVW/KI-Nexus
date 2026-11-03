@@ -101,6 +101,56 @@ public static class GgufReader
         return values;
     }
 
+    /// <summary>
+    /// Die Grössen ausgewählter Tensoren (Liste der Dimensionen, wie in der Datei: die innerste zuerst). Fehlt ein Name, steht er nicht drin.
+    /// Damit erkennt man Bildmodelle, deren GGUF-Kopf kaum etwas verrät (z.B. FLUX.2 klein 4B oder 9B an der Breite von "txt_in").
+    /// </summary>
+    public static IReadOnlyDictionary<string, ulong[]> ReadTensorShapes(string path, IReadOnlyCollection<string> names)
+    {
+        using var stream = new BufferedStream(File.OpenRead(path), 1 << 20);
+        using var reader = new BinaryReader(stream, Encoding.UTF8);
+        if (reader.ReadUInt32() != Magic)
+        {
+            throw new InvalidDataException($"{Path.GetFileName(path)} ist keine GGUF-Datei.");
+        }
+
+        if (reader.ReadUInt32() < 2)
+        {
+            throw new InvalidDataException("GGUF-Version wird nicht unterstützt.");
+        }
+
+        var tensorCount = reader.ReadUInt64();
+        var count = reader.ReadUInt64();
+        for (ulong i = 0; i < count; i++)
+        {
+            _ = ReadString(reader);
+            var type = (ValueType)reader.ReadUInt32();
+            _ = type == ValueType.Array ? SkipArray(reader) : ReadValue(reader, type);
+        }
+
+        // Nach den Schlüsseln: pro Tensor Name, Anzahl Dimensionen, die Dimensionen, Typ und Position.
+        var shapes = new Dictionary<string, ulong[]>(StringComparer.Ordinal);
+        for (ulong i = 0; i < tensorCount && shapes.Count < names.Count; i++)
+        {
+            var name = ReadString(reader);
+            var dimensions = reader.ReadUInt32();
+            var shape = new ulong[dimensions];
+            for (var d = 0; d < dimensions; d++)
+            {
+                shape[d] = reader.ReadUInt64();
+            }
+
+            _ = reader.ReadUInt32(); // Typ
+            _ = reader.ReadUInt64(); // Position
+            if (names.Contains(name))
+            {
+                shapes[name] = shape;
+            }
+        }
+
+        return shapes;
+    }
+
     /// <summary>Name der Quantisierung (wie stark das Modell verkleinert wurde), z.B. 15 = Q4_K_M.</summary>
     public static string QuantizationName(int fileType) => fileType switch
     {

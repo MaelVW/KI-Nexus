@@ -73,6 +73,25 @@ public class ImageTests
     }
 
     [Fact]
+    public async Task Library_KeepsCopyOfSourceImage()
+    {
+        using var root = new TempDirectory();
+        var library = new ImageLibrary(root.Combine("images"), NullLogger<ImageLibrary>.Instance);
+        var source = root.Combine("hund.png");
+        File.WriteAllText(source, "png");
+        var request = new ImageRequest("Der Hund im Schnee", SourceImage: source, Strength: 0.7);
+
+        var entry = Assert.Single(await library.AddAsync(new ImageDone(RawImages(root, "vorlage", 1), 9), request, ImageModelSet.Flux2Klein4B, Ct));
+        File.Delete(source);
+
+        Assert.Equal("vorlage_vorlage.png", entry.SourceImage);
+        var loaded = Assert.Single(await library.LoadAllAsync(Ct));
+        Assert.True(File.Exists(loaded.SourceImagePath));
+        Assert.Equal(0.7, loaded.Strength);
+        Assert.Equal(3, library.FilesOf(loaded).Count);
+    }
+
+    [Fact]
     public async Task VideoEntries_WithoutKind_AreVideos()
     {
         using var root = new TempDirectory();

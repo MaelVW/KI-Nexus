@@ -53,12 +53,20 @@ public sealed record HfResultRow(HfModel Model)
     public bool IsLtxVideo => string.Equals(Model.GgufArchitecture, VideoModelCatalog.LtxArchitecture, StringComparison.OrdinalIgnoreCase)
                               || (Model.Tags ?? []).Any(tag => string.Equals(tag, "ltx-video", StringComparison.OrdinalIgnoreCase));
 
+    /// <summary>
+    /// Ein Bildmodell fürs Studio (FLUX.2 klein oder Z-Image): erkannt an der Architektur (flux, lumina2).
+    /// Welches genau, prüft KI-Nexus nach dem Download in der Datei.
+    /// </summary>
+    public bool IsStudioImage => ImageModelCatalog.IsImageArchitecture(Model.GgufArchitecture);
+
     /// <summary>Kurzer Text für das Etikett in der Liste.</summary>
-    public string KindBadge => IsLtxVideo ? "Videomodell (LTX)" : "kein Chat-Modell";
+    public string KindBadge => IsLtxVideo ? "Videomodell (LTX)" : IsStudioImage ? "Bildmodell (FLUX / Z-Image)" : "kein Chat-Modell";
 
     public string KindTooltip => IsLtxVideo
-        ? "Videomodell: nutzbar im Video-Tab, wenn es LTX-2.3 distilled ist. KI-Nexus prüft das nach dem Download."
-        : $"Art: {NotChatReason}. Zum Chatten nicht geeignet.";
+        ? "Videomodell: nutzbar im Studio, wenn es LTX-2.3 ist. KI-Nexus prüft das nach dem Download."
+        : IsStudioImage
+            ? "Bildmodell: nutzbar im Studio, wenn es FLUX.2 klein oder Z-Image ist. KI-Nexus prüft das nach dem Download."
+            : $"Art: {NotChatReason}. Zum Chatten nicht geeignet.";
 
     /// <summary>Für Screenreader: Die Liste liest diesen Text vor.</summary>
     public override string ToString() => Model.Id;
@@ -216,9 +224,15 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
                   + " Die Ampel ist eine Schätzung für 8192 Token Kontext.";
             if (row.IsLtxVideo)
             {
-                FilesInfo = $"Lizenz: {row.LicenseText}. Videomodell (LTX): Nach dem Download prüft KI-Nexus, ob es LTX-2.3 ist, und bietet es im Video-Tab an. "
-                    + "Nimm eine distilled-Variante (8 Schritte), dev kann der Video-Tab noch nicht. Q4_K_M ist ein guter Standard, Q2_K/Q3_K sind kleiner und etwas ungenauer. "
+                FilesInfo = $"Lizenz: {row.LicenseText}. Videomodell (LTX): Nach dem Download prüft KI-Nexus, ob es LTX-2.3 ist, und bietet es im Studio an. "
+                    + "distilled (8 Schritte) ist schnell, dev (20 Schritte) genauer. Q4_K_M ist ein guter Standard, Q2_K/Q3_K sind kleiner und etwas ungenauer. "
                     + "Die Ampel unten gilt nur für Sprachmodelle.";
+            }
+            else if (row.IsStudioImage)
+            {
+                FilesInfo = $"Lizenz: {row.LicenseText}. Bildmodell: Nach dem Download prüft KI-Nexus, ob es FLUX.2 klein (4B oder 9B) oder Z-Image ist, "
+                    + "und bietet es im Studio an. Text-Encoder und VAE kommen aus models\\image (setup-video.ps1 -Images). "
+                    + "Q8_0 ist fast verlustfrei, Q4_K_M kleiner. Die Ampel unten gilt nur für Sprachmodelle.";
             }
             else if (row.IsNotChat)
             {
@@ -265,8 +279,19 @@ public sealed partial class HuggingFaceViewModel : ObservableObject
             return;
         }
 
+        // Bildmodell fürs Studio: kurz nachfragen, es ist kein Chat-Modell.
+        if (result.IsStudioImage)
+        {
+            if (!_dialogs.Confirm("Bildmodell herunterladen",
+                    $"{result.Model.Id} ({row.Label}) ist ein Bildmodell fürs Studio, kein Chat-Modell. Der Download braucht {row.SizeText}. "
+                    + "Dazu braucht es Text-Encoder und VAE (einmal, setup-video.ps1 -Images). Herunterladen?", "Herunterladen"))
+            {
+                return;
+            }
+        }
+
         // Videomodell (LTX): für den Video-Tab. Trotzdem nachfragen, es sind viele Gigabyte.
-        if (result.IsLtxVideo)
+        else if (result.IsLtxVideo)
         {
             if (!_dialogs.Confirm("Videomodell herunterladen",
                     $"{result.Model.Id} ({row.Label}) ist ein Videomodell für den Video-Tab, kein Chat-Modell. Der Download braucht {row.SizeText}. "

@@ -103,8 +103,10 @@
                             <TextBlock Text="Auftrag" Style="{StaticResource StepTitle}" />
                             <StackPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}">
                                 <TextBlock Text="Bildmodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
-                                <ComboBox ItemsSource="{Binding ImageModels}" SelectedItem="{Binding SelectedImageModel}" DisplayMemberPath="Name" Margin="0,0,0,12"
+                                <ComboBox ItemsSource="{Binding ImageModels}" SelectedItem="{Binding SelectedImageChoice}"
                                           AutomationProperties.Name="Bildmodell" AutomationProperties.AutomationId="ImageModel" />
+                                <TextBlock Text="{Binding ImageModelNote}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,12"
+                                           AutomationProperties.AutomationId="ImageModelNote" />
                             </StackPanel>
                             <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Videomodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
@@ -143,6 +145,38 @@
                                               ToolTip="Alle Bilder entstehen in einem Durchgang, mit demselben Prompt und Seed, aber verschieden." />
                                 </StackPanel>
                             </WrapPanel>
+
+                            <!-- Bild: Vorlage (Bild zu Bild) -->
+                            <StackPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12">
+                                <TextBlock Text="Vorlage (optional, Bild zu Bild)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <Grid>
+                                    <Grid.ColumnDefinitions>
+                                        <ColumnDefinition Width="Auto" />
+                                        <ColumnDefinition Width="*" />
+                                    </Grid.ColumnDefinitions>
+                                    <Border Width="96" Height="72" Background="Black" CornerRadius="{StaticResource Radius.Small}" ClipToBounds="True" Margin="0,0,10,0"
+                                            Visibility="{Binding HasSource, Converter={StaticResource BoolToVisibility}}">
+                                        <Image Source="{Binding SourceImagePath, Converter={StaticResource Thumbnail}}" Stretch="Uniform" />
+                                    </Border>
+                                    <StackPanel Grid.Column="1">
+                                        <WrapPanel>
+                                            <Button Content="Bild wählen …" Command="{Binding PickSourceCommand}" Margin="0,0,8,0"
+                                                    AutomationProperties.AutomationId="ImagePickSource" />
+                                            <Button Style="{StaticResource Button.Ghost}" Content="Entfernen" Command="{Binding ClearSourceCommand}"
+                                                    Visibility="{Binding HasSource, Converter={StaticResource BoolToVisibility}}" />
+                                        </WrapPanel>
+                                        <TextBlock Text="{Binding SourceImagePath}" Style="{StaticResource Text.Hint}" TextTrimming="CharacterEllipsis" Margin="0,4,0,0"
+                                                   AutomationProperties.AutomationId="ImageSource" />
+                                    </StackPanel>
+                                </Grid>
+                                <StackPanel Visibility="{Binding HasSource, Converter={StaticResource BoolToVisibility}}" Margin="0,8,0,0">
+                                    <Slider Minimum="0.2" Maximum="1" SmallChange="0.05" LargeChange="0.1" TickFrequency="0.05" IsSnapToTickEnabled="True"
+                                            Value="{Binding Strength}" AutomationProperties.Name="Stärke" AutomationProperties.AutomationId="ImageStrength" />
+                                    <TextBlock Text="{Binding StrengthText}" Style="{StaticResource Text.Hint}" Margin="0,2,0,0"
+                                               AutomationProperties.AutomationId="ImageStrengthText" />
+                                </StackPanel>
+                                <TextBlock Text="{Binding SourceHint}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,0" />
+                            </StackPanel>
 
                             <!-- Bild: Referenzbilder -->
                             <StackPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12">
@@ -350,6 +384,9 @@
                             <Button Style="{StaticResource Button.Primary}" Content="Als Startbild für ein Video" Command="{Binding UseAsStartImageCommand}" Margin="0,0,8,8"
                                     Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="StudioUseAsStart"
                                     ToolTip="Wechselt auf Video. Das Bild wird das erste Bild des Videos." />
+                            <Button Content="Als Vorlage für ein Bild" Command="{Binding UseAsSourceCommand}" Margin="0,0,8,8"
+                                    Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="StudioUseAsSource"
+                                    ToolTip="Wechselt auf Bild. Das neue Bild entsteht aus diesem (Bild zu Bild, mit Stärke)." />
                             <Button Content="Als Referenz für ein Bild" Command="{Binding UseAsReferenceCommand}" Margin="0,0,8,8"
                                     Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="StudioUseAsReference"
                                     ToolTip="Wechselt auf Bild. Das neue Bild orientiert sich an diesem (z.B. dieselbe Person oder derselbe Ort)." />

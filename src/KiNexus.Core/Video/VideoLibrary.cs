@@ -32,6 +32,13 @@ public sealed record VideoEntry
 
     [JsonIgnore] public IReadOnlyList<string> ReferenceImagePaths { get; init; } = [];
 
+    /// <summary>Bild zu Bild: Dateiname der Kopie der Vorlage in data/images, z.B. "…_vorlage.png", und die Stärke. Null = ohne Vorlage.</summary>
+    public string? SourceImage { get; init; }
+
+    public double Strength { get; init; } = ImageRequest.DefaultStrength;
+
+    [JsonIgnore] public string? SourceImagePath { get; init; }
+
     public required string Prompt { get; init; }
     public int Width { get; init; }
     public int Height { get; init; }

@@ -127,6 +127,65 @@ Jede Referenz kostet also ca. 5 s. VRAM blieb bei 7.1 GB.
 
 **Abnahme in der App** (3. November 2026, Release-Build): Hütten-Bild in der Galerie gewählt, „Als Referenz für ein Bild“, Prompt „dieselbe Hütte im Sommer, Wiese, Kühe“. **21 s** inkl. Start von ComfyUI. Es ist dieselbe Hütte (Fenster, Kamin, Balkon), jetzt auf einer Sommerwiese mit Kühen. Nur das Dach hat noch Schnee. In der Galerie steht „1 Ref.“, die Kopie `…_ref1.png` liegt daneben.
 
+### Z-Image Turbo und Referenzen (geprüft)
+
+Test `python/image/zimage_ref_test.py`, Hund aus B0, Prompt „der Hund mit rotem Strickschal im Schnee“:
+
+| Versuch | Zeit | Ergebnis |
+|---|---|---|
+| `ReferenceLatent` wie bei FLUX.2 | 42 s | Schal ja, aber der ganze Hintergrund voller Klötzchen-Artefakte, kein Schnee. **Unbrauchbar.** |
+| Bild zu Bild, Stärke 0.6 | 18 s | Fast das Original, nur ein winziger Schal. |
+| Bild zu Bild, Stärke 0.8 | 18 s | Derselbe Hund mit rotem Schal, gleicher Bildaufbau, aber weiter Wiese statt Schnee. |
+
+**Fazit:** Echte Referenzen (Person oder Ort in ein neues Bild übernehmen) kann Turbo nicht, es wurde dafür nicht trainiert. ComfyUI kennt den Weg zwar (für die Edit-Variante „Z-Image Omni“), mit Turbo gibt es aber Artefakte. Was geht: **Bild zu Bild** (siehe nächstes Kapitel).
+
+## Vorlage: Bild zu Bild
+
+Ein Bild ist der **Ausgangspunkt**, nicht nur eine Orientierung. Aufbau, Pose und Farben bleiben, je nach **Stärke** ändert sich mehr oder weniger. Geht mit **FLUX.2 klein und Z-Image**, auch zusammen mit Referenzbildern (nur FLUX).
+
+- Ablauf: `LoadImage` → `ImageScale` (Format des Auftrags, Mitte zugeschnitten) → `VAEEncode` → `RepeatLatentBatch` (Anzahl Bilder) ersetzt das leere Latent.
+- FLUX.2 klein: `SplitSigmasDenoise` schneidet die Rausch-Stufen zu (Stärke 0.8 = die letzten 80 %). Z-Image: `denoise` im KSampler.
+- Stärke 0.2 bis 1.0, Standard 0.8. Im Studio ein Schieber mit Erklärung („Pose und Aufbau bleiben, Umgebung darf neu sein“ usw.).
+- Im Prompt das **ganze neue Bild** beschreiben, nicht nur die Änderung.
+- Neu im Studio: Bereich „Vorlage (optional, Bild zu Bild)“ und an jedem Bild der Galerie **„Als Vorlage für ein Bild“**. Die Galerie behält eine Kopie (`<id>_vorlage.png`) und die Stärke.
+
+**Test ohne App** (`python/image/img2img_test.py`, FLUX.2 klein, Hund aus B0, „mit rotem Schal im Schnee“):
+
+| Stärke | Zeit | Ergebnis |
+|---|---|---|
+| 0.6 | 9 s | Wiese bleibt, der Hund bekommt einen Schal. |
+| 0.8, 2 Bilder | 7.5 s | Schnee und Schal, dieselbe Pose. Zwei verschiedene Varianten. |
+
+Z-Image mit 0.8: derselbe Hund mit Schal, aber die Wiese bleibt (18 s). FLUX.2 klein setzt den Prompt bei gleicher Stärke stärker um.
+
+**Über die Schnittstelle:** Der echte Testlauf macht als dritten Auftrag Bild zu Bild (Stärke 0.7, 2 Bilder): bestanden.
+
+**Abnahme in der App** (3. November 2026, Release-Build):
+
+- Auswahl „Bildmodell“ zeigt „FLUX.2 klein 4B (Q8_0)“ und „Z-Image Turbo (Q8_0)“, beide aus dem Katalog erkannt, mit Hinweis. Bei Z-Image sagt der Hinweis bei den Referenzen, dass es keine kann.
+- Hütten-Bild → „Als Vorlage für ein Bild“, Stärke 0.8, Prompt „Hütte im Herbst, goldene Lärchen, kein Schnee“, 2 Bilder: **18 s** inkl. Start von ComfyUI. Dieselbe Hütte aus demselben Blickwinkel, jetzt mit goldenen Lärchen. **Der Schnee blieb** trotz „kein Schnee“: Bei 0.8 bleiben die Farben der Vorlage stark. Darum heisst der Text am Schieber jetzt „Pose und Aufbau bleiben, Farben meist auch“. Für eine andere Jahreszeit braucht es 0.9 bis 1.0.
+- Bei FLUX mit Vorlage rechnet ComfyUI nur einen Teil der Schritte (3 von 4 bei 0.8). Die Restzeit rechnet jetzt damit.
+- Nicht in der App geprüft: Create-Hub mit einem eigenen Bildmodell (es liegt keines in `models/`) und die Hugging-Face-Suche nach Bildmodellen.
+
+## Eigene Bildmodelle (Create-Hub und Hugging Face)
+
+Bildmodelle, die man selbst lädt (Hugging-Face-Suche oder Import), erscheinen im Studio, wenn das Studio sie rechnen kann. Der GGUF-Kopf dieser Modelle verrät fast nichts (nur `general.architecture`), darum liest `ImageModelCatalog` zusätzlich die **Grösse einzelner Tensoren** (`GgufReader.ReadTensorShapes`):
+
+| Architektur | Kennzeichen | Erkannt als | Text-Encoder |
+|---|---|---|---|
+| `flux` | `double_stream_modulation_img` da, `txt_in` 7680 breit | FLUX.2 klein 4B | `qwen_3_4b.safetensors` |
+| `flux` | `double_stream_modulation_img` da, `txt_in` 12288 breit | FLUX.2 klein 9B | `qwen_3_8b*.safetensors` (muss in `models\image\text_encoders` liegen, z.B. von `Comfy-Org/Flux-2-Klein-9B`) |
+| `flux` | `txt_in` 15360 breit | FLUX.2 dev (32B): zu gross, nicht nutzbar | – |
+| `flux` | ohne `double_stream_modulation_img` | FLUX.1: braucht T5 und CLIP, nicht nutzbar | – |
+| `lumina2` | `cap_embedder` 2560 breit | Z-Image (Turbo, wenn „turbo“ im Namen steht) | `qwen_3_4b.safetensors` |
+| `lumina2` | andere Breite | Lumina-Image 2: nicht nutzbar | – |
+
+- Gemessen an den zwei echten Dateien aus B0 (Test `RealFiles_AreRecognised`): beide richtig erkannt.
+- **Create-Hub:** Bildmodelle zeigen „Bildmodell: …“ und den Knopf **„Im Studio nutzen“** (gilt jetzt auch für Videomodelle). Nicht nutzbare zeigen den Grund.
+- **Hugging Face:** Etikett „Bildmodell (FLUX / Z-Image)“, eigener Hinweis und eigene Rückfrage vor dem Download. Nach dem Download: Meldung mit „Im Studio nutzen“.
+- Text-Encoder und VAE kommen immer aus `models\image` (von `setup-video.ps1 -Images`). ComfyUI bekommt den Ordner des Modells in `kinexus-paths.yaml` dazu.
+- **FLUX.2 klein 9B** ist eingebaut, aber nicht getestet (Lizenz: FLUX Non-Commercial, nur privat).
+
 ## Noch nicht geprüft
 
 - Grössere Formate als 1216×832 und vier Bilder in 1024×1024 auf einmal (Speicher).

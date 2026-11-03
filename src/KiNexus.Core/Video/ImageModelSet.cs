@@ -44,7 +44,26 @@ public sealed record ImageModelSet(
         "ae.safetensors",
         Steps: 8);
 
+    /// <summary>
+    /// FLUX.2 klein 9B (Lizenz: FLUX Non-Commercial), 4 Schritte. Braucht Qwen3 8B statt 4B als Text-Encoder.
+    /// Nicht eingebaut und nicht gemessen: Das Studio bietet es an, wenn es in models/ liegt.
+    /// </summary>
+    public static ImageModelSet Flux2Klein9B { get; } = new(
+        "FLUX.2 klein 9B",
+        ImageModelFamily.Flux2Klein,
+        "flux-2-klein-9b.gguf",
+        "qwen_3_8b_fp8mixed.safetensors",
+        "flux2-vae.safetensors",
+        Steps: 4);
+
+    /// <summary>Die eingebauten Modelle (setup-video.ps1 -Images lädt nur das erste).</summary>
     public static IReadOnlyList<ImageModelSet> Known { get; } = [Flux2Klein4B, ZImageTurbo];
+
+    /// <summary>
+    /// Ordner des Modells, wenn es nicht in models/image/diffusion_models liegt (z.B. models/&lt;ordner&gt;/ von Hugging Face).
+    /// Text-Encoder und VAE kommen trotzdem aus models/image.
+    /// </summary>
+    public string? ModelFolder { get; init; }
 
     /// <summary>Kann sich das Modell an Referenzbildern orientieren? FLUX.2 klein ja (ReferenceLatent), Z-Image Turbo nicht.</summary>
     public bool SupportsReferences => Family == ImageModelFamily.Flux2Klein;
@@ -52,7 +71,7 @@ public sealed record ImageModelSet(
     /// <summary>Wo jede Datei liegen muss. Die erste ist das Modell selbst.</summary>
     public IReadOnlyList<string> Files(string imageModelsDirectory) =>
     [
-        Path.Combine(imageModelsDirectory, "diffusion_models", Model),
+        Path.Combine(ModelFolder ?? Path.Combine(imageModelsDirectory, "diffusion_models"), Model),
         Path.Combine(imageModelsDirectory, "text_encoders", TextEncoder),
         Path.Combine(imageModelsDirectory, "vae", Vae),
     ];

@@ -203,6 +203,9 @@ public sealed partial class CreateHubViewModel : TabViewModel
 
     public IReadOnlyList<LocalModel> LibraryScan() => _library.Scan();
 
+    /// <summary>Der Ordner models/ (Bildmodelle suchen dort in models/image nach Text-Encoder und VAE).</summary>
+    public string ModelsDirectory => _library.Directory;
+
     /// <summary>Die Ampel für eine Modellgrösse, gemessen an diesem Laptop.</summary>
     public FitEstimate Estimate(long modelBytes, long extraBytes, int contextLength)
     {

@@ -126,7 +126,7 @@
                                     <TextBlock Foreground="{StaticResource Brush.Error}" FontSize="{StaticResource FontSize.Small}" TextWrapping="Wrap"
                                                Text="{Binding KindWarning}" Visibility="{Binding HasKindWarning, Converter={StaticResource BoolToVisibility}}" />
                                     <TextBlock Foreground="{DynamicResource Brush.Accent}" FontSize="{StaticResource FontSize.Small}" TextWrapping="Wrap"
-                                               Text="{Binding VideoNote}" Visibility="{Binding IsUsableVideo, Converter={StaticResource BoolToVisibility}}" />
+                                               Text="{Binding VideoNote}" Visibility="{Binding IsUsableInStudio, Converter={StaticResource BoolToVisibility}}" />
                                 </StackPanel>
                                 <!-- Die Ampel gilt für Sprachmodelle. Für Videos schätzt der Video-Tab selbst. -->
                                 <ContentControl Grid.Column="1" Content="{Binding Fit}" Focusable="False" VerticalAlignment="Center"
@@ -143,11 +143,11 @@
                                             Visibility="{Binding IsLanguageModel, Converter={StaticResource BoolToVisibility}}"
                                             Command="{Binding DataContext.TestLoadCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
                                             CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='Ladetest für {0}'}" />
-                                    <Button Style="{StaticResource RowButton}" ToolTip="Wechselt in den Video-Tab und wählt dort dieses Modell."
-                                            Visibility="{Binding IsUsableVideo, Converter={StaticResource BoolToVisibility}}"
+                                    <Button Style="{StaticResource RowButton}" ToolTip="Wechselt ins Studio und wählt dort dieses Modell."
+                                            Visibility="{Binding IsUsableInStudio, Converter={StaticResource BoolToVisibility}}"
                                             Command="{Binding DataContext.UseInVideoCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
-                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='{}{0} im Video-Tab nutzen'}">
-                                        <TextBlock Text="Im Video-Tab nutzen" />
+                                            CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='{}{0} im Studio nutzen'}">
+                                        <TextBlock Text="Im Studio nutzen" />
                                     </Button>
                                     <Button Style="{StaticResource DeleteButton}" Margin="8,0,0,0" ToolTip="Ordner öffnen"
                                             Command="{Binding DataContext.OpenFolderCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"

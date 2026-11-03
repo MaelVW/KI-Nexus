@@ -6,6 +6,17 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.11.0] – 2026-11-03 – Bild: eigene Bildmodelle, Vorlage (Bild zu Bild)
+
+### Neu
+
+- **Eigene Bildmodelle im Studio:** FLUX.2 klein (4B und 9B) und Z-Image, die man selbst lädt (Hugging Face oder Import), erscheinen in der Auswahl. Erkannt am GGUF-Kopf und an der Grösse einzelner Tensoren (`ImageModelCatalog`, `GgufReader.ReadTensorShapes`). Nicht nutzbare Modelle (FLUX.1, FLUX.2 dev, Lumina) zeigen den Grund.
+- Create-Hub: „Im Studio nutzen“ für Bild- und Videomodelle. Hugging Face: Etikett „Bildmodell (FLUX / Z-Image)“ und eigene Rückfrage.
+- **Vorlage (Bild zu Bild):** Ein Bild ist der Ausgangspunkt, mit Schieber für die Stärke (0.2–1.0, Standard 0.8). Geht mit FLUX.2 klein und Z-Image. Im Studio „Vorlage (optional)“ und an jedem Bild der Galerie „Als Vorlage für ein Bild“.
+- Geprüft: Z-Image Turbo kann keine echten Referenzbilder (Artefakte), Bild zu Bild aber schon (`docs/11-Bild.md`).
+- Abnahme in der App: Modellauswahl mit beiden Modellen, Hütte als Vorlage (Herbst) in 18 s für 2 Bilder.
+- 457 Unit-Tests, echter Lauf mit Referenz und Vorlage bestanden.
+
 ## [1.10.0] – 2026-11-03 – Bild: Referenzbilder
 
 ### Neu

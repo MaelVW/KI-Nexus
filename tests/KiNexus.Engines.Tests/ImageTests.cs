@@ -97,6 +97,51 @@ public class ImageTests
         Assert.Throws<ArgumentException>(() => ComfyWorkflowBuilder.BuildImage(request, ImageModelSet.ZImageTurbo, "x", ["x_ref1.png"]));
     }
 
+    [Theory]
+    [InlineData(ImageModelFamily.Flux2Klein)]
+    [InlineData(ImageModelFamily.ZImageTurbo)]
+    public void Builder_StartsFromSourceImage(ImageModelFamily family)
+    {
+        using var root = new TempDirectory();
+        var source = root.Combine("vorlage.png");
+        File.WriteAllText(source, "bild");
+        var models = family == ImageModelFamily.Flux2Klein ? ImageModelSet.Flux2Klein4B : ImageModelSet.ZImageTurbo;
+        var request = new ImageRequest("A dog in the snow.", 1216, 832, Count: 3, SourceImage: source, Strength: 0.65);
+
+        var workflow = ComfyWorkflowBuilder.BuildImage(request, models, "bilder/test", sourceName: "x_vorlage.png");
+
+        Assert.Equal("x_vorlage.png", Inputs(workflow, "KN_Source")["image"]!.GetValue<string>());
+        Assert.Equal(1216, Inputs(workflow, "KN_SourceScale")["width"]!.GetValue<int>());
+        Assert.Equal("center", Inputs(workflow, "KN_SourceScale")["crop"]!.GetValue<string>());
+        Assert.Equal(3, Inputs(workflow, "KN_SourceLatent")["amount"]!.GetValue<int>());
+        Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_SourceLatent"), Inputs(workflow, "KN_Denoise")["latent_image"]![0]!.GetValue<string>());
+        if (family == ImageModelFamily.Flux2Klein)
+        {
+            Assert.Equal(0.65, Inputs(workflow, "KN_Strength")["denoise"]!.GetValue<double>());
+            Assert.Equal(ComfyWorkflowBuilder.NodeId(workflow, "KN_Strength"), Inputs(workflow, "KN_Denoise")["sigmas"]![0]!.GetValue<string>());
+            Assert.Equal(1, Inputs(workflow, "KN_Denoise")["sigmas"]![1]!.GetValue<int>());
+        }
+        else
+        {
+            Assert.Equal(0.65, Inputs(workflow, "KN_Denoise")["denoise"]!.GetValue<double>());
+        }
+
+        AssertAllLinksExist(workflow);
+    }
+
+    [Fact]
+    public void Request_ChecksSourceImage()
+    {
+        using var root = new TempDirectory();
+        var source = root.Combine("vorlage.png");
+        File.WriteAllText(source, "bild");
+
+        Assert.Null(new ImageRequest("x", SourceImage: source).Problem());
+        Assert.Contains("zwischen 0.2 und 1.0", new ImageRequest("x", SourceImage: source, Strength: 0.1).Problem(), StringComparison.Ordinal);
+        Assert.Contains("gibt es nicht mehr", new ImageRequest("x", SourceImage: root.Combine("weg.png")).Problem(), StringComparison.Ordinal);
+        Assert.Null(new ImageRequest("x", Strength: 0.1).Problem()); // Ohne Vorlage zählt die Stärke nicht.
+    }
+
     [Fact]
     public void Request_ChecksReferenceImages()
     {
@@ -191,6 +236,12 @@ public class ImageTests
             ReferenceImages: [done.ImagePaths[0]]);
         var second = await Collect(backend.GenerateImageAsync(withReference, models, TestContext.Current.CancellationToken));
         Assert.True(Assert.IsType<ImageDone>(second[^1]).ImagePaths.Count == 1, second[^1].ToString());
+
+        // Dritter Auftrag: Bild zu Bild aus dem ersten Bild, zwei Varianten.
+        var fromSource = new ImageRequest("A cup of tea on a wooden table, morning light, photo.", 768, 768, Count: 2, Seed: 5,
+            SourceImage: done.ImagePaths[0], Strength: 0.7);
+        var third = await Collect(backend.GenerateImageAsync(fromSource, models, TestContext.Current.CancellationToken));
+        Assert.True(third[^1] is ImageDone { ImagePaths.Count: 2 }, third[^1].ToString());
         await backend.FreeMemoryAsync(TestContext.Current.CancellationToken);
     }
 

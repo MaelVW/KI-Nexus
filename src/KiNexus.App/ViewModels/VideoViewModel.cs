@@ -73,7 +73,7 @@ public sealed record ImageJob(ImageRequest Request, ImageModelSet Models) : Stud
 {
     /// <summary>z.B. "2 Bilder · 1024×1024 · FLUX.2 klein 4B (Q8_0) · A golden retriever …".</summary>
     public override string Label => string.Create(CultureInfo.InvariantCulture,
-        $"{(Request.Count == 1 ? "1 Bild" : $"{Request.Count} Bilder")} · {Request.Width}×{Request.Height}{References} · {Models.Name} · {Short(Request.Prompt)}");
+        $"{(Request.Count == 1 ? "1 Bild" : $"{Request.Count} Bilder")} · {Request.Width}×{Request.Height}{References}{(Request.SourceImage is null ? "" : $" · Vorlage {Request.Strength:0.00}")} · {Models.Name} · {Short(Request.Prompt)}");
 
     private string References => Request.ReferenceImages?.Count switch
     {
@@ -82,7 +82,10 @@ public sealed record ImageJob(ImageRequest Request, ImageModelSet Models) : Stud
         var n => $" · {n} Referenzen",
     };
 
-    public override int Steps => Models.Steps;
+    /// <summary>Mit Vorlage rechnet FLUX.2 nur einen Teil der Stufen (z.B. 3 von 4 bei Stärke 0.8), Z-Image immer alle.</summary>
+    public override int Steps => Request.SourceImage is not null && Models.Family == ImageModelFamily.Flux2Klein
+        ? Math.Max(1, (int)Math.Round(Models.Steps * Request.Strength, MidpointRounding.ToEven))
+        : Models.Steps;
 }
 
 /// <summary>Eine Länge zur Auswahl, z.B. "4 Sekunden".</summary>
@@ -153,7 +156,6 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         _selectedFormat = Formats[0];
         _selectedLength = Lengths[2];
         _selectedImageFormat = ImageFormats[0];
-        _selectedImageModel = ImageModelSet.Known[0];
         _backend.Changed += (_, _) => _ui.Post(_ => BackendStatus = Describe(_backend), null);
         _backendStatus = Describe(_backend);
     }
@@ -185,7 +187,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     public async Task ActivateAsync()
     {
         UpdateFit();
-        RefreshImageModels();
+        await RefreshImageModelsAsync();
         await RefreshModelsAsync();
         if (_activated)
         {
@@ -233,19 +235,81 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     // ----------------------------------------------------------- Bild-Auftrag
 
-    /// <summary>Die Bildmodelle, deren Dateien da sind. Das Standardmodell steht immer in der Liste (sonst hilft die Einrichtung).</summary>
-    public ObservableCollection<ImageModelSet> ImageModels { get; } = [];
+    /// <summary>
+    /// Die Bildmodelle: die eingebauten in models/image und passende Grundmodelle aus models/ (z.B. von Hugging Face),
+    /// erkannt im GGUF-Kopf (<see cref="ImageModelCatalog"/>).
+    /// </summary>
+    public ObservableCollection<ImageModelChoice> ImageModels { get; } = [];
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SelectedImageModel), nameof(ImageModelNote))]
     [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(EnqueueCommand))]
-    private ImageModelSet _selectedImageModel;
+    private ImageModelChoice? _selectedImageChoice;
 
-    partial void OnSelectedImageModelChanged(ImageModelSet value)
+    /// <summary>Dateien und Einstellungen des gewählten Bildmodells. Ohne Wahl: FLUX.2 klein 4B (dann hilft die Einrichtung).</summary>
+    public ImageModelSet SelectedImageModel => SelectedImageChoice?.Set ?? ImageModelSet.Flux2Klein4B;
+
+    public string ImageModelNote => SelectedImageChoice?.Note
+        ?? "Noch kein Bildmodell gefunden. Richte Bilder mit scripts\\setup-video.ps1 -Images ein oder lade FLUX.2 klein oder Z-Image im Create-Hub.";
+
+    partial void OnSelectedImageChoiceChanged(ImageModelChoice? value)
     {
         CheckSetup();
         OnPropertyChanged(nameof(ReferencesSupported));
         OnPropertyChanged(nameof(ReferenceHint));
         AddReferenceCommand.NotifyCanExecuteChanged();
+    }
+
+    // ----------------------------------------------------------- Vorlage: Bild zu Bild (nur Bild)
+
+    /// <summary>Bild zu Bild: Ausgangspunkt für das neue Bild. Null = aus dem Nichts.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasSource))]
+    private string? _sourceImagePath;
+
+    public bool HasSource => SourceImagePath is not null;
+
+    /// <summary>0.2 = kaum verändert, 1.0 = ganz neu.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StrengthText))]
+    private double _strength = ImageRequest.DefaultStrength;
+
+    public string StrengthText => string.Create(CultureInfo.InvariantCulture, $"Stärke {Strength:0.00}") + Strength switch
+    {
+        < 0.5 => ": kleine Änderungen",
+        < 0.75 => ": Motiv und Umgebung bleiben, Details ändern sich",
+        < 0.9 => ": Pose und Aufbau bleiben, Farben meist auch",
+        _ => ": grosse Änderungen (z.B. andere Jahreszeit), nur der grobe Aufbau bleibt",
+    };
+
+    public string SourceHint =>
+        "Das Bild wird auf das Format zugeschnitten (Mitte) und ist der Ausgangspunkt. Beschreib im Prompt das ganze neue Bild, nicht nur die Änderung. "
+        + "Anders als Referenzbilder geht das auch mit Z-Image.";
+
+    [RelayCommand]
+    private void PickSource()
+    {
+        if (_dialogs.PickImages("Vorlage für das Bild wählen").FirstOrDefault() is { } image)
+        {
+            SourceImagePath = image;
+        }
+    }
+
+    [RelayCommand]
+    private void ClearSource() => SourceImagePath = null;
+
+    /// <summary>Das gewählte Bild wird Vorlage (Bild zu Bild). Das Studio wechselt auf Bild.</summary>
+    [RelayCommand(CanExecute = nameof(HasSelectedImage))]
+    private void UseAsSource()
+    {
+        if (SelectedVideo is not { IsImage: true } image)
+        {
+            return;
+        }
+
+        Mode = StudioMode.Image;
+        SourceImagePath = image.VideoPath;
+        ShowStatus("Das Bild ist jetzt die Vorlage. Beschreib links das neue Bild, wähle die Stärke und klick auf „Bilder erzeugen“.");
     }
 
     // ----------------------------------------------------------- Referenzbilder (nur Bild)
@@ -316,17 +380,31 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     private string ImageModelsDirectory => Path.Combine(_paths.Resolve(_settings.Current.Paths.Models), "image");
 
-    private void RefreshImageModels()
+    private async Task RefreshImageModelsAsync()
     {
         var directory = ImageModelsDirectory;
-        var keep = SelectedImageModel;
-        ImageModels.Clear();
-        foreach (var set in ImageModelSet.Known.Where((set, index) => index == 0 || set.MissingFiles(directory).Count == 0))
+        IReadOnlyList<ImageModelChoice> found;
+        try
         {
-            ImageModels.Add(set);
+            found = await Task.Run(() => ImageModelCatalog.Find(directory, _models.Scan()));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Bildmodelle konnten nicht gesucht werden.");
+            found = [];
         }
 
-        SelectedImageModel = ImageModels.FirstOrDefault(m => m == keep) ?? ImageModels[0];
+        var keep = SelectedImageChoice?.ModelPath;
+        ImageModels.Clear();
+        foreach (var choice in found)
+        {
+            ImageModels.Add(choice);
+        }
+
+        SelectedImageChoice = ImageModels.FirstOrDefault(m => keep is not null && SamePath(m.ModelPath, keep))
+            ?? ImageModels.FirstOrDefault(m => m.IsUsable)
+            ?? ImageModels.FirstOrDefault();
+        CheckSetup();
     }
 
     // ----------------------------------------------------------- Videomodell
@@ -352,12 +430,21 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         UpdateFit();
     }
 
-    /// <summary>Aus dem Create-Hub: in den Video-Tab wechseln und dieses Modell wählen.</summary>
+    /// <summary>Aus dem Create-Hub: ins Studio wechseln und dieses Modell wählen (Video- oder Bildmodell).</summary>
     public async Task SelectModelAsync(string modelPath)
     {
+        await RefreshImageModelsAsync();
+        if (ImageModels.FirstOrDefault(m => SamePath(m.ModelPath, modelPath)) is { } image)
+        {
+            Mode = StudioMode.Image;
+            SelectedImageChoice = image;
+            return;
+        }
+
         await RefreshModelsAsync();
         if (VideoModels.FirstOrDefault(m => SamePath(m.ModelPath, modelPath)) is { } choice)
         {
+            Mode = StudioMode.Video;
             SelectedModel = choice;
         }
     }
@@ -426,7 +513,9 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     [RelayCommand]
     private void CheckSetup() => SetupProblem = IsImageMode
-        ? _backend.SetupProblem(SelectedImageModel) ?? ""
+        ? SelectedImageChoice is { IsUsable: false } unusableImage
+            ? unusableImage.Note + " Wähle oben ein anderes Bildmodell."
+            : _backend.SetupProblem(SelectedImageModel) ?? ""
         : SelectedModel is { IsUsable: false } unusable
             ? unusable.Note + " Wähle oben ein anderes Videomodell."
             : _backend.SetupProblem(Models) ?? "";
@@ -693,7 +782,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     private bool CanGenerate => !IsGenerating && !_queueRunning && CanCreateJob;
 
-    private bool CanCreateJob => !HasSetupProblem && Prompt.Trim().Length > 0 && (IsImageMode || SelectedModel is not { IsUsable: false });
+    private bool CanCreateJob => !HasSetupProblem && Prompt.Trim().Length > 0
+        && (IsImageMode ? SelectedImageChoice is not { IsUsable: false } : SelectedModel is not { IsUsable: false });
 
     /// <summary>Sofort erzeugen: Der Auftrag kommt an den Anfang der Warteschlange.</summary>
     [RelayCommand(CanExecute = nameof(CanGenerate))]
@@ -741,7 +831,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         if (IsImageMode)
         {
             var references = ReferencesSupported && ReferenceImages.Count > 0 ? ReferenceImages.ToList() : null;
-            var image = new ImageRequest(Prompt.Trim(), SelectedImageFormat.Width, SelectedImageFormat.Height, ImageCount, seed, references);
+            var image = new ImageRequest(Prompt.Trim(), SelectedImageFormat.Width, SelectedImageFormat.Height, ImageCount, seed, references,
+                SourceImagePath, Math.Round(Strength, 2));
             if (image.Problem() is { } imageProblem)
             {
                 ShowStatus(imageProblem, isError: true);
@@ -1026,7 +1117,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedInfo), nameof(HasSelectedImage), nameof(HasSelectedVideo))]
     [NotifyCanExecuteChangedFor(nameof(ReusePromptCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand), nameof(DeleteVideoCommand))]
-    [NotifyCanExecuteChangedFor(nameof(UseAsStartImageCommand), nameof(UseAsReferenceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UseAsStartImageCommand), nameof(UseAsReferenceCommand), nameof(UseAsSourceCommand))]
     private VideoEntry? _selectedVideo;
 
     public bool HasSelection => SelectedVideo is not null;
@@ -1086,7 +1177,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     {
         null => "",
         { IsImage: true } v => string.Create(CultureInfo.InvariantCulture,
-            $"Bild · {v.Width}×{v.Height}{(v.BatchCount > 1 ? $" · {v.BatchIndex + 1} von {v.BatchCount}" : "")}{(v.ReferenceImages.Count > 0 ? $" · {v.ReferenceImages.Count} Ref." : "")} · Seed {v.Seed} · {v.Model} · erzeugt in {Duration(v.GenerationSeconds)} · {v.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}"),
+            $"Bild · {v.Width}×{v.Height}{(v.BatchCount > 1 ? $" · {v.BatchIndex + 1} von {v.BatchCount}" : "")}{(v.ReferenceImages.Count > 0 ? $" · {v.ReferenceImages.Count} Ref." : "")}{(v.SourceImage is null ? "" : $" · Vorlage {v.Strength:0.00}")} · Seed {v.Seed} · {v.Model} · erzeugt in {Duration(v.GenerationSeconds)} · {v.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}"),
         var v => string.Create(CultureInfo.InvariantCulture,
             $"{v.Width}×{v.Height} · {v.Seconds:0.0} s · {(v.WithAudio ? "mit Ton" : "ohne Ton")} · Seed {v.Seed} · erzeugt in {Duration(v.GenerationSeconds)} · {v.CreatedAt.ToLocalTime():dd.MM.yyyy HH:mm}"),
     };
@@ -1158,7 +1249,9 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
             Prompt = video.Prompt;
             SelectedImageFormat = ImageFormats.FirstOrDefault(f => f.Width == video.Width && f.Height == video.Height) ?? SelectedImageFormat;
             ImageCount = Math.Clamp(video.BatchCount, 1, ImageRequest.MaxCount);
-            SelectedImageModel = ImageModels.FirstOrDefault(m => m.Name == video.Model) ?? SelectedImageModel;
+            SelectedImageChoice = ImageModels.FirstOrDefault(m => m.IsUsable && m.Name == video.Model) ?? SelectedImageChoice;
+            SourceImagePath = video.SourceImagePath;
+            Strength = video.SourceImagePath is null ? Strength : video.Strength;
             ReferenceImages.Clear();
             foreach (var reference in video.ReferenceImagePaths)
             {
@@ -1245,9 +1338,9 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         }
 
         Mode = StudioMode.Image;
-        if (!SelectedImageModel.SupportsReferences && ImageModels.FirstOrDefault(m => m.SupportsReferences) is { } flux)
+        if (!SelectedImageModel.SupportsReferences && ImageModels.FirstOrDefault(m => m.Set?.SupportsReferences == true) is { } flux)
         {
-            SelectedImageModel = flux;
+            SelectedImageChoice = flux;
         }
 
         AddReferencePath(image.VideoPath);
@@ -1280,6 +1373,11 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         if (video.IsImage && SamePathOrNull(StartImagePath, video.VideoPath))
         {
             StartImagePath = null;
+        }
+
+        if (video.IsImage && SamePathOrNull(SourceImagePath, video.VideoPath))
+        {
+            SourceImagePath = null;
         }
 
         if (video.IsImage && ReferenceImages.FirstOrDefault(r => SamePath(r, video.VideoPath)) is { } reference)

@@ -13,14 +13,27 @@ namespace KiNexus.Core.Video;
 /// Bilder, an denen sich das Modell orientiert (z.B. dieselbe Person, dasselbe Tier, derselbe Ort). Im Prompt sagt man,
 /// was damit passieren soll, z.B. „der Hund aus dem ersten Bild vor der Hütte aus dem zweiten“. Nur FLUX.2 klein kann das.
 /// </param>
+/// <param name="SourceImage">
+/// Bild zu Bild: Dieses Bild ist der Ausgangspunkt (zugeschnitten auf das Format). Aufbau und Farben bleiben, Details ändern sich.
+/// Geht mit FLUX.2 klein und Z-Image. Null = aus dem Nichts (Rauschen).
+/// </param>
+/// <param name="Strength">Wie stark die Vorlage verändert wird: 0.2 = kaum, 1.0 = ganz neu. Nur mit <paramref name="SourceImage"/>.</param>
 public sealed record ImageRequest(
     string Prompt,
     int Width = 1024,
     int Height = 1024,
     int Count = 1,
     long Seed = 42,
-    IReadOnlyList<string>? ReferenceImages = null)
+    IReadOnlyList<string>? ReferenceImages = null,
+    string? SourceImage = null,
+    double Strength = ImageRequest.DefaultStrength)
 {
+    /// <summary>In den Tests gut: neue Umgebung, aber gleiche Pose und gleiches Motiv.</summary>
+    public const double DefaultStrength = 0.8;
+
+    public const double MinStrength = 0.2;
+    public const double MaxStrength = 1.0;
+
     /// <summary>Mehr Referenzen brauchen mehr Grafikspeicher und Zeit (jede ca. 5 s). In B0 mit zwei geprüft.</summary>
     public const int MaxReferences = 3;
 
@@ -58,6 +71,24 @@ public sealed record ImageRequest(
         if (Count is < 1 or > MaxCount)
         {
             return Text($"Es gehen 1 bis {MaxCount} Bilder pro Auftrag (jetzt {Count}).");
+        }
+
+        if (SourceImage is { } source)
+        {
+            if (!VideoRequest.ImageExtensions.Contains(Path.GetExtension(source).ToLowerInvariant()))
+            {
+                return "Die Vorlage muss ein PNG, JPG, WEBP oder BMP sein.";
+            }
+
+            if (!File.Exists(source))
+            {
+                return $"Die Vorlage gibt es nicht mehr: {source}";
+            }
+
+            if (Strength is < MinStrength or > MaxStrength)
+            {
+                return Text($"Die Stärke muss zwischen {MinStrength:0.0} und {MaxStrength:0.0} liegen (jetzt {Strength:0.00}).");
+            }
         }
 
         var references = ReferenceImages ?? [];
