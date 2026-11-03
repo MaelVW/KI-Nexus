@@ -21,11 +21,11 @@ Ein Videomodell ist kein Chatpartner. Es antwortet nicht mit Text, sondern liefe
 
 ## 1. Befund: Was ist die Datei?
 
-Gelesen aus dem GGUF-Kopf (Metadaten am Anfang der Datei) von `models/pinkcherry_finetune_q5_k_m_v1_7-alpha/`:
+Gelesen aus dem GGUF-Kopf (Metadaten am Anfang der Datei) eines LTX-2.3-Finetunes in `models/`:
 
 | Was | Wert |
 |---|---|
-| Datei | `PinkCherry_FineTune_Q5_K_M_v1_7-alpha.gguf`, 15.9 GB |
+| Datei | ein Finetune als GGUF, 15.9 GB |
 | Herkunft | Hugging Face, ein Finetune (nachtrainierte Version) von LTX-2.3 |
 | Architektur | `ltxv`, Klasse `AVTransformer3DModel` (AV = Audio + Video), `model_version` 2.3.0 |
 | Grösse | 21 Milliarden Parameter, 48 Transformer-Blöcke |

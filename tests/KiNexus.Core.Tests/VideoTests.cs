@@ -78,7 +78,7 @@ public class VideoTests
     // Unsloth-Dateien haben kein "model_version": Dann zählt der config.
     [InlineData("ltxv", null, AvConfig, "ltx-2.3-22b-distilled-1.1-Q4_K_M.gguf", true, "distilled", VideoModelVariant.Distilled)]
     [InlineData("ltxv", null, """{"transformer": {"_class_name": "AVTransformer3DModel", "apply_gated_attention": false}}""", "ltx-2-19b-distilled.gguf", false, "Version unbekannt", VideoModelVariant.Unknown)]
-    [InlineData("ltxv", "2.3.0", AvConfig, "PinkCherry_FineTune_Q5_K_M.gguf", true, "Wähle im Video-Tab den Ablauf", VideoModelVariant.Unknown)]
+    [InlineData("ltxv", "2.3.0", AvConfig, "Mein_FineTune_Q5_K_M.gguf", true, "Wähle im Video-Tab den Ablauf", VideoModelVariant.Unknown)]
     [InlineData("ltxv", null, AvConfig, "ltx-2.3-22b-dev-Q2_K.gguf", true, "20 Schritte", VideoModelVariant.Dev)]
     [InlineData("ltxv", "0.9.8", AvConfig, "ltxv-13b-0.9.8-distilled.gguf", false, "0.9.8", VideoModelVariant.Unknown)]
     [InlineData("ltxv", null, null, "alt.gguf", false, "Version unbekannt", VideoModelVariant.Unknown)]

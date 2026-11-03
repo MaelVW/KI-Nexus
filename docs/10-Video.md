@@ -121,7 +121,7 @@ Prompt (alle Läufe, Seed 42): ein Golden Retriever rennt über eine sonnige Wie
 
 1. **ComfyUI:**
    - v0.43.0 kann LTX-2.3 mit Ton von sich aus (Knoten `LTXV…`). Aus ComfyUI-GGUF braucht es nur `UnetLoaderGGUF` und `DualCLIPLoaderGGUF`.
-   - Mein PinkCherry-GGUF habe ich nicht geladen (siehe unten).
+   - Das eigene Finetune aus `models/` habe ich nicht geladen (siehe unten).
 2. **Text-Encoder:** Gemma 3 12B als GGUF plus die Projektions-Datei (`…embeddings_connectors.safetensors`), geladen mit `DualCLIPLoaderGGUF`, Typ `ltxv`. Kein mmproj.
 3. **Finetune (dev oder distilled):** nicht geprüft.
 4. **LTX-2.5:** nicht geprüft. Es gibt GGUF-Versionen. Kandidat für später.
@@ -136,7 +136,7 @@ Prompt (alle Läufe, Seed 42): ein Golden Retriever rennt über eine sonnige Wie
 
 ## Abweichungen vom Bauplan
 
-- **Nur das offizielle LTX-2.3** getestet, nicht die PinkCherry-Datei aus `models/`. Das Modell ist auf Hugging Face als NSFW markiert. Ich habe es nicht eingerichtet.
+- **Nur das offizielle LTX-2.3** getestet, nicht das Finetune aus `models/`.
 - Grundmodell **distilled 1.1** (8 Schritte) statt „dev“: schneller, und der Bauplan sieht „Schnell“ als Vorlage vor.
 - ComfyUI-KJNodes nicht installiert (nicht nötig).
 - Vorlagen-Ordner in V0: `python/video/workflows/`. Seit V1 liegen die Vorlagen in `src/KiNexus.Engines/Video/Workflows/`.
@@ -307,7 +307,7 @@ Gefunden und behoben während der Abnahme:
 
 Text-Encoder, Projektion und VAEs teilen sich alle LTX-2.3-Modelle (die Dateien aus V0).
 
-**Hinweis:** Das gilt für jedes passende LTX-2.3-Modell in `models\`, also technisch auch für deine PinkCherry-Datei. Getestet habe ich nur das offizielle Modell und Q2_K von Unsloth.
+**Hinweis:** Das gilt für jedes passende LTX-2.3-Modell in `models\`, also auch für Finetunes von Hugging Face. Getestet habe ich nur das offizielle Modell und Q2_K von Unsloth.
 
 ### Abnahme (2.11.2026)
 
