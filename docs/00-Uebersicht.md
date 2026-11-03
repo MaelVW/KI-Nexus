@@ -28,6 +28,7 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | Bild Referenzen | Referenzbilder für FLUX.2 klein (bis 3), „Als Referenz für ein Bild“ | ✅ fertig (v1.10.0) |
 | Bild Modelle + Vorlage | Eigene Bildmodelle (FLUX.2 klein 4B/9B, Z-Image) erkannt, Bild zu Bild mit Stärke | ✅ fertig (v1.11.0) |
 | Training 2 T1 | Weitertrainieren mit Versionen (v1, v2, …), zurück zu einer älteren, Warnung bei Auswendiglernen, siehe `docs/06-Training.md` | ✅ fertig (v1.12.0) |
+| Installieren und Updates | Ein Befehl zum Installieren, „Nach Updates suchen“ in den Einstellungen (nur auf Klick), Releases mit `scripts/release.ps1`, siehe `docs/12-Updates.md` | ✅ fertig (v1.13.0) |
 
 ## Ordner
 

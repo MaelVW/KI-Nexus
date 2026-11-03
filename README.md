@@ -3,8 +3,7 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 1.1.0 (Meilenstein 5 – Alternate Launch).** Version 1.0 (M0 bis M4) war die Mindestversion aus dem Bauplan.
-> Chatten in drei Stilen: Simpel, Terminal und Gespräch (du sprichst, die KI antwortet mit Stimme, alles lokal mit Whisper und Piper). Im Create-Hub erstellst und löschst du KIs, importierst GGUF-Dateien und Ollama-Modelle und lädst Modelle von Hugging Face. Ein Knopf startet Open WebUI im Hintergrund. Die eigene Engine (llama.cpp) und Ollama laufen.
+> **Stand: Version 1.13.0.** Chat (Simpel, Terminal, Gespräch), Create-Hub mit Hugging Face, Open WebUI, Training mit Versionen und das Studio für Videos und Bilder. Was neu ist: `CHANGELOG.md`.
 
 ![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
 
@@ -13,6 +12,17 @@ Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 ![Create-Hub mit Ampel](docs/bilder/create-hub-m3.png)
 
 ![Gespräch-Stil mit Orb](docs/bilder/gespraech-m4.png)
+
+## Installieren (für Kollegen)
+
+In PowerShell ein Befehl:
+
+```powershell
+irm https://raw.githubusercontent.com/MaelVW/KI-Nexus/main/scripts/install.ps1 | iex
+```
+
+Er lädt die neueste freigegebene Version nach `%USERPROFILE%\KI-Nexus`, baut sie und startet sie. Voraussetzung: das .NET 10 SDK (`winget install Microsoft.DotNet.SDK.10`).
+**Aktualisieren:** in der App unter Einstellungen → Updates → „Nach Updates suchen“. KI-Nexus sucht nur, wenn du klickst. Deine Chats, Modelle und KIs bleiben. Details: `docs/12-Updates.md`.
 
 ## Starten
 
@@ -63,6 +73,10 @@ Die Solution `KI-Nexus.sln` kannst du mit Visual Studio 2026 oder Rider öffnen.
 | `Strg + N` | Neuer Chat |
 | `Enter` / `Shift + Enter` / `Esc` | Senden / neue Zeile / abbrechen (Simpel) |
 | `Strg + C`, `/help` | Abbrechen, alle Befehle (Terminal) |
+
+## Version freigeben (für Mael)
+
+`.\scripts\release.ps1` erstellt aus der Version in `Directory.Build.props` und dem Abschnitt im `CHANGELOG.md` ein GitHub Release. Erst dann bekommen andere die Version per Update. Vorher zeigt `-DryRun`, was passieren würde.
 
 ## Doku
 

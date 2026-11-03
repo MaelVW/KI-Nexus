@@ -6,6 +6,16 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.13.0] – 2026-11-03 – Installieren und Updates
+
+### Neu
+
+- **Installieren mit einem Befehl:** `irm https://raw.githubusercontent.com/MaelVW/KI-Nexus/main/scripts/install.ps1 | iex` lädt die neueste freigegebene Version, baut sie und startet sie (`scripts/install.ps1`).
+- **Updates in der App:** Einstellungen → Updates → „Nach Updates suchen“ (nur auf Klick, nie beim Start, eine einzige Anfrage an GitHub). „Jetzt aktualisieren“ schliesst die App, ersetzt die Programmteile und startet neu. Chats, Einstellungen, Modelle, Engines, Python-Umgebungen und KIs bleiben.
+- **Releases:** `scripts/release.ps1` gibt eine Version als GitHub Release frei (Tag und Text aus dem Changelog). Updates gibt es nur für freigegebene Versionen.
+- Ein Entwickler-Ordner (git) wird nie vom Update überschrieben.
+- Doku: `docs/12-Updates.md`. 478 Unit-Tests.
+
 ## [1.12.0] – 2026-11-03 – Training 2, T1: Weitertrainieren mit Versionen
 
 ### Neu

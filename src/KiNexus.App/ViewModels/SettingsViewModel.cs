@@ -9,6 +9,7 @@ using KiNexus.Core;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Settings;
+using KiNexus.Engines.Updates;
 using KiNexus.Engines.Voice;
 using Microsoft.Extensions.Logging;
 
@@ -207,6 +208,107 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     [RelayCommand]
     private void ResetToDefaults() => LoadFrom(new AppSettings());
+
+    // ----------------------------------------------------------- Updates (nur auf Klick, nie beim Start)
+
+    /// <summary>Wird ausgelöst, wenn das Update-Skript läuft. Dann schliesst sich die App, damit es die Dateien ersetzen kann.</summary>
+    public event EventHandler? UpdateStarted;
+
+    [ObservableProperty]
+    private string _updateText = "Gesucht wird nur, wenn du klickst. KI-Nexus fragt dann GitHub nach der neuesten freigegebenen Version. "
+        + "Dabei wird nichts von dir mitgeschickt.";
+
+    [ObservableProperty] private string _updateNotes = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckUpdatesCommand))]
+    private bool _isCheckingUpdates;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(HasUpdate))]
+    [NotifyCanExecuteChangedFor(nameof(InstallUpdateCommand))]
+    private ReleaseInfo? _availableUpdate;
+
+    public bool HasUpdate => AvailableUpdate is not null;
+
+    public bool HasUpdateNotes => UpdateNotes.Length > 0;
+
+    partial void OnUpdateNotesChanged(string value) => OnPropertyChanged(nameof(HasUpdateNotes));
+
+    /// <summary>Ein Entwickler-Ordner (git clone): Dort aktualisiert man mit git pull, nicht mit dem Skript.</summary>
+    public bool IsGitCheckout => UpdateClient.IsGitCheckout(_paths.Root);
+
+    private bool CanCheckUpdates => !IsCheckingUpdates;
+
+    [RelayCommand(CanExecute = nameof(CanCheckUpdates))]
+    private async Task CheckUpdatesAsync()
+    {
+        IsCheckingUpdates = true;
+        AvailableUpdate = null;
+        UpdateNotes = "";
+        UpdateText = "Frage GitHub …";
+        try
+        {
+            using var client = new UpdateClient();
+            var check = await client.CheckAsync(AppInfo.Version, CancellationToken.None);
+            _logger.LogInformation("Update-Suche: {State} ({Message})", check.State, check.Message);
+            UpdateText = check.Message;
+            if (check is { State: UpdateState.Available, Release: { } release })
+            {
+                AvailableUpdate = release;
+                UpdateNotes = ShortNotes(release.Notes);
+                if (IsGitCheckout)
+                {
+                    UpdateText += " Du arbeitest mit git: Aktualisiere mit „git pull“ und starte dann Start-KI-Nexus.bat.";
+                }
+            }
+        }
+        finally
+        {
+            IsCheckingUpdates = false;
+        }
+    }
+
+    private bool CanInstallUpdate => HasUpdate && !IsGitCheckout;
+
+    /// <summary>
+    /// Startet scripts\install.ps1 in einem eigenen Fenster und schliesst die App. Das Skript wartet, bis sie zu ist,
+    /// ersetzt die Programmdateien (Daten, Modelle und KIs bleiben), baut die App neu und startet sie.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanInstallUpdate))]
+    private void InstallUpdate()
+    {
+        if (AvailableUpdate is not { } release
+            || !_dialogs.Confirm("KI-Nexus aktualisieren",
+                $"KI-Nexus wird auf Version {release.Version.ToString(3)} aktualisiert. Die App schliesst sich, ein Fenster lädt die neue Version von GitHub, "
+                + "baut sie und startet sie wieder (ca. 1 Minute). Deine Chats, Einstellungen, Modelle und KIs bleiben. "
+                + "Ungespeicherte Einstellungen in diesem Fenster gehen verloren.", "Jetzt aktualisieren"))
+        {
+            return;
+        }
+
+        try
+        {
+            _shell.RunScriptInWindow(Path.Combine(_paths.Root, "scripts", "install.ps1"),
+                $"-Path \"{_paths.Root}\" -Tag {release.Tag} -WaitForPid {Environment.ProcessId.ToString(CultureInfo.InvariantCulture)}");
+            _logger.LogInformation("Update auf {Tag} gestartet.", release.Tag);
+            UpdateStarted?.Invoke(this, EventArgs.Empty);
+        }
+        catch (Exception ex) when (ex is FileNotFoundException or System.ComponentModel.Win32Exception)
+        {
+            UpdateText = "Das Update-Skript liess sich nicht starten: " + ex.Message;
+        }
+    }
+
+    /// <summary>Die ersten Zeilen des Release-Texts, ohne Markdown-Zeichen.</summary>
+    private static string ShortNotes(string notes)
+    {
+        var lines = notes.Replace("\r", "", StringComparison.Ordinal).Split('\n')
+            .Select(l => l.Trim().TrimStart('#', ' ').Replace("**", "", StringComparison.Ordinal))
+            .Where(l => l.Length > 0)
+            .Take(12);
+        return string.Join("\n", lines);
+    }
 
     [RelayCommand(CanExecute = nameof(CanSave))]
     private async Task SaveAsync(CancellationToken ct)

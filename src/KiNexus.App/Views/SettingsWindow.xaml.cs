@@ -15,6 +15,13 @@ public partial class SettingsWindow : Window
         InitializeComponent();
         DataContext = viewModel;
         viewModel.Saved += (_, _) => DialogResult = true;
+
+        // Update: Das Skript ersetzt die Dateien erst, wenn die App zu ist.
+        viewModel.UpdateStarted += (_, _) =>
+        {
+            Close();
+            Application.Current.MainWindow?.Close();
+        };
         SourceInitialized += (_, _) => NativeWindow.ApplyDarkFrame(this, (Color)FindResource("Color.Border"));
     }
 
