@@ -79,9 +79,19 @@ public sealed class ComfyVideoBackend(
         }
     }
 
-    public async IAsyncEnumerable<VideoProgress> GenerateAsync(VideoRequest request, VideoModelSet models, [EnumeratorCancellation] CancellationToken ct)
+    public IAsyncEnumerable<VideoProgress> GenerateAsync(VideoRequest request, VideoModelSet models, CancellationToken ct) =>
+        RunExclusiveAsync(CheckJob(request, models), models.ModelFolder, "Erzeugt ein Video …", token => RunJobAsync(request, models, token), ct);
+
+    public IAsyncEnumerable<VideoProgress> GenerateImageAsync(ImageRequest request, ImageModelSet models, CancellationToken ct) =>
+        RunExclusiveAsync(CheckImageJob(request, models), null, "Erzeugt Bilder …", token => RunImageJobAsync(request, models, token), ct);
+
+    /// <summary>
+    /// Gemeinsamer Rahmen für Video und Bild: Es läuft nur ein Auftrag, ComfyUI startet bei Bedarf, danach ist es wieder bereit.
+    /// </summary>
+    private async IAsyncEnumerable<VideoProgress> RunExclusiveAsync(string? problem, string? modelFolder, string busyText,
+        Func<CancellationToken, IAsyncEnumerable<VideoProgress>> job, [EnumeratorCancellation] CancellationToken ct)
     {
-        if (CheckJob(request, models) is { } problem)
+        if (problem is not null)
         {
             yield return new VideoFailed(problem);
             yield break;
@@ -89,14 +99,14 @@ public sealed class ComfyVideoBackend(
 
         if (!await _jobLock.WaitAsync(0, CancellationToken.None).ConfigureAwait(false))
         {
-            yield return new VideoFailed("Es entsteht schon ein Video. Warte, bis es fertig ist.");
+            yield return new VideoFailed("Es läuft schon ein Auftrag (Video oder Bild). Warte, bis er fertig ist.");
             yield break;
         }
 
         try
         {
             // Ein Modell aus einem neuen Ordner: ComfyUI liest die Ordner nur beim Start. Darum kurz neu starten (ca. 15 s).
-            if (models.ModelFolder is { } folder && _modelFolders.Add(Path.GetFullPath(folder)) && IsRunning)
+            if (modelFolder is { } folder && _modelFolders.Add(Path.GetFullPath(folder)) && IsRunning)
             {
                 logger.LogInformation("Neuer Modell-Ordner {Folder}: ComfyUI startet neu.", folder);
                 await StopAsync().ConfigureAwait(false);
@@ -114,8 +124,8 @@ public sealed class ComfyVideoBackend(
                 yield break;
             }
 
-            SetState(VideoBackendState.Busy, "Erzeugt ein Video …");
-            await foreach (var progress in RunJobAsync(request, models, ct).ConfigureAwait(false))
+            SetState(VideoBackendState.Busy, busyText);
+            await foreach (var progress in job(ct).ConfigureAwait(false))
             {
                 yield return progress;
             }
@@ -218,6 +228,28 @@ public sealed class ComfyVideoBackend(
               + @"Laden mit: scripts\setup-video.ps1 -Models";
     }
 
+    public string? SetupProblem(ImageModelSet models)
+    {
+        ArgumentNullException.ThrowIfNull(models);
+        return installation.Problem() ?? MissingImageFiles(models);
+    }
+
+    private string? CheckImageJob(ImageRequest request, ImageModelSet models) => request.Problem() ?? MissingImageFiles(models);
+
+    private string? MissingImageFiles(ImageModelSet models)
+    {
+        if (options.ImageModelsDirectory is not { } directory)
+        {
+            return "Bilder sind in dieser Einrichtung nicht vorgesehen (kein Ordner für Bildmodelle).";
+        }
+
+        var missing = models.MissingFiles(directory);
+        return missing.Count == 0
+            ? null
+            : $"Für {models.Name} fehlen Dateien: {string.Join(", ", missing.Select(Path.GetFileName))}. "
+              + @"Laden mit: scripts\setup-video.ps1 -Images";
+    }
+
     /// <summary>Null, wenn ComfyUI läuft. Sonst der Grund (auch beim Abbrechen während des Starts).</summary>
     private async Task<string?> TryStartAsync(CancellationToken ct)
     {
@@ -237,15 +269,47 @@ public sealed class ComfyVideoBackend(
         }
     }
 
-    private async IAsyncEnumerable<VideoProgress> RunJobAsync(VideoRequest request, VideoModelSet models, [EnumeratorCancellation] CancellationToken ct)
+    private IAsyncEnumerable<VideoProgress> RunJobAsync(VideoRequest request, VideoModelSet models, CancellationToken ct)
     {
         var prefix = string.Create(CultureInfo.InvariantCulture, $"{DateTime.Now:yyyy-MM-dd_HHmmss}_seed{request.Seed}");
         var startImage = CopyStartImage(request, prefix);
         var workflow = ComfyWorkflowBuilder.Build(request, models, prefix, startImage);
+        logger.LogInformation("Video-Auftrag: {Width}×{Height}, {Frames} Bilder, Seed {Seed}.", request.Width, request.Height, request.Frames, request.Seed);
+        return ExecuteAsync(workflow, "Video", ComfyProtocol.Describe, (files, seconds) =>
+        {
+            var video = files.GetValueOrDefault("KN_Save")?.FirstOrDefault(File.Exists);
+            var thumbnail = files.GetValueOrDefault("KN_SaveThumbnail")?.FirstOrDefault(File.Exists);
+            return video is not null
+                ? new VideoDone(video, seconds, thumbnail)
+                : new VideoFailed("ComfyUI ist fertig, hat aber keine Videodatei gemeldet.");
+        }, ct);
+    }
+
+    private IAsyncEnumerable<VideoProgress> RunImageJobAsync(ImageRequest request, ImageModelSet models, CancellationToken ct)
+    {
+        // Eigener Unterordner "bilder" im Ausgabe-Ordner von ComfyUI, damit Bilder und Videos getrennt bleiben.
+        var prefix = string.Create(CultureInfo.InvariantCulture, $"bilder/{DateTime.Now:yyyy-MM-dd_HHmmss}_seed{request.Seed}");
+        var workflow = ComfyWorkflowBuilder.BuildImage(request, models, prefix);
+        logger.LogInformation("Bild-Auftrag: {Model}, {Width}×{Height}, {Count} Bilder, Seed {Seed}.",
+            models.Name, request.Width, request.Height, request.Count, request.Seed);
+        return ExecuteAsync(workflow, "Bild", ComfyProtocol.DescribeImage, (files, seconds) =>
+        {
+            var images = files.GetValueOrDefault("KN_Save")?.Where(File.Exists).ToList() ?? [];
+            return images.Count > 0
+                ? new ImageDone(images, seconds)
+                : new VideoFailed("ComfyUI ist fertig, hat aber keine Bilddatei gemeldet.");
+        }, ct);
+    }
+
+    /// <summary>
+    /// Schickt einen Workflow an ComfyUI und übersetzt die Meldungen. Die geschriebenen Dateien sammelt es pro Knoten-Titel
+    /// (z.B. "KN_Save"), <paramref name="finish"/> macht daraus das Ergebnis.
+    /// </summary>
+    private async IAsyncEnumerable<VideoProgress> ExecuteAsync(JsonObject workflow, string kind, Func<VideoPhase, string> describe,
+        Func<IReadOnlyDictionary<string, List<string>>, double, VideoProgress> finish, [EnumeratorCancellation] CancellationToken ct)
+    {
         var titles = ComfyWorkflowBuilder.Titles(workflow);
         var denoiseNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_Denoise");
-        var saveNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_Save");
-        var thumbnailNode = ComfyWorkflowBuilder.NodeId(workflow, "KN_SaveThumbnail");
         var clientId = Guid.NewGuid().ToString("N");
         var clock = Stopwatch.StartNew();
 
@@ -269,16 +333,14 @@ public sealed class ComfyVideoBackend(
             yield break;
         }
 
-        logger.LogInformation("Video-Auftrag {Prompt}: {Width}×{Height}, {Frames} Bilder, Seed {Seed}.",
-            promptId, request.Width, request.Height, request.Frames, request.Seed);
+        logger.LogInformation("{Kind}-Auftrag {Prompt} läuft.", kind, promptId);
 
         // Abbrechen: ComfyUI bekommt /interrupt und meldet dann "execution_interrupted". Kommt nichts, wird es beendet.
         using var reading = new CancellationTokenSource();
         await using var onCancel = ct.Register(() => _ = InterruptAsync(reading));
 
         VideoPhase? phase = null;
-        string? videoPath = null;
-        string? thumbnailPath = null;
+        var files = new Dictionary<string, List<string>>(StringComparer.Ordinal);
         VideoProgress? end = null;
         await foreach (var message in ReadMessagesAsync(socket, reading.Token).ConfigureAwait(false))
         {
@@ -292,24 +354,24 @@ public sealed class ComfyVideoBackend(
                 case ComfyExecuting executing when titles.TryGetValue(executing.Node, out var title)
                                                   && ComfyProtocol.PhaseFor(title) is { } next && next != phase:
                     phase = next;
-                    yield return new VideoStage(next, ComfyProtocol.Describe(next));
+                    yield return new VideoStage(next, describe(next));
                     break;
                 case ComfyProgress progress when progress.Node == denoiseNode:
                     yield return new VideoStep(progress.Value, progress.Max, Math.Round(clock.Elapsed.TotalSeconds, 1));
                     break;
-                case ComfyExecuted executed when executed.Node == saveNode && executed.Files.Count > 0:
-                    videoPath = ComfyProtocol.FullPath(executed.Files[0], options.OutputDirectory);
-                    break;
-                case ComfyExecuted executed when executed.Node == thumbnailNode && executed.Files.Count > 0:
-                    thumbnailPath = ComfyProtocol.FullPath(executed.Files[0], options.OutputDirectory);
+                case ComfyExecuted executed when titles.TryGetValue(executed.Node, out var title):
+                    if (!files.TryGetValue(title, out var list))
+                    {
+                        files[title] = list = [];
+                    }
+
+                    list.AddRange(executed.Files.Select(file => ComfyProtocol.FullPath(file, options.OutputDirectory)));
                     break;
                 case ComfySuccess:
-                    end = videoPath is not null && File.Exists(videoPath)
-                        ? new VideoDone(videoPath, Math.Round(clock.Elapsed.TotalSeconds, 1), thumbnailPath is not null && File.Exists(thumbnailPath) ? thumbnailPath : null)
-                        : new VideoFailed("ComfyUI ist fertig, hat aber keine Videodatei gemeldet.");
+                    end = finish(files, Math.Round(clock.Elapsed.TotalSeconds, 1));
                     break;
                 case ComfyError failure:
-                    logger.LogWarning("Video-Auftrag {Prompt} fehlgeschlagen: {Node} {Message}", promptId, failure.NodeType, failure.Message);
+                    logger.LogWarning("{Kind}-Auftrag {Prompt} fehlgeschlagen: {Node} {Message}", kind, promptId, failure.NodeType, failure.Message);
                     end = new VideoFailed(ComfyProtocol.Explain(failure));
                     break;
                 case ComfyInterrupted:
@@ -330,7 +392,8 @@ public sealed class ComfyVideoBackend(
             end = new VideoCancelled();
         }
 
-        logger.LogInformation("Video-Auftrag {Prompt} beendet nach {Seconds:F0} s: {Result}.", promptId, clock.Elapsed.TotalSeconds, end?.GetType().Name ?? "abgerissen");
+        logger.LogInformation("{Kind}-Auftrag {Prompt} beendet nach {Seconds:F0} s: {Result}.", kind, promptId, clock.Elapsed.TotalSeconds,
+            end?.GetType().Name ?? "abgerissen");
         yield return end ?? new VideoFailed(@"Die Verbindung zu ComfyUI ist abgerissen. Details in data\logs\video.log.");
     }
 
@@ -448,7 +511,7 @@ public sealed class ComfyVideoBackend(
             Directory.CreateDirectory(Path.Combine(options.WorkDirectory, folder));
         }
 
-        File.WriteAllText(installation.PathsFile, ComfyCommand.PathsYaml(options.VideoModelsDirectory, _modelFolders));
+        File.WriteAllText(installation.PathsFile, ComfyCommand.PathsYaml(options.VideoModelsDirectory, _modelFolders, options.ImageModelsDirectory));
         OpenLog();
         var arguments = ComfyCommand.Arguments(installation, options);
         WriteLog($"===== ComfyUI {DateTimeOffset.Now:yyyy-MM-dd HH:mm:ss}: python {string.Join(' ', arguments)}");

@@ -29,6 +29,23 @@ public static partial class VideoPromptWriter
         return [new ChatMessage(ChatRole.System, SystemPrompt), new ChatMessage(ChatRole.User, user)];
     }
 
+    /// <summary>Für Bilder (Bauplan Bild): ein Absatz mit Motiv, Umgebung, Bildaufbau, Licht und Stil. Text im Bild in Anführungszeichen.</summary>
+    public const string ImageSystemPrompt =
+        "You write prompts for a text-to-image model (FLUX.2 or Z-Image). "
+        + "Turn the user's idea (it may be in German) into ONE English paragraph of 40 to 90 words. "
+        + "Describe: the main subject and what it looks like, the setting, the composition and camera (shot type, angle, lens), "
+        + "the lighting and colors, and the style (for example photo, illustration, watercolor). "
+        + "If text should appear in the image, write that text in double quotes. Be concrete and visual. "
+        + "Answer with the prompt only: no title, no explanation, no lists.";
+
+    /// <summary>Die Nachrichten für die KI bei einem Bild. Das Format hilft beim Bildaufbau.</summary>
+    public static IReadOnlyList<ChatMessage> ImageMessages(string idea, int width, int height)
+    {
+        var shape = height > width ? "portrait" : width > height ? "landscape" : "square";
+        var user = $"Idea: {idea.Trim()}\nImage: {shape}.";
+        return [new ChatMessage(ChatRole.System, ImageSystemPrompt), new ChatMessage(ChatRole.User, user)];
+    }
+
     /// <summary>Räumt die Antwort auf: Gedanken-Blöcke, "Prompt:", Anführungszeichen, Leerzeilen.</summary>
     public static string Clean(string answer)
     {
@@ -41,7 +58,7 @@ public static partial class VideoPromptWriter
     [GeneratedRegex(@"<think>.*?</think>", RegexOptions.Singleline | RegexOptions.IgnoreCase)]
     private static partial Regex ThinkBlock();
 
-    [GeneratedRegex(@"^\**(?:improved\s+)?(?:video\s+)?prompt\**\s*:\s*", RegexOptions.IgnoreCase)]
+    [GeneratedRegex(@"^\**(?:improved\s+)?(?:video\s+|image\s+)?prompt\**\s*:\s*", RegexOptions.IgnoreCase)]
     private static partial Regex Label();
 
     [GeneratedRegex(@"\s+")]

@@ -38,13 +38,15 @@ public sealed record ComfyInstallation(string Directory, string PythonExe)
 /// ComfyUI hält nichts zwischen den Schritten fest. So gibt es den Text-Encoder frei, bevor das Videomodell lädt.
 /// In V0 gemessen: weniger Auslagerung (3 statt 9 GB) und schneller, aber jedes Video lädt die Modelle neu.
 /// </param>
+/// <param name="ImageModelsDirectory">models/image mit denselben Unterordnern, für die Bildmodelle (Bauplan Bild). Null = keine Bilder.</param>
 public sealed record ComfyOptions(
     string VideoModelsDirectory,
     string OutputDirectory,
     string WorkDirectory,
     string LogFile,
     int Port = 8188,
-    bool CacheNone = true);
+    bool CacheNone = true,
+    string? ImageModelsDirectory = null);
 
 /// <summary>Baut den Startbefehl für ComfyUI. Eigene Klasse, damit man sie ohne Prozess testen kann.</summary>
 public static class ComfyCommand
@@ -84,7 +86,8 @@ public static class ComfyCommand
     /// Weitere Ordner mit Videomodellen, z.B. models/&lt;ordner&gt;/ von Hugging Face. ComfyUI liest eine Liste mit einem Ordner
     /// pro Zeile. Absolute Pfade gelten so, wie sie sind.
     /// </param>
-    public static string PathsYaml(string videoModelsDirectory, IEnumerable<string>? extraModelFolders = null)
+    /// <param name="imageModelsDirectory">models/image: ein zweiter Eintrag, ComfyUI sucht dann in beiden Ordnern.</param>
+    public static string PathsYaml(string videoModelsDirectory, IEnumerable<string>? extraModelFolders = null, string? imageModelsDirectory = null)
     {
         var extra = (extraModelFolders ?? []).Select(folder => "\n    " + folder.Replace('\\', '/')).Distinct(StringComparer.OrdinalIgnoreCase);
         var diffusionModels = string.Concat(extra) is { Length: > 0 } list ? "|\n    diffusion_models" + list : "diffusion_models";
@@ -100,6 +103,13 @@ public static class ComfyCommand
               latent_upscale_models: latent_upscale_models
               loras: loras
 
-            """;
+            """ + (imageModelsDirectory is null ? "" : $"""
+            kinexus_bild:
+              base_path: "{imageModelsDirectory.Replace('\\', '/')}"
+              diffusion_models: diffusion_models
+              text_encoders: text_encoders
+              vae: vae
+
+            """);
     }
 }

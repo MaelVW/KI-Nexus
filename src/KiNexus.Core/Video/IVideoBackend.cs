@@ -36,6 +36,10 @@ public sealed record VideoStep(int Step, int TotalSteps, double ElapsedSeconds) 
 /// <param name="ThumbnailPath">Ein Bild aus der Mitte des Videos (PNG) für die Galerie, falls vorhanden.</param>
 public sealed record VideoDone(string VideoPath, double Seconds, string? ThumbnailPath = null) : VideoProgress;
 
+/// <summary>Ein Bild-Auftrag ist fertig.</summary>
+/// <param name="ImagePaths">Die fertigen PNG-Dateien, eine pro Bild.</param>
+public sealed record ImageDone(IReadOnlyList<string> ImagePaths, double Seconds) : VideoProgress;
+
 public sealed record VideoFailed(string Message) : VideoProgress;
 
 public sealed record VideoCancelled : VideoProgress;
@@ -69,6 +73,15 @@ public interface IVideoBackend
     /// oder <see cref="VideoCancelled"/>. Abbrechen: den CancellationToken auslösen.
     /// </summary>
     IAsyncEnumerable<VideoProgress> GenerateAsync(VideoRequest request, VideoModelSet models, CancellationToken ct);
+
+    /// <summary>
+    /// Erzeugt Bilder (Bauplan Bild, B1). Gleicher Dienst und gleicher Ablauf wie bei Videos, endet mit <see cref="ImageDone"/>,
+    /// <see cref="VideoFailed"/> oder <see cref="VideoCancelled"/>. Es läuft immer nur ein Auftrag gleichzeitig (Bild oder Video).
+    /// </summary>
+    IAsyncEnumerable<VideoProgress> GenerateImageAsync(ImageRequest request, ImageModelSet models, CancellationToken ct);
+
+    /// <summary>Was fehlt noch, damit dieses Bildmodell laufen kann? Null, wenn alles da ist.</summary>
+    string? SetupProblem(ImageModelSet models);
 
     /// <summary>Wirft die Modelle aus VRAM und RAM, damit der Chat wieder Platz hat. Der Dienst läuft weiter.</summary>
     Task FreeMemoryAsync(CancellationToken ct);

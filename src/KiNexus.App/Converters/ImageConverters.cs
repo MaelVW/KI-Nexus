@@ -9,6 +9,7 @@ namespace KiNexus.App.Converters;
 /// Lädt ein Bild aus einer Datei als kleine Vorschau.
 /// OnLoad liest die Datei sofort ganz ein und gibt sie wieder frei. Sonst wäre sie gesperrt,
 /// und "Chat löschen" könnte die Bilder nicht entfernen.
+/// Als Parameter geht eine andere Breite in Pixeln, z.B. "1400" für die grosse Ansicht im Studio.
 /// </summary>
 public sealed class PathToThumbnailConverter : IValueConverter
 {
@@ -26,7 +27,9 @@ public sealed class PathToThumbnailConverter : IValueConverter
             var image = new BitmapImage();
             image.BeginInit();
             image.CacheOption = BitmapCacheOption.OnLoad;
-            image.DecodePixelWidth = DecodeWidth;
+            image.DecodePixelWidth = parameter is string text && int.TryParse(text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var width) && width > 0
+                ? width
+                : DecodeWidth;
             image.UriSource = new Uri(path);
             image.EndInit();
             image.Freeze();

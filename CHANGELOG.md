@@ -6,7 +6,26 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.9.0] – 2026-11-03 – Bild B0–B2: Bildgenerierung im Studio
+
 ### Neu
+
+- **Bildgenerierung** über dasselbe ComfyUI wie die Videos. Standard: **FLUX.2 klein 4B** (Apache 2.0, 4 Schritte), ein Bild in 1024×1024 in ca. 10 s. **Z-Image Turbo** geht auch, wenn die Datei da ist (besser bei Schrift, ca. 25 s).
+- B0: beide Modelle gemessen (Zeit, VRAM, RAM, Qualität), Ergebnis und Empfehlung in `docs/11-Bild.md`, Testskript `python/image/b0_test.py`.
+- B1: `ImageRequest` (Format, 1–4 Bilder, Seed), `ImageModelSet`, zwei Workflow-Vorlagen, `GenerateImageAsync` mit Fortschritt und Abbrechen. Alle Bilder eines Auftrags in einem Durchgang.
+- `scripts\setup-video.ps1 -Images` lädt Bildmodell, Text-Encoder (Qwen3 4B) und VAE nach `models\image` (ca. 12 GB, mit Prüfsumme).
+- B2: Der Tab **Video** heisst jetzt **Studio**, mit Umschalter **Video | Bild**. Eigener Prompt pro Art, „Prompt verbessern“ auch für Bilder.
+- Gemeinsame **Warteschlange** für Videos und Bilder.
+- **Galerie mit Filter** Alle / Videos / Bilder. Bilder liegen in `data/images`. Ein gewähltes Bild steht gross statt des Players.
+- **„Als Startbild für ein Video“:** aus einem Bild sofort einen Clip machen.
+- Abnahme in der App: 4 Bilder in 34 s (inkl. Start von ComfyUI), daraus ein Video in 2 min 11 s, Galerie-Filter geprüft.
+- 437 Unit-Tests (vorher 418), dazu ein echter Bild-Lauf über die Schnittstelle (`KINEXUS_VIDEO_TEST=1`).
+
+### Geändert
+
+- Der Ablauf im Backend (Start, Sperre, Meldungen von ComfyUI) ist für Video und Bild derselbe. Video verhält sich wie vorher.
+
+### Doku
 
 - **Bauplan Bild, Training 2 und Szenen** (`docs/Bauplan-Bild-und-Szenen.md`): Bildgenerierung (B0–B2), Weitertrainieren und Trainingsdaten mit einer KI (T1–T2), längere Videos aus Szenen mit Keyframes und Warteschlange (S0–S3). Noch nichts gebaut.
 

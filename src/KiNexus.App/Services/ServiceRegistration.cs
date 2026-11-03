@@ -117,12 +117,14 @@ public static class ServiceRegistration
                 OutputDirectory: Path.Combine(paths.DataDirectory, "videos", "roh"),
                 WorkDirectory: Path.Combine(paths.DataDirectory, "comfyui"),
                 LogFile: Path.Combine(paths.LogsDirectory, "video.log"),
+                ImageModelsDirectory: Path.Combine(paths.Resolve(settings.Paths.Models), "image"),
                 Port: settings.Ports.ComfyUi);
             return new ComfyVideoBackend(provider.GetRequiredService<ProcessSupervisor>(), provider.GetRequiredService<ILogger<ComfyVideoBackend>>(),
                 ComfyInstallation.For(paths.Resolve(settings.Paths.Engines)), options);
         });
         services.AddSingleton<IVideoBackend>(provider => provider.GetRequiredService<ComfyVideoBackend>());
         services.AddSingleton(provider => new VideoLibrary(Path.Combine(paths.DataDirectory, "videos"), provider.GetRequiredService<ILogger<VideoLibrary>>()));
+        services.AddSingleton(provider => new ImageLibrary(Path.Combine(paths.DataDirectory, "images"), provider.GetRequiredService<ILogger<ImageLibrary>>()));
 
         services.AddSingleton(provider =>
         {

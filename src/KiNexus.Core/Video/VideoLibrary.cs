@@ -5,11 +5,27 @@ using Microsoft.Extensions.Logging;
 
 namespace KiNexus.Core.Video;
 
-/// <summary>Ein fertiges Video mit allem, was man zum Nachbauen braucht. Liegt als JSON neben der MP4.</summary>
+/// <summary>
+/// Ein fertiges Video oder Bild mit allem, was man zum Nachbauen braucht. Liegt als JSON neben der MP4 oder PNG.
+/// Bilder (Bauplan Bild) nutzen denselben Eintrag, damit die Galerie beides gemeinsam zeigt: <see cref="Kind"/> = "bild".
+/// </summary>
 public sealed record VideoEntry
 {
+    public const string VideoKind = "video";
+    public const string ImageKind = "bild";
+
     /// <summary>Dateiname ohne Endung, z.B. "2026-11-02_144301_seed11".</summary>
     public required string Id { get; init; }
+
+    /// <summary>"video" oder "bild". Ältere Einträge haben nichts, das heisst Video.</summary>
+    public string Kind { get; init; } = VideoKind;
+
+    [JsonIgnore] public bool IsImage => Kind == ImageKind;
+
+    /// <summary>Bild: das wievielte aus demselben Auftrag (ab 0) und wie viele es waren. Gleicher Seed braucht dieselbe Anzahl.</summary>
+    public int BatchIndex { get; init; }
+
+    public int BatchCount { get; init; } = 1;
 
     public required string Prompt { get; init; }
     public int Width { get; init; }
@@ -32,6 +48,7 @@ public sealed record VideoEntry
 
     public DateTimeOffset CreatedAt { get; init; }
 
+    /// <summary>Die MP4, bei einem Bild die PNG.</summary>
     [JsonIgnore] public string VideoPath { get; init; } = "";
 
     [JsonIgnore] public string? ThumbnailPath { get; init; }

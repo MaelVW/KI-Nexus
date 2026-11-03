@@ -10,9 +10,11 @@
              mc:Ignorable="d"
              d:DataContext="{d:DesignInstance Type=vm:VideoViewModel}">
 
-    <!-- Video (Bauplan Video, Kapitel 7): links der Auftrag und der Fortschritt, rechts Player und Galerie, unten eine Meldung. -->
+    <!-- Studio (Bauplan Video, Kapitel 7, und Bauplan Bild, B2): oben Video | Bild, links der Auftrag und der Fortschritt,
+         rechts Player (oder Bild) und Galerie, unten eine Meldung. -->
     <UserControl.Resources>
         <BooleanToVisibilityConverter x:Key="BoolToVisibility" />
+        <conv:EnumEqualsConverter x:Key="EnumEquals" />
         <conv:PathToThumbnailConverter x:Key="Thumbnail" />
         <conv:FitLevelToBrushConverter x:Key="FitBrush" />
         <Style x:Key="StepCard" TargetType="Border" BasedOn="{StaticResource Card}">
@@ -40,17 +42,43 @@
             <!-- ===================== Links: Auftrag und Fortschritt ===================== -->
             <ScrollViewer VerticalScrollBarVisibility="Auto" Focusable="False">
                 <StackPanel>
-                    <TextBlock Text="Video" FontFamily="{StaticResource Font.UiDisplay}" FontSize="{StaticResource FontSize.Title}" FontWeight="SemiBold"
-                               AutomationProperties.HeadingLevel="Level2" />
+                    <DockPanel>
+                        <Border DockPanel.Dock="Right" Style="{StaticResource SegmentHost}" VerticalAlignment="Center">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="studioMode" AutomationProperties.AutomationId="StudioVideo"
+                                             IsChecked="{Binding Mode, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:StudioMode.Video}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Video}" />
+                                        <TextBlock Text="Video" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                </RadioButton>
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="studioMode" AutomationProperties.AutomationId="StudioImage"
+                                             IsChecked="{Binding Mode, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:StudioMode.Image}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="13" Text="{x:Static app:Glyphs.Image}" />
+                                        <TextBlock Text="Bild" Margin="8,0,0,0" />
+                                    </StackPanel>
+                                </RadioButton>
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="Studio" FontFamily="{StaticResource Font.UiDisplay}" FontSize="{StaticResource FontSize.Title}" FontWeight="SemiBold"
+                                   AutomationProperties.HeadingLevel="Level2" VerticalAlignment="Center" />
+                    </DockPanel>
 
-                    <!-- Ehrliche Grenzen (Bauplan Video, Kapitel 3) -->
+                    <!-- Ehrliche Grenzen (Bauplan Video, Kapitel 3, und docs/11-Bild.md) -->
                     <Border Margin="0,10,0,16" Padding="14,10" CornerRadius="{StaticResource Radius.Normal}" BorderThickness="1"
                             BorderBrush="{DynamicResource Brush.AccentDim}" Background="{DynamicResource Brush.AccentSoft}">
                         <StackPanel Orientation="Horizontal">
                             <TextBlock Style="{StaticResource Text.Icon}" Text="{x:Static app:Glyphs.Info}" VerticalAlignment="Top" Margin="0,2,10,0"
                                        Foreground="{DynamicResource Brush.Accent}" />
-                            <TextBlock TextWrapping="Wrap" MaxWidth="370" LineHeight="20" AutomationProperties.AutomationId="VideoLimits"
-                                       Text="Videos mit Ton aus einer Beschreibung, mit LTX-2.3 über ComfyUI. Ehrliche Grenzen: kurze Clips (bis ca. 10 s), ein 4-Sekunden-Clip dauert ca. 2–3 Minuten. Während ein Video entsteht, geht der Chat nicht: Der Grafikspeicher reicht nicht für beides." />
+                            <StackPanel>
+                                <TextBlock TextWrapping="Wrap" MaxWidth="370" LineHeight="20" AutomationProperties.AutomationId="VideoLimits"
+                                           Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}"
+                                           Text="Videos mit Ton aus einer Beschreibung, mit LTX-2.3 über ComfyUI. Ehrliche Grenzen: kurze Clips (bis ca. 10 s), ein 4-Sekunden-Clip dauert ca. 2–3 Minuten. Während ein Video entsteht, geht der Chat nicht: Der Grafikspeicher reicht nicht für beides." />
+                                <TextBlock TextWrapping="Wrap" MaxWidth="370" LineHeight="20" AutomationProperties.AutomationId="ImageLimits"
+                                           Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}"
+                                           Text="{Binding ImageLimits}" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
@@ -73,6 +101,12 @@
                         <!-- Bleibt bedienbar, während ein Video entsteht: So kann man den nächsten Auftrag für die Warteschlange vorbereiten. -->
                         <StackPanel>
                             <TextBlock Text="Auftrag" Style="{StaticResource StepTitle}" />
+                            <StackPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}">
+                                <TextBlock Text="Bildmodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <ComboBox ItemsSource="{Binding ImageModels}" SelectedItem="{Binding SelectedImageModel}" DisplayMemberPath="Name" Margin="0,0,0,12"
+                                          AutomationProperties.Name="Bildmodell" AutomationProperties.AutomationId="ImageModel" />
+                            </StackPanel>
+                            <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Videomodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding VideoModels}" SelectedItem="{Binding SelectedModel}" AutomationProperties.Name="Videomodell"
                                       AutomationProperties.AutomationId="VideoModel" />
@@ -82,11 +116,11 @@
                             <ComboBox ItemsSource="{Binding Processes}" SelectedItem="{Binding SelectedProcess}" Margin="0,0,0,12" AutomationProperties.Name="Ablauf"
                                       AutomationProperties.AutomationId="VideoProcess"
                                       ToolTip="Muss zum Modell passen. Ein dev-Modell mit „Schnell“ gibt ein verrauschtes Video." />
+                            </StackPanel>
                             <TextBox Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110"
                                      MaxHeight="220" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" SpellCheck.IsEnabled="False"
-                                     AutomationProperties.Name="Beschreibung des Videos" AutomationProperties.AutomationId="VideoPrompt" />
-                            <TextBlock Style="{StaticResource Text.Hint}" Margin="0,6,0,12" TextWrapping="Wrap"
-                                       Text="Beschreib Szene, Bewegung, Kamera und Ton. Auf Englisch klappt es am besten, z.B. „A red fox jumps over a snowy log, crunching snow, soft wind, handheld camera.“" />
+                                     AutomationProperties.Name="{Binding PromptName}" AutomationProperties.AutomationId="VideoPrompt" />
+                            <TextBlock Style="{StaticResource Text.Hint}" Margin="0,6,0,12" TextWrapping="Wrap" Text="{Binding PromptHint}" />
                             <WrapPanel Margin="0,-6,0,12">
                                 <Button Content="Prompt verbessern (KI)" Command="{Binding ImprovePromptCommand}" Margin="0,0,8,0"
                                         AutomationProperties.AutomationId="VideoImprovePrompt"
@@ -95,6 +129,22 @@
                                         AutomationProperties.AutomationId="VideoUndoPrompt" />
                             </WrapPanel>
 
+                            <!-- Bild: Format und Anzahl -->
+                            <WrapPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}">
+                                <StackPanel Margin="0,0,12,10">
+                                    <TextBlock Text="Format" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                    <ComboBox Width="250" ItemsSource="{Binding ImageFormats}" SelectedItem="{Binding SelectedImageFormat}" AutomationProperties.Name="Bildformat"
+                                              AutomationProperties.AutomationId="ImageFormat" />
+                                </StackPanel>
+                                <StackPanel Margin="0,0,12,10">
+                                    <TextBlock Text="Anzahl Bilder" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                    <ComboBox Width="80" ItemsSource="{Binding ImageCounts}" SelectedItem="{Binding ImageCount}" AutomationProperties.Name="Anzahl Bilder"
+                                              AutomationProperties.AutomationId="ImageCount"
+                                              ToolTip="Alle Bilder entstehen in einem Durchgang, mit demselben Prompt und Seed, aber verschieden." />
+                                </StackPanel>
+                            </WrapPanel>
+
+                            <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Startbild (optional, Bild zu Video)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
@@ -141,20 +191,22 @@
                             <CheckBox Style="{StaticResource ToggleSwitch}" Content="Mit Ton" IsChecked="{Binding WithAudio}" Margin="0,0,0,12"
                                       AutomationProperties.AutomationId="VideoAudio"
                                       ToolTip="Das Modell erzeugt Bild und Ton zusammen. Ohne Ton hat das Video keine Tonspur." />
+                            </StackPanel>
 
                             <TextBlock Text="Seed" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                 <TextBox Width="150" Text="{Binding SeedText, UpdateSourceTrigger=PropertyChanged}" MaxLength="15" VerticalContentAlignment="Center"
                                          AutomationProperties.Name="Seed" AutomationProperties.AutomationId="VideoSeed"
-                                         ToolTip="Startzahl fürs Rauschen. Gleicher Seed und gleicher Prompt ergeben dasselbe Video." />
+                                         ToolTip="Startzahl fürs Rauschen. Gleicher Seed und gleicher Prompt ergeben dasselbe Ergebnis." />
                                 <Button Content="Zufall" Command="{Binding RandomSeedCommand}" Margin="8,0,0,0" ToolTip="Neuen Seed würfeln" />
                                 <CheckBox Style="{StaticResource ToggleSwitch}" Content="Seed behalten" IsChecked="{Binding KeepSeed}" Margin="12,0,0,0"
                                           VerticalAlignment="Center"
                                           AutomationProperties.AutomationId="VideoKeepSeed"
-                                          ToolTip="Aus: Jedes Video bekommt einen neuen Seed. Ein: Der Seed im Feld bleibt." />
+                                          ToolTip="Aus: Jeder Auftrag bekommt einen neuen Seed. Ein: Der Seed im Feld bleibt." />
                             </StackPanel>
 
-                            <!-- Speicher-Ampel -->
+                            <!-- Speicher-Ampel (nur Video) -->
+                            <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4" DataContext="{Binding Fit}">
                                 <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding Level, Converter={StaticResource FitBrush}}" />
                                 <TextBlock Margin="8,0,0,0" Text="{Binding Label, StringFormat='Speicher: {0}'}" FontWeight="SemiBold"
@@ -162,15 +214,16 @@
                             </StackPanel>
                             <TextBlock Text="{Binding Fit.Explanation}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,0,0,12"
                                        AutomationProperties.AutomationId="VideoFitText" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
 
                     <WrapPanel Margin="0,-6,0,16">
-                        <Button Style="{StaticResource Button.Primary}" Content="Video erzeugen" Command="{Binding GenerateCommand}" Margin="0,0,8,0"
+                        <Button Style="{StaticResource Button.Primary}" Content="{Binding GenerateText}" Command="{Binding GenerateCommand}" Margin="0,0,8,0"
                                 AutomationProperties.AutomationId="VideoGenerate" />
                         <Button Content="Abbrechen" Command="{Binding CancelCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="VideoCancel" />
                         <Button Content="In die Warteschlange" Command="{Binding EnqueueCommand}" AutomationProperties.AutomationId="VideoEnqueue"
-                                ToolTip="Läuft schon ein Video, kommt dieses danach dran. So kannst du mehrere Videos nacheinander erzeugen, z.B. über Nacht." />
+                                ToolTip="Läuft schon ein Auftrag, kommt dieser danach dran. So kannst du mehrere Videos und Bilder nacheinander erzeugen, z.B. über Nacht." />
                     </WrapPanel>
 
                     <!-- Warteschlange -->
@@ -182,7 +235,7 @@
                             </DockPanel>
                             <ItemsControl ItemsSource="{Binding Queue}" AutomationProperties.Name="Warteschlange" AutomationProperties.AutomationId="VideoQueue">
                                 <ItemsControl.ItemTemplate>
-                                    <DataTemplate DataType="{x:Type vm:VideoJob}">
+                                    <DataTemplate DataType="{x:Type vm:StudioJob}">
                                         <DockPanel Margin="0,0,0,6" AutomationProperties.Name="{Binding Label}">
                                             <Button DockPanel.Dock="Right" Style="{StaticResource Button.Icon}" AutomationProperties.Name="Aus der Warteschlange nehmen"
                                                     Command="{Binding DataContext.RemoveQueuedCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
@@ -202,7 +255,7 @@
                         <StackPanel>
                             <TextBlock Text="Fortschritt" Style="{StaticResource StepTitle}" />
                             <TextBlock Text="{Binding StageText}" TextWrapping="Wrap" AutomationProperties.AutomationId="VideoStage" AutomationProperties.LiveSetting="Polite" />
-                            <ProgressBar Height="8" Margin="0,8,0,4" Maximum="100" Value="{Binding ProgressValue}" AutomationProperties.Name="Fortschritt des Videos" />
+                            <ProgressBar Height="8" Margin="0,8,0,4" Maximum="100" Value="{Binding ProgressValue}" AutomationProperties.Name="Fortschritt des Auftrags" />
                             <TextBlock Text="{Binding ProgressText}" Style="{StaticResource Text.Hint}" AutomationProperties.AutomationId="VideoProgress" />
                         </StackPanel>
                     </Border>
@@ -211,7 +264,7 @@
                         <TextBlock Text="{Binding BackendStatus}" Style="{StaticResource Text.Hint}" VerticalAlignment="Center"
                                    AutomationProperties.AutomationId="VideoBackendStatus" />
                         <Button Style="{StaticResource Button.Ghost}" Content="ComfyUI beenden" Command="{Binding StopBackendCommand}" Margin="8,0,0,0"
-                                ToolTip="Gibt RAM und VRAM frei. ComfyUI startet beim nächsten Video wieder von selbst." />
+                                ToolTip="Gibt RAM und VRAM frei. ComfyUI startet beim nächsten Auftrag wieder von selbst." />
                     </StackPanel>
                 </StackPanel>
             </ScrollViewer>
@@ -230,7 +283,10 @@
                                 <MediaElement x:Name="Player" LoadedBehavior="Manual" UnloadedBehavior="Close" Stretch="Uniform"
                                               MediaOpened="Player_MediaOpened" MediaEnded="Player_MediaEnded" MediaFailed="Player_MediaFailed"
                                               AutomationProperties.Name="Video-Player" AutomationProperties.AutomationId="VideoPlayer" />
-                                <TextBlock Text="Noch kein Video. Schreib links einen Auftrag und klick auf „Video erzeugen“." Foreground="{StaticResource Brush.TextMuted}"
+                                <Image Source="{Binding SelectedVideo.VideoPath, Converter={StaticResource Thumbnail}, ConverterParameter=1400}" Stretch="Uniform"
+                                       Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}"
+                                       AutomationProperties.Name="Gewähltes Bild" AutomationProperties.AutomationId="StudioImageView" />
+                                <TextBlock Text="Noch nichts erzeugt. Schreib links einen Auftrag und klick auf „Video erzeugen“ oder „Bilder erzeugen“." Foreground="{StaticResource Brush.TextMuted}"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="320" TextAlignment="Center"
                                            Visibility="{Binding HasNoVideos, Converter={StaticResource BoolToVisibility}}" />
                                 <TextBlock x:Name="PlayerError" Foreground="{StaticResource Brush.Error}" HorizontalAlignment="Center" VerticalAlignment="Center"
@@ -243,6 +299,7 @@
                                 <ColumnDefinition Width="*" />
                             </Grid.ColumnDefinitions>
                             <Button x:Name="PlayPause" Style="{StaticResource Button.Icon}" Click="PlayPause_Click" VerticalAlignment="Top" Margin="0,0,10,0"
+                                    Visibility="{Binding HasSelectedVideo, Converter={StaticResource BoolToVisibility}}"
                                     AutomationProperties.Name="Abspielen" AutomationProperties.AutomationId="VideoPlayPause" ToolTip="Abspielen / Pause">
                                 <TextBlock x:Name="PlayPauseIcon" Style="{StaticResource Text.Icon}" FontSize="16" Text="{x:Static app:Glyphs.Play}" />
                             </Button>
@@ -254,12 +311,15 @@
                             </StackPanel>
                         </Grid>
                         <WrapPanel Margin="0,10,0,0" Visibility="{Binding HasSelection, Converter={StaticResource BoolToVisibility}}">
+                            <Button Style="{StaticResource Button.Primary}" Content="Als Startbild für ein Video" Command="{Binding UseAsStartImageCommand}" Margin="0,0,8,8"
+                                    Visibility="{Binding HasSelectedImage, Converter={StaticResource BoolToVisibility}}" AutomationProperties.AutomationId="StudioUseAsStart"
+                                    ToolTip="Wechselt auf Video. Das Bild wird das erste Bild des Videos." />
                             <Button Content="Prompt übernehmen" Command="{Binding ReusePromptCommand}" Margin="0,0,8,8"
-                                    ToolTip="Prompt, Format, Länge, Ton und Seed ins Formular links übernehmen" />
+                                    ToolTip="Prompt, Format, Seed und die übrigen Einstellungen ins Formular links übernehmen" />
                             <Button Content="Nochmal (gleicher Seed)" Command="{Binding RepeatSameSeedCommand}" Margin="0,0,8,8"
-                                    ToolTip="Genau dasselbe Video nochmals erzeugen" />
+                                    ToolTip="Genau dasselbe nochmals erzeugen" />
                             <Button Content="Nochmal (neuer Seed)" Command="{Binding RepeatNewSeedCommand}" Margin="0,0,8,8"
-                                    ToolTip="Derselbe Prompt, aber ein anderes Video" />
+                                    ToolTip="Derselbe Prompt, aber ein anderes Ergebnis" />
                             <Button Style="{StaticResource Button.Ghost}" Content="Ordner öffnen" Command="{Binding OpenFolderCommand}" Margin="0,0,8,8" />
                             <Button Style="{StaticResource Button.Ghost}" Content="In den Papierkorb" Command="{Binding DeleteVideoCommand}" Margin="0,0,8,8"
                                     AutomationProperties.AutomationId="VideoDelete" />
@@ -268,7 +328,19 @@
                 </Border>
 
                 <DockPanel Grid.Row="1">
-                    <TextBlock DockPanel.Dock="Top" Text="Galerie" Style="{StaticResource StepTitle}" />
+                    <DockPanel DockPanel.Dock="Top" Margin="0,0,0,8">
+                        <Border DockPanel.Dock="Right" Style="{StaticResource SegmentHost}">
+                            <StackPanel Orientation="Horizontal">
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="galleryFilter" Content="Alle" AutomationProperties.AutomationId="GalleryAll"
+                                             IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:GalleryFilter.All}}" />
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="galleryFilter" Content="Videos" AutomationProperties.AutomationId="GalleryVideos"
+                                             IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:GalleryFilter.Videos}}" />
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="galleryFilter" Content="Bilder" AutomationProperties.AutomationId="GalleryImages"
+                                             IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:GalleryFilter.Images}}" />
+                            </StackPanel>
+                        </Border>
+                        <TextBlock Text="Galerie" Style="{StaticResource StepTitle}" Margin="0" VerticalAlignment="Center" />
+                    </DockPanel>
                     <ListBox ItemsSource="{Binding Videos}" SelectedItem="{Binding SelectedVideo}" Style="{StaticResource ListBox.Plain}"
                              ScrollViewer.HorizontalScrollBarVisibility="Disabled" AutomationProperties.Name="Galerie"
                              AutomationProperties.AutomationId="VideoGallery">
@@ -288,7 +360,24 @@
                             <DataTemplate DataType="{x:Type video:VideoEntry}">
                                 <StackPanel Width="160" ToolTip="{Binding Prompt}">
                                     <Border Height="100" Background="Black" CornerRadius="{StaticResource Radius.Small}" ClipToBounds="True">
-                                        <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumbnail}}" Stretch="Uniform" />
+                                        <Grid>
+                                            <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumbnail}}" Stretch="Uniform" />
+                                            <!-- Kennzeichen unten links: Video oder Bild -->
+                                            <Border HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="4" Padding="4,2" CornerRadius="3" Background="#B0000000">
+                                                <TextBlock FontSize="11" Foreground="White">
+                                                    <TextBlock.Style>
+                                                        <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Icon}">
+                                                            <Setter Property="Text" Value="{x:Static app:Glyphs.Video}" />
+                                                            <Style.Triggers>
+                                                                <DataTrigger Binding="{Binding IsImage}" Value="True">
+                                                                    <Setter Property="Text" Value="{x:Static app:Glyphs.Image}" />
+                                                                </DataTrigger>
+                                                            </Style.Triggers>
+                                                        </Style>
+                                                    </TextBlock.Style>
+                                                </TextBlock>
+                                            </Border>
+                                        </Grid>
                                     </Border>
                                     <TextBlock Margin="0,4,0,0" FontSize="{StaticResource FontSize.Small}" TextTrimming="CharacterEllipsis" Text="{Binding Prompt}" />
                                     <TextBlock Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}"

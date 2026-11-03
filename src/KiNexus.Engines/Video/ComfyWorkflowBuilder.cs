@@ -61,6 +61,56 @@ public static class ComfyWorkflowBuilder
     }
 
     /// <summary>
+    /// Bild-Auftrag (Bauplan Bild, B1): eine Vorlage pro Modell-Art. Alle Bilder entstehen in einem Durchgang (batch_size),
+    /// so lädt das Modell nur einmal. Gleicher Seed, gleicher Prompt und gleiche Anzahl ergeben dieselben Bilder.
+    /// </summary>
+    /// <param name="filenamePrefix">Name der Bilddateien ohne Endung, z.B. "bilder/2026-11-03_101500_seed42".</param>
+    public static JsonObject BuildImage(ImageRequest request, ImageModelSet models, string filenamePrefix)
+    {
+        if (request.Problem() is { } problem)
+        {
+            throw new ArgumentException(problem, nameof(request));
+        }
+
+        var workflow = LoadTemplate(TemplateFor(models.Family));
+        Inputs(workflow, "KN_Model")["unet_name"] = models.Model;
+        Inputs(workflow, "KN_TextEncoder")["clip_name"] = models.TextEncoder;
+        Inputs(workflow, "KN_Vae")["vae_name"] = models.Vae;
+        Inputs(workflow, "KN_Prompt")["text"] = request.Prompt.Trim();
+        var latent = Inputs(workflow, "KN_Latent");
+        latent["width"] = request.Width;
+        latent["height"] = request.Height;
+        latent["batch_size"] = request.Count;
+        Inputs(workflow, "KN_Save")["filename_prefix"] = filenamePrefix;
+        switch (models.Family)
+        {
+            case ImageModelFamily.Flux2Klein:
+                var sigmas = Inputs(workflow, "KN_Sigmas");
+                sigmas["steps"] = models.Steps;
+                sigmas["width"] = request.Width;
+                sigmas["height"] = request.Height;
+                Inputs(workflow, "KN_Seed")["noise_seed"] = request.Seed;
+                Inputs(workflow, "KN_Guider")["cfg"] = models.Guidance;
+                break;
+            case ImageModelFamily.ZImageTurbo:
+                var denoise = Inputs(workflow, "KN_Denoise");
+                denoise["seed"] = request.Seed;
+                denoise["steps"] = models.Steps;
+                denoise["cfg"] = models.Guidance;
+                break;
+        }
+
+        return workflow;
+    }
+
+    public static string TemplateFor(ImageModelFamily family) => family switch
+    {
+        ImageModelFamily.Flux2Klein => "flux2-klein-bild.json",
+        ImageModelFamily.ZImageTurbo => "z-image-bild.json",
+        _ => throw new ArgumentOutOfRangeException(nameof(family), family, "Unbekannte Art von Bildmodell."),
+    };
+
+    /// <summary>
     /// Bild zu Video: Startbild laden, auf die Grösse des Videos zuschneiden (Mitte), leicht komprimieren wie bei Lightricks
     /// (sonst bleibt das Bild oft stehen) und als erstes Bild ins Latent setzen. Das Modell rechnet von dort weiter.
     /// </summary>

@@ -1,0 +1,12 @@
+{
+  "1": { "class_type": "UnetLoaderGGUF", "_meta": { "title": "KN_Model" }, "inputs": { "unet_name": "z-image-turbo-Q8_0.gguf" } },
+  "2": { "class_type": "CLIPLoader", "_meta": { "title": "KN_TextEncoder" }, "inputs": { "clip_name": "qwen_3_4b.safetensors", "type": "lumina2", "device": "default" } },
+  "3": { "class_type": "VAELoader", "_meta": { "title": "KN_Vae" }, "inputs": { "vae_name": "ae.safetensors" } },
+  "4": { "class_type": "CLIPTextEncode", "_meta": { "title": "KN_Prompt" }, "inputs": { "text": "", "clip": [ "2", 0 ] } },
+  "5": { "class_type": "ConditioningZeroOut", "_meta": { "title": "KN_NegativePrompt" }, "inputs": { "conditioning": [ "4", 0 ] } },
+  "6": { "class_type": "EmptySD3LatentImage", "_meta": { "title": "KN_Latent" }, "inputs": { "width": 1024, "height": 1024, "batch_size": 1 } },
+  "7": { "class_type": "ModelSamplingAuraFlow", "_meta": { "title": "KN_Shift" }, "inputs": { "model": [ "1", 0 ], "shift": 3.0 } },
+  "8": { "class_type": "KSampler", "_meta": { "title": "KN_Denoise" }, "inputs": { "model": [ "7", 0 ], "seed": 42, "steps": 8, "cfg": 1.0, "sampler_name": "res_multistep", "scheduler": "simple", "positive": [ "4", 0 ], "negative": [ "5", 0 ], "latent_image": [ "6", 0 ], "denoise": 1.0 } },
+  "9": { "class_type": "VAEDecode", "_meta": { "title": "KN_DecodeImage" }, "inputs": { "samples": [ "8", 0 ], "vae": [ "3", 0 ] } },
+  "10": { "class_type": "SaveImage", "_meta": { "title": "KN_Save" }, "inputs": { "images": [ "9", 0 ], "filename_prefix": "bild" } }
+}

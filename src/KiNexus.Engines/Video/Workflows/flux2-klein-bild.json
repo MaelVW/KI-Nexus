@@ -1,0 +1,15 @@
+{
+  "1": { "class_type": "UnetLoaderGGUF", "_meta": { "title": "KN_Model" }, "inputs": { "unet_name": "flux-2-klein-4b-Q8_0.gguf" } },
+  "2": { "class_type": "CLIPLoader", "_meta": { "title": "KN_TextEncoder" }, "inputs": { "clip_name": "qwen_3_4b.safetensors", "type": "flux2", "device": "default" } },
+  "3": { "class_type": "VAELoader", "_meta": { "title": "KN_Vae" }, "inputs": { "vae_name": "flux2-vae.safetensors" } },
+  "4": { "class_type": "CLIPTextEncode", "_meta": { "title": "KN_Prompt" }, "inputs": { "text": "", "clip": [ "2", 0 ] } },
+  "5": { "class_type": "ConditioningZeroOut", "_meta": { "title": "KN_NegativePrompt" }, "inputs": { "conditioning": [ "4", 0 ] } },
+  "6": { "class_type": "EmptyFlux2LatentImage", "_meta": { "title": "KN_Latent" }, "inputs": { "width": 1024, "height": 1024, "batch_size": 1 } },
+  "7": { "class_type": "Flux2Scheduler", "_meta": { "title": "KN_Sigmas" }, "inputs": { "steps": 4, "width": 1024, "height": 1024 } },
+  "8": { "class_type": "KSamplerSelect", "_meta": { "title": "KN_Sampler" }, "inputs": { "sampler_name": "euler" } },
+  "9": { "class_type": "RandomNoise", "_meta": { "title": "KN_Seed" }, "inputs": { "noise_seed": 42 } },
+  "10": { "class_type": "CFGGuider", "_meta": { "title": "KN_Guider" }, "inputs": { "model": [ "1", 0 ], "positive": [ "4", 0 ], "negative": [ "5", 0 ], "cfg": 1.0 } },
+  "11": { "class_type": "SamplerCustomAdvanced", "_meta": { "title": "KN_Denoise" }, "inputs": { "noise": [ "9", 0 ], "guider": [ "10", 0 ], "sampler": [ "8", 0 ], "sigmas": [ "7", 0 ], "latent_image": [ "6", 0 ] } },
+  "12": { "class_type": "VAEDecode", "_meta": { "title": "KN_DecodeImage" }, "inputs": { "samples": [ "11", 0 ], "vae": [ "3", 0 ] } },
+  "13": { "class_type": "SaveImage", "_meta": { "title": "KN_Save" }, "inputs": { "images": [ "12", 0 ], "filename_prefix": "bild" } }
+}

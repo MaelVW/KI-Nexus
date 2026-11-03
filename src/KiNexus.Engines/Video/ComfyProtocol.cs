@@ -97,7 +97,7 @@ public static class ComfyProtocol
         "KN_Denoise" => VideoPhase.Denoising,
         "KN_DecodeAudio" => VideoPhase.DecodingAudio,
         // Nicht "KN_VideoVae": ComfyUI lädt die VAE oft schon ganz am Anfang. Sonst stünde dort kurz "Bilder erzeugen".
-        "KN_DecodeVideo" => VideoPhase.DecodingVideo,
+        "KN_DecodeVideo" or "KN_DecodeImage" => VideoPhase.DecodingVideo,
         "KN_CreateVideo" or "KN_Save" => VideoPhase.Saving,
         _ => null,
     };
@@ -113,6 +113,16 @@ public static class ComfyProtocol
         VideoPhase.DecodingVideo => "Bilder erzeugen …",
         VideoPhase.Saving => "Video speichern …",
         _ => phase.ToString(),
+    };
+
+    /// <summary>Wie <see cref="Describe"/>, aber für Bild-Aufträge.</summary>
+    public static string DescribeImage(VideoPhase phase) => phase switch
+    {
+        VideoPhase.LoadingModel => "Bildmodell vorbereiten …",
+        VideoPhase.Denoising => "Entrauschen (der erste Schritt lädt das Bildmodell) …",
+        VideoPhase.DecodingVideo => "Bild fertig rechnen …",
+        VideoPhase.Saving => "Bild speichern …",
+        _ => Describe(phase),
     };
 
     /// <summary>Macht Fehler von ComfyUI verständlich. Am häufigsten: zu wenig Speicher.</summary>

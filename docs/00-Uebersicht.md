@@ -23,6 +23,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | Video V2 | Video-Tab: Auftrag mit Speicher-Ampel, Fortschritt, Abbrechen, Player, Galerie, Chat-Sperre während des Videos | ✅ fertig (v1.5.0) |
 | Video V3 | Videomodelle im Create-Hub und in der Hugging-Face-Suche, Modellwahl im Video-Tab | ✅ fertig (v1.6.0) |
 | Video V4 | Bild zu Video, Prompt verbessern (KI), Warteschlange | ✅ fertig (v1.8.0) |
+| Bild B0 | Zwei Bildmodelle gemessen (FLUX.2 klein, Z-Image Turbo), Empfehlung FLUX.2 klein, siehe `docs/11-Bild.md` | ✅ erledigt |
+| Bild B1–B2 | Bild-Engine, Studio-Tab (Video \| Bild), Galerie mit Filter, „Als Startbild für ein Video“ | ✅ fertig (v1.9.0) |
 
 ## Ordner
 
@@ -39,8 +41,8 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | `src/KiNexus.Core/` | Logik ohne Oberfläche: Einstellungen, KIs, EngineManager, Prozesse, Messung | ja |
 | `src/KiNexus.Engines/` | Anbindung an llama.cpp, Ollama und Hugging Face, Import aus Ollama | ja |
 | `tests/` | Unit-Tests für Core und Engines | ja |
-| `python/` | Sprach-Worker (`voice/worker.py`, M4), Training (`training/`, M8), Video-Test (`video/`, V0). Umgebungen in `python/.venv`, `python/training/.venv` und `engines/comfyui/.venv` | ja (ohne `.venv`) |
-| `scripts/` | PowerShell-Skripte: `setup-engines.ps1` (llama.cpp), `setup-voice.ps1` (Sprache), `setup-training.ps1` (Training), `setup-video.ps1` (Video) | ja |
+| `python/` | Sprach-Worker (`voice/worker.py`, M4), Training (`training/`, M8), Video-Test (`video/`, V0), Bild-Test (`image/`, B0). Umgebungen in `python/.venv`, `python/training/.venv` und `engines/comfyui/.venv` | ja (ohne `.venv`) |
+| `scripts/` | PowerShell-Skripte: `setup-engines.ps1` (llama.cpp), `setup-voice.ps1` (Sprache), `setup-training.ps1` (Training), `setup-video.ps1` (Video und Bild, `-Images`) | ja |
 
 ## So hängt alles zusammen
 

@@ -8,7 +8,7 @@ using KiNexus.Core.Video;
 namespace KiNexus.App.Views;
 
 /// <summary>
-/// Der Video-Tab. Den Player (MediaElement) steuert diese Datei: Er braucht Befehle wie Play und Pause,
+/// Der Studio-Tab (Video und Bild). Den Player (MediaElement) steuert diese Datei: Er braucht Befehle wie Play und Pause,
 /// die man nicht binden kann. Alles andere steht im <see cref="VideoViewModel"/>.
 /// </summary>
 public partial class VideoView : UserControl
@@ -49,11 +49,11 @@ public partial class VideoView : UserControl
         }
     }
 
-    /// <summary>Kein Video: Der Player gibt die Datei frei (wichtig vor dem Löschen).</summary>
+    /// <summary>Kein Video (oder ein Bild, das zeigt die Ansicht selbst): Der Player gibt die Datei frei (wichtig vor dem Löschen).</summary>
     private void Open(VideoEntry? video, bool autoPlay)
     {
         ClosePlayer();
-        if (video is null)
+        if (video is null or { IsImage: true })
         {
             return;
         }

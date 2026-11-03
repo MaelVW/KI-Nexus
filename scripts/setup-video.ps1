@@ -10,6 +10,7 @@
     3. Schreibt engines\comfyui\kinexus-paths.yaml: ComfyUI findet die Modelle in models\video.
     4. Nur mit -Models: lädt das offizielle LTX-2.3 (distilled, Q4_K_M) mit Text-Encoder und VAEs, zusammen ca. 24 GB.
        Nur mit -Companions: nur Text-Encoder, Projektion und VAEs (ca. 11 GB), z.B. für ein Videomodell von Hugging Face.
+       Nur mit -Images: lädt das Bildmodell (Bauplan Bild) mit Text-Encoder und VAE nach models\image.
        Jede Datei wird mit ihrer SHA-256-Prüfsumme geprüft. Abgebrochene Downloads gehen beim nächsten Mal weiter.
     5. Prüft, ob PyTorch die Grafikkarte findet.
     Nichts wird systemweit installiert. engines\comfyui\ und models\video\ kann man jederzeit löschen.
@@ -20,10 +21,13 @@
     .\scripts\setup-video.ps1 -Models
 .EXAMPLE
     .\scripts\setup-video.ps1 -Companions
+.EXAMPLE
+    .\scripts\setup-video.ps1 -Images
 #>
 param(
     [switch]$Models,
-    [switch]$Companions
+    [switch]$Companions,
+    [switch]$Images
 )
 $ErrorActionPreference = "Stop"
 [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
@@ -36,6 +40,7 @@ $Root = Split-Path -Parent $PSScriptRoot
 $ComfyDir = Join-Path $Root "engines\comfyui"
 $VideoDir = Join-Path $Root "python\video"
 $ModelsDir = Join-Path $Root "models\video"
+$ImageDir = Join-Path $Root "models\image"
 $Marker = Join-Path $ComfyDir "version.txt"
 $Wanted = "ComfyUI $ComfyVersion, ComfyUI-GGUF $GgufCommit"
 
@@ -129,20 +134,37 @@ if ($Companions -and -not $Models) {
     # Nur die Zusatzdateien: Das Videomodell selbst kommt z.B. von Hugging Face (Create-Hub).
     $files = @($files | Where-Object { $_.Folder -ne "diffusion_models" })
 }
-$missing = @($files | Where-Object { -not (Test-Path (Join-Path (Join-Path $ModelsDir $_.Folder) $_.Name)) })
+foreach ($file in $files) { $file.Dir = $ModelsDir }
 
-Write-Host "4/5  Modelle (LTX-2.3 distilled, Gemma 3 12B, VAEs) ..."
+# Bildmodell (Bauplan Bild, gemessen in B0, siehe docs\11-Bild.md). Liest den Prompt mit Qwen3 4B.
+$imageFiles = @(
+    @{ Folder = "diffusion_models"; Name = "flux-2-klein-4b-Q8_0.gguf"; Url = "https://huggingface.co/unsloth/FLUX.2-klein-4B-GGUF/resolve/main/flux-2-klein-4b-Q8_0.gguf"; Gb = 4.0; Sha = "24a812e8f9b640e21c784164ea48571d8017ca22873696f4badeeabb006d509c" },
+    @{ Folder = "text_encoders"; Name = "qwen_3_4b.safetensors"; Url = "https://huggingface.co/Comfy-Org/Z-Image-Turbo/resolve/main/split_files/text_encoders/qwen_3_4b.safetensors"; Gb = 7.5; Sha = "6c671498573ac2f7a5501502ccce8d2b08ea6ca2f661c458e708f36b36edfc5a" },
+    @{ Folder = "vae"; Name = "flux2-vae.safetensors"; Url = "https://huggingface.co/Comfy-Org/Flux-2-Klein-4B/resolve/main/split_files/vae/flux2-vae.safetensors"; Gb = 0.3; Sha = "868fe7b343cc8f3a19dbcfcafbc3d5f888802be3f89bd81b65b3621a066ce8f3" }
+)
+foreach ($folder in @("diffusion_models", "text_encoders", "vae")) {
+    New-Item -ItemType Directory -Force -Path (Join-Path $ImageDir $folder) | Out-Null
+}
+foreach ($file in $imageFiles) { $file.Dir = $ImageDir }
+if ($Images) {
+    # Nur -Images: nur das Bildmodell. Zusammen mit -Models oder -Companions: beides.
+    $files = @($(if ($Models -or $Companions) { $files }) + $imageFiles)
+}
+$missing = @($files | Where-Object { -not (Test-Path (Join-Path (Join-Path $_.Dir $_.Folder) $_.Name)) })
+
+if ($Images -and -not ($Models -or $Companions)) { Write-Host "4/5  Bildmodell (FLUX.2 klein 4B, Qwen3 4B, VAE) ..." }
+else { Write-Host "4/5  Modelle (LTX-2.3 distilled, Gemma 3 12B, VAEs) ..." }
 if ($missing.Count -eq 0) {
     Write-Host "  Alle Modelldateien sind da."
 }
-elseif (-not $Models -and -not $Companions) {
+elseif (-not $Models -and -not $Companions -and -not $Images) {
     $gb = ($missing | Measure-Object -Property Gb -Sum).Sum
     Write-Host ("  Es fehlen {0} Dateien (ca. {1:N1} GB). Laden mit: .\scripts\setup-video.ps1 -Models" -f $missing.Count, $gb)
 }
 else {
     $curl = Join-Path $env:SystemRoot "System32\curl.exe"
     foreach ($file in $missing) {
-        $target = Join-Path (Join-Path $ModelsDir $file.Folder) $file.Name
+        $target = Join-Path (Join-Path $file.Dir $file.Folder) $file.Name
         $part = "$target.part"
         Write-Host ("  Lade {0} (ca. {1:N1} GB) ..." -f $file.Name, $file.Gb)
         $ErrorActionPreference = "Continue"

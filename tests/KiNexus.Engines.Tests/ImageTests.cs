@@ -1,0 +1,173 @@
+using System.Text.Json.Nodes;
+using KiNexus.Core.Paths;
+using KiNexus.Core.Processes;
+using KiNexus.Core.Tests;
+using KiNexus.Core.Video;
+using KiNexus.Engines.Video;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace KiNexus.Engines.Tests;
+
+/// <summary>Bildgenerierung über ComfyUI (Bauplan Bild, B1).</summary>
+public class ImageTests
+{
+    // ----------------------------------------------------------------- Auftrag
+
+    [Theory]
+    [InlineData("", 1024, 1024, 1, "leer")]
+    [InlineData("Ein Hund", 1000, 1024, 1, "durch 16")]
+    [InlineData("Ein Hund", 1024, 256, 1, "durch 16")]
+    [InlineData("Ein Hund", 1024, 1024, 5, "1 bis 4")]
+    [InlineData("Ein Hund", 1024, 1024, 0, "1 bis 4")]
+    public void Request_ExplainsProblems(string prompt, int width, int height, int count, string expected)
+    {
+        Assert.Contains(expected, new ImageRequest(prompt, width, height, count).Problem(), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public void Request_FormatsAreValid()
+    {
+        Assert.All(ImageRequest.Formats, format => Assert.Null(new ImageRequest("x", format.Width, format.Height).Problem()));
+    }
+
+    // ----------------------------------------------------------------- Workflow
+
+    [Fact]
+    public void Builder_FillsFluxTemplate()
+    {
+        var models = ImageModelSet.Flux2Klein4B;
+        var workflow = ComfyWorkflowBuilder.BuildImage(new ImageRequest("  A red apple.  ", 1216, 832, Count: 3, Seed: 9), models, "bilder/test");
+
+        Assert.Equal("A red apple.", Inputs(workflow, "KN_Prompt")["text"]!.GetValue<string>());
+        Assert.Equal(models.Model, Inputs(workflow, "KN_Model")["unet_name"]!.GetValue<string>());
+        Assert.Equal("flux2", Inputs(workflow, "KN_TextEncoder")["type"]!.GetValue<string>());
+        Assert.Equal(models.Vae, Inputs(workflow, "KN_Vae")["vae_name"]!.GetValue<string>());
+        Assert.Equal(1216, Inputs(workflow, "KN_Latent")["width"]!.GetValue<int>());
+        Assert.Equal(832, Inputs(workflow, "KN_Latent")["height"]!.GetValue<int>());
+        Assert.Equal(3, Inputs(workflow, "KN_Latent")["batch_size"]!.GetValue<int>());
+        Assert.Equal(1216, Inputs(workflow, "KN_Sigmas")["width"]!.GetValue<int>());
+        Assert.Equal(4, Inputs(workflow, "KN_Sigmas")["steps"]!.GetValue<int>());
+        Assert.Equal(9, Inputs(workflow, "KN_Seed")["noise_seed"]!.GetValue<long>());
+        Assert.Equal("bilder/test", Inputs(workflow, "KN_Save")["filename_prefix"]!.GetValue<string>());
+        AssertAllLinksExist(workflow);
+    }
+
+    [Fact]
+    public void Builder_FillsZImageTemplate()
+    {
+        var models = ImageModelSet.ZImageTurbo;
+        var workflow = ComfyWorkflowBuilder.BuildImage(new ImageRequest("A red apple.", 832, 1216, Seed: 5), models, "bilder/test");
+
+        Assert.Equal("lumina2", Inputs(workflow, "KN_TextEncoder")["type"]!.GetValue<string>());
+        Assert.Equal(models.Vae, Inputs(workflow, "KN_Vae")["vae_name"]!.GetValue<string>());
+        Assert.Equal(1, Inputs(workflow, "KN_Latent")["batch_size"]!.GetValue<int>());
+        Assert.Equal(5, Inputs(workflow, "KN_Denoise")["seed"]!.GetValue<long>());
+        Assert.Equal(8, Inputs(workflow, "KN_Denoise")["steps"]!.GetValue<int>());
+        Assert.Equal(1.0, Inputs(workflow, "KN_Denoise")["cfg"]!.GetValue<double>());
+        AssertAllLinksExist(workflow);
+    }
+
+    [Fact]
+    public void Builder_RejectsInvalidRequest()
+    {
+        Assert.Throws<ArgumentException>(() => ComfyWorkflowBuilder.BuildImage(new ImageRequest(""), ImageModelSet.Flux2Klein4B, "x"));
+    }
+
+    [Fact]
+    public void Protocol_UsesImageTexts()
+    {
+        Assert.Equal(VideoPhase.DecodingVideo, ComfyProtocol.PhaseFor("KN_DecodeImage"));
+        Assert.Contains("Bildmodell", ComfyProtocol.DescribeImage(VideoPhase.LoadingModel), StringComparison.Ordinal);
+        Assert.Equal(ComfyProtocol.Describe(VideoPhase.Starting), ComfyProtocol.DescribeImage(VideoPhase.Starting));
+    }
+
+    // ----------------------------------------------------------------- Einrichtung
+
+    [Fact]
+    public void PathsYaml_AddsImageFolder()
+    {
+        var yaml = ComfyCommand.PathsYaml(@"C:\Projekt\models\video", imageModelsDirectory: @"C:\Projekt\models\image").ReplaceLineEndings("\n");
+
+        Assert.Contains("kinexus_bild:\n  base_path: \"C:/Projekt/models/image\"\n  diffusion_models: diffusion_models", yaml, StringComparison.Ordinal);
+        Assert.DoesNotContain("kinexus_bild", ComfyCommand.PathsYaml(@"C:\Projekt\models\video"), StringComparison.Ordinal);
+    }
+
+    [Fact]
+    public async Task Backend_ReportsMissingImageModels()
+    {
+        using var root = new TempDirectory();
+        using var supervisor = new ProcessSupervisor(NullLogger<ProcessSupervisor>.Instance);
+        await using var backend = new ComfyVideoBackend(supervisor, NullLogger<ComfyVideoBackend>.Instance, ComfyInstallation.For(root.Path),
+            new ComfyOptions(root.Combine("video"), root.Combine("out"), root.Combine("work"), root.Combine("video.log"), ImageModelsDirectory: root.Combine("image")));
+
+        var events = await Collect(backend.GenerateImageAsync(new ImageRequest("x"), ImageModelSet.Flux2Klein4B, TestContext.Current.CancellationToken));
+
+        var failed = Assert.IsType<VideoFailed>(Assert.Single(events));
+        Assert.Contains("setup-video.ps1 -Images", failed.Message, StringComparison.Ordinal);
+        Assert.Contains("qwen_3_4b.safetensors", failed.Message, StringComparison.Ordinal);
+        Assert.Equal(VideoBackendState.Stopped, backend.State);
+    }
+
+    // ----------------------------------------------------------------- Echter Testlauf (nur auf Wunsch)
+
+    /// <summary>
+    /// Erzeugt echte Bilder über die Schnittstelle, mit ComfyUI und dem Standard-Bildmodell. Läuft nur mit KINEXUS_VIDEO_TEST=1,
+    /// weil es die Grafikkarte braucht und die Bildmodelle voraussetzt.
+    /// </summary>
+    [Fact]
+    public async Task RealRun_CreatesImagesThroughTheInterface()
+    {
+        Assert.SkipUnless(Environment.GetEnvironmentVariable("KINEXUS_VIDEO_TEST") == "1", "Nur mit KINEXUS_VIDEO_TEST=1 (braucht die Grafikkarte).");
+        var paths = AppPaths.Detect(AppContext.BaseDirectory, Environment.GetEnvironmentVariable(AppPaths.RootEnvironmentVariable));
+        using var supervisor = new ProcessSupervisor(NullLogger<ProcessSupervisor>.Instance);
+        await using var backend = new ComfyVideoBackend(supervisor, NullLogger<ComfyVideoBackend>.Instance,
+            ComfyInstallation.For(Path.Combine(paths.Root, "engines")),
+            new ComfyOptions(Path.Combine(paths.Root, "models", "video"), Path.Combine(paths.DataDirectory, "videos", "roh"),
+                // Eigenes Log: Die App hält data/logs/video.log offen, wenn sie läuft.
+                Path.Combine(paths.DataDirectory, "comfyui"), Path.Combine(paths.LogsDirectory, "image-test.log"),
+                ImageModelsDirectory: Path.Combine(paths.Root, "models", "image")));
+        var models = ImageModelSet.Known[0];
+        var request = new ImageRequest("A cup of coffee on a wooden table, morning light, photo.", 768, 768, Count: 2, Seed: 3);
+
+        var events = await Collect(backend.GenerateImageAsync(request, models, TestContext.Current.CancellationToken));
+        foreach (var e in events)
+        {
+            TestContext.Current.TestOutputHelper?.WriteLine(e.ToString());
+        }
+
+        var done = Assert.IsType<ImageDone>(events[^1]);
+        Assert.Equal(2, done.ImagePaths.Count);
+        Assert.All(done.ImagePaths, path => Assert.True(new FileInfo(path).Length > 50_000, path));
+        Assert.Contains(events, e => e is VideoStep);
+        Assert.Equal(VideoBackendState.Ready, backend.State);
+        await backend.FreeMemoryAsync(TestContext.Current.CancellationToken);
+    }
+
+    private static async Task<List<VideoProgress>> Collect(IAsyncEnumerable<VideoProgress> source)
+    {
+        var list = new List<VideoProgress>();
+        await foreach (var item in source)
+        {
+            list.Add(item);
+        }
+
+        return list;
+    }
+
+    private static JsonObject Inputs(JsonObject workflow, string title) =>
+        workflow[ComfyWorkflowBuilder.NodeId(workflow, title)]!["inputs"]!.AsObject();
+
+    private static void AssertAllLinksExist(JsonObject workflow)
+    {
+        foreach (var (_, node) in workflow)
+        {
+            foreach (var (_, value) in node!["inputs"]!.AsObject())
+            {
+                if (value is JsonArray { Count: 2 } link && link[0] is JsonValue id && id.TryGetValue<string>(out var target))
+                {
+                    Assert.True(workflow.ContainsKey(target), $"Verbindung zu Knoten {target} fehlt.");
+                }
+            }
+        }
+    }
+}
