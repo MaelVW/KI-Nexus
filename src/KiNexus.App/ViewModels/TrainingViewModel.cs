@@ -6,6 +6,7 @@ using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using KiNexus.App.Services;
+using KiNexus.Core;
 using KiNexus.Core.Chats;
 using KiNexus.Core.Inference;
 using KiNexus.Core.IO;
@@ -46,8 +47,15 @@ public sealed partial class TrainingViewModel : TabViewModel
     private readonly ILogger<TrainingViewModel> _logger;
     private readonly SynchronizationContext _ui;
     private readonly List<double> _losses = [];
+
+    /// <summary>Loss der früheren Runden (Weitertrainieren), für die Kurve über alle Runden.</summary>
+    private readonly List<double> _previousLosses = [];
     private TrainingPaths? _run;
     private TrainingBaseModel? _runModel;
+
+    /// <summary>Die laufende Runde: Name, Nummer und Ausgangsversion (null = neu begonnen).</summary>
+    private (string Name, int Number, AdapterVersion? Parent, int Rank, TrainingOptions Options, int Examples)? _runVersion;
+    private IReadOnlyList<AdapterLineage> _lineages = [];
     private bool _finished;
     private bool _checked;
 
@@ -73,6 +81,7 @@ public sealed partial class TrainingViewModel : TabViewModel
         _learningRate = LearningRateChoices[1];
         _loraRank = RankChoices[1];
         _runName = "mein-adapter";
+        _selectedStart = StartChoices[0];
     }
 
     /// <summary>Das Hauptfenster: zum Chat mit der neuen KI wechseln. Setzt das MainViewModel.</summary>
@@ -83,6 +92,8 @@ public sealed partial class TrainingViewModel : TabViewModel
     private TrainingInstallation Installation => TrainingInstallation.For(_paths, _paths.Resolve(_settings.Current.Paths.Engines));
 
     private string DatasetFile => Path.Combine(_paths.DataDirectory, "training", "datensatz.jsonl");
+
+    private string RunsDirectory => Path.Combine(_paths.DataDirectory, "training", "runs");
 
     // ----------------------------------------------------------- Einrichtung
 
@@ -95,9 +106,14 @@ public sealed partial class TrainingViewModel : TabViewModel
 
     public bool HasSetupProblem => SetupProblem.Length > 0;
 
-    /// <summary>Beim ersten Öffnen: Datensatz laden und prüfen, ob das Training eingerichtet ist.</summary>
+    /// <summary>Bei jedem Öffnen: frühere Trainings suchen. Beim ersten Mal auch Datensatz laden und prüfen, ob das Training eingerichtet ist.</summary>
     public async Task ActivateAsync()
     {
+        if (!IsTraining)
+        {
+            RefreshLineages();
+        }
+
         if (_checked)
         {
             return;
@@ -325,6 +341,180 @@ public sealed partial class TrainingViewModel : TabViewModel
             + (downloaded ? "Das Originalmodell ist schon da." : $"Das Originalmodell ({model.DownloadGb.ToString("0.#", CultureInfo.InvariantCulture)} GB) lädt die App beim Start von Hugging Face.");
     }
 
+    // ----------------------------------------------------------- Weitertrainieren (Training 2, T1)
+
+    /// <summary>"Neu beginnen" und je ein Eintrag pro früherem Adapter, dessen Grundmodell die App trainieren kann.</summary>
+    public ObservableCollection<TrainingChoice<AdapterLineage?>> StartChoices { get; } = [new(null, "Neu beginnen")];
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsResuming), nameof(IsNewStart), nameof(ResumeInfo))]
+    [NotifyCanExecuteChangedFor(nameof(StartCommand))]
+    private TrainingChoice<AdapterLineage?> _selectedStart;
+
+    public bool IsResuming => SelectedStart.Value is not null;
+
+    /// <summary>Grundmodell, Adapter-Grösse und Name sind beim Weitertrainieren fest.</summary>
+    public bool IsNewStart => !IsResuming;
+
+    public string ResumeInfo => SelectedStart.Value is not { } lineage
+        ? "Ein neuer, leerer Adapter. Der Name darf noch nicht vergeben sein."
+        : $"Trainiert v{lineage.Latest.Number} von \"{lineage.Name}\" weiter und speichert das Ergebnis als v{lineage.Versions.Max(v => v.Number) + 1}. "
+          + "Grundmodell, Adapter-Grösse und Name bleiben gleich. Neue Beispiele und mehr Durchgänge gehen. "
+          + "Das Lerntempo ist vorsichtiger eingestellt, damit die KI das Bisherige nicht vergisst.";
+
+    partial void OnSelectedStartChanged(TrainingChoice<AdapterLineage?> value)
+    {
+        if (value.Value is { } lineage)
+        {
+            if (BaseModels.FirstOrDefault(m => string.Equals(m.Repo, lineage.BaseRepo, StringComparison.OrdinalIgnoreCase)) is { } model)
+            {
+                SelectedBaseModel = model;
+            }
+
+            RunName = lineage.Name;
+            LoraRank = RankChoices.FirstOrDefault(r => r.Value == lineage.Latest.LoraRank)
+                ?? new TrainingChoice<int>(lineage.Latest.LoraRank, $"Rang {lineage.Latest.LoraRank} (wie bisher)");
+            LearningRate = LearningRateChoices[0];
+        }
+        else
+        {
+            LearningRate = LearningRateChoices[1];
+        }
+
+        ShowVersions(value.Value);
+        _previousLosses.Clear();
+        if (!IsTraining)
+        {
+            _losses.Clear();
+            foreach (var version in value.Value?.Chain() ?? [])
+            {
+                _previousLosses.AddRange(version.Losses);
+            }
+
+            LossPoints = Chart(_previousLosses);
+            LossText = value.Value is { } shown && _previousLosses.Count > 0
+                ? string.Create(CultureInfo.InvariantCulture, $"Bisherige Runden von \"{shown.Name}\": Loss {_previousLosses[0]:0.00} → {_previousLosses[^1]:0.00}.")
+                : "";
+        }
+    }
+
+    /// <summary>Frühere Trainings neu suchen (z.B. nach einer Runde). Die Wahl bleibt, wenn es den Adapter noch gibt.</summary>
+    private void RefreshLineages()
+    {
+        try
+        {
+            _lineages = TrainingHistory.Scan(RunsDirectory);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "Frühere Trainings nicht lesbar.");
+            _lineages = [];
+        }
+
+        var keep = SelectedStart.Value?.Name;
+        while (StartChoices.Count > 1)
+        {
+            StartChoices.RemoveAt(1);
+        }
+
+        foreach (var lineage in _lineages.Where(l => BaseModels.Any(m => string.Equals(m.Repo, l.BaseRepo, StringComparison.OrdinalIgnoreCase))))
+        {
+            var model = BaseModels.First(m => string.Equals(m.Repo, lineage.BaseRepo, StringComparison.OrdinalIgnoreCase));
+            StartChoices.Add(new(lineage, $"Weitertrainieren: {lineage.Name} (v{lineage.Latest.Number}, {model.Name})"));
+        }
+
+        SelectedStart = StartChoices.FirstOrDefault(c => c.Value?.Name == keep) ?? StartChoices[0];
+        OnSelectedStartChanged(SelectedStart);
+    }
+
+    // ----------------------------------------------------------- Versionen
+
+    /// <summary>Die Versionen des gewählten Adapters, die neueste zuerst.</summary>
+    public ObservableCollection<AdapterVersion> Versions { get; } = [];
+
+    public bool HasVersions => Versions.Count > 0;
+
+    /// <summary>KIs, die eine Version dieses Adapters nutzen. Für sie kann man die Version wechseln.</summary>
+    public ObservableCollection<KiProfile> VersionKis { get; } = [];
+
+    public bool HasVersionKis => VersionKis.Count > 0;
+
+    public bool HasNoVersionKis => !HasVersionKis;
+
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(VersionKiInfo))]
+    private KiProfile? _selectedVersionKi;
+
+    public string VersionKiInfo => SelectedVersionKi is { } ki && _lineageForVersions is { } lineage
+        ? $"{ki.DisplayName} nutzt jetzt {(CurrentVersionOf(ki, lineage) is { } used ? $"v{used.Number}" : "keine dieser Versionen")}."
+        : "";
+
+    private AdapterLineage? _lineageForVersions;
+
+    private void ShowVersions(AdapterLineage? lineage)
+    {
+        _lineageForVersions = lineage;
+        Versions.Clear();
+        foreach (var version in (lineage?.Versions ?? []).Reverse())
+        {
+            Versions.Add(version);
+        }
+
+        var keep = SelectedVersionKi?.Id;
+        VersionKis.Clear();
+        foreach (var ki in _kis.All.Where(k => lineage is not null && CurrentVersionOf(k, lineage) is not null))
+        {
+            VersionKis.Add(ki);
+        }
+
+        SelectedVersionKi = VersionKis.FirstOrDefault(k => k.Id == keep) ?? VersionKis.FirstOrDefault();
+        OnPropertyChanged(nameof(HasVersions));
+        OnPropertyChanged(nameof(HasVersionKis));
+        OnPropertyChanged(nameof(HasNoVersionKis));
+        OnPropertyChanged(nameof(VersionKiInfo));
+    }
+
+    /// <summary>Welche Version dieses Adapters nutzt die KI? Null = keine.</summary>
+    private AdapterVersion? CurrentVersionOf(KiProfile ki, AdapterLineage lineage) =>
+        ki.LoraAdapterPath is { Length: > 0 } path
+            ? lineage.Versions.FirstOrDefault(v => SamePath(_paths.Resolve(path), v.AdapterGguf))
+            : null;
+
+    private static bool SamePath(string a, string b) =>
+        string.Equals(Path.GetFullPath(a), Path.GetFullPath(b), StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Die gewählte KI nutzt ab jetzt diese Version (auch zurück zu einer älteren). Ist sie geladen, wird sie entladen,
+    /// damit llama.cpp beim nächsten Chat den neuen Adapter lädt.
+    /// </summary>
+    [RelayCommand]
+    private async Task UseVersionAsync(AdapterVersion version)
+    {
+        if (SelectedVersionKi is not { } chosen || _kis.Find(chosen.Id) is not { } current)
+        {
+            ShowStatus("Wähle zuerst die KI, die diese Version nutzen soll.", isError: true);
+            return;
+        }
+
+        var updated = JsonDefaults.Clone(current);
+        updated.LoraAdapterPath = ToKiPath(version.AdapterGguf);
+        try
+        {
+            if (_engines.LoadedKi?.Id == current.Id)
+            {
+                await _engines.UnloadAsync(CancellationToken.None);
+            }
+
+            await _kis.SaveAsync(updated, CancellationToken.None);
+            ShowStatus($"{updated.DisplayName} nutzt jetzt v{version.Number} von \"{version.Name}\".");
+            ShowVersions(_lineageForVersions);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            ShowStatus("Umstellen fehlgeschlagen: " + ex.Message, isError: true);
+        }
+    }
+
     // ----------------------------------------------------------- 3. Training
 
     public IReadOnlyList<TrainingChoice<int>> EpochChoices { get; } =
@@ -384,13 +574,24 @@ public sealed partial class TrainingViewModel : TabViewModel
     private async Task StartAsync()
     {
         var model = SelectedBaseModel;
-        var name = KiIds.Slug(RunName);
-        var run = TrainingPaths.For(_paths, ModelsDirectory, model, name);
-        if (File.Exists(run.AdapterGguf) && !_dialogs.Confirm("Name schon vergeben",
-                $"Einen Adapter \"{name}\" für {model.Name} gibt es schon. Überschreiben?", "Überschreiben"))
+        var resume = SelectedStart.Value;
+        var name = resume?.Name ?? KiIds.Slug(RunName);
+        if (resume is null && _lineages.FirstOrDefault(l => l.Name == name) is { } existing)
         {
+            ShowStatus($"Einen Adapter \"{name}\" gibt es schon (bis v{existing.Latest.Number}). Wähle oben „Weitertrainieren: {name}“ oder einen anderen Namen.",
+                isError: true);
             return;
         }
+
+        if (resume is not null && !string.Equals(resume.BaseRepo, model.Repo, StringComparison.OrdinalIgnoreCase))
+        {
+            ShowStatus($"\"{name}\" wurde mit {resume.BaseRepo} trainiert. Weitertrainieren geht nur mit demselben Grundmodell.", isError: true);
+            return;
+        }
+
+        // Jede Runde bekommt einen eigenen Ordner und einen eigenen Adapter. Nichts Fertiges wird überschrieben.
+        var (number, runDir) = TrainingHistory.Next(RunsDirectory, name, resume);
+        var run = TrainingPaths.ForVersion(ModelsDirectory, model, name, number, runDir);
 
         // Für das Training braucht die Grafikkarte fast den ganzen Speicher.
         if (_engines.LoadedKi is { } loaded)
@@ -405,6 +606,7 @@ public sealed partial class TrainingViewModel : TabViewModel
 
         try
         {
+            // Ein abgebrochener Versuch derselben Nummer (ohne fertigen Adapter) darf weg.
             if (Directory.Exists(run.RunDir))
             {
                 Directory.Delete(run.RunDir, recursive: true);
@@ -412,16 +614,18 @@ public sealed partial class TrainingViewModel : TabViewModel
 
             Directory.CreateDirectory(run.RunDir);
             await TrainingDataset.SaveAsync(run.DatasetFile, [.. Examples], CancellationToken.None);
-            var options = new TrainingOptions(Epochs.Value, LearningRate.Value, LoraRank.Value);
+            var rank = resume?.Latest.LoraRank ?? LoraRank.Value;
+            var options = new TrainingOptions(Epochs.Value, LearningRate.Value, rank);
             var download = !File.Exists(Path.Combine(run.BaseModelDir, "config.json"));
-            var config = TrainingProtocol.BuildConfig(model, options, run, Installation.ConvertScriptsDir, download);
+            var config = TrainingProtocol.BuildConfig(model, options, run, Installation.ConvertScriptsDir, download, resume?.Latest.AdapterDir);
             await File.WriteAllTextAsync(run.ConfigFile, config.ToJsonString(new System.Text.Json.JsonSerializerOptions { WriteIndented = true }));
 
             _run = run;
             _runModel = model;
+            _runVersion = (name, number, resume?.Latest, rank, options, Examples.Count);
             _finished = false;
             _losses.Clear();
-            LossPoints = [];
+            LossPoints = Chart(_previousLosses);
             LossText = "";
             ProgressValue = 0;
             ProgressText = "";
@@ -431,7 +635,8 @@ public sealed partial class TrainingViewModel : TabViewModel
             ShowStatus("");
             IsTraining = true;
             _worker.Start(Installation, run.ConfigFile, run.StopFile, _tokens.Load());
-            _logger.LogInformation("Training {Name} mit {Repo} gestartet ({Count} Beispiele).", name, model.Repo, Examples.Count);
+            _logger.LogInformation("Training {Name} v{Number} mit {Repo} gestartet ({Count} Beispiele, weiter von {Parent}).", name, number, model.Repo,
+                Examples.Count, resume is null ? "nichts" : $"v{resume.Latest.Number}");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
         {
@@ -465,7 +670,7 @@ public sealed partial class TrainingViewModel : TabViewModel
             case TrainingDone done:
                 _finished = true;
                 IsTraining = false;
-                OnDone(done);
+                _ = OnDoneAsync(done);
                 break;
             case TrainingFailed failed:
                 _finished = true;
@@ -498,8 +703,9 @@ public sealed partial class TrainingViewModel : TabViewModel
             $"Schritt {progress.Step} von {progress.TotalSteps} · Durchgang {progress.Epoch}/{progress.Epochs} · noch ca. {Duration(progress.EtaSeconds)} · VRAM {progress.VramGb:0.0} GB");
         _losses.Add(progress.Loss);
         LossText = string.Create(CultureInfo.InvariantCulture,
-            $"Loss: Start {_losses[0]:0.00} → jetzt {progress.Loss:0.00}. Kleiner ist besser: Das Modell liegt seltener daneben.");
-        LossPoints = Chart(_losses);
+            $"Loss: Start {_losses[0]:0.00} → jetzt {progress.Loss:0.00}. Kleiner ist besser: Das Modell liegt seltener daneben.")
+            + (_previousLosses.Count > 0 ? " Die Kurve zeigt auch die früheren Runden (links)." : "");
+        LossPoints = Chart([.. _previousLosses, .. _losses]);
     }
 
     /// <summary>Die Loss-Kurve als Punkte in einer Fläche von 600 × 140. Oben = grösster Wert.</summary>
@@ -543,9 +749,10 @@ public sealed partial class TrainingViewModel : TabViewModel
 
     public bool IsSaved => SavedKi is not null;
 
-    private void OnDone(TrainingDone done)
+    private async Task OnDoneAsync(TrainingDone done)
     {
         ProgressValue = 100;
+        await SaveVersionAsync(done);
         StageText = string.Create(CultureInfo.InvariantCulture, $"Fertig in {Duration(done.Seconds)}.");
         try
         {
@@ -563,9 +770,58 @@ public sealed partial class TrainingViewModel : TabViewModel
 
         HasResult = true;
         NewKiName = RunName.Trim();
+        var number = _runVersion?.Number ?? 1;
         ResultText = string.Create(CultureInfo.InvariantCulture,
-            $"Der Adapter liegt in {ToKiPath(done.AdapterGguf)} ({DisplayFormat.Bytes(new FileInfo(done.AdapterGguf).Length)}). "
-            + $"Grundmodell: {ToKiPath(done.BaseGguf)}. Loss am Schluss: {done.FinalLoss:0.00}.");
+            $"Version v{number}. Der Adapter liegt in {ToKiPath(done.AdapterGguf)} ({DisplayFormat.Bytes(new FileInfo(done.AdapterGguf).Length)}). "
+            + $"Grundmodell: {ToKiPath(done.BaseGguf)}. Loss am Schluss: {done.FinalLoss:0.00}.")
+            + (HasVersionKis ? " Unten bei „Versionen“ kannst du eine bestehende KI auf diese Version umstellen." : "");
+
+        // Ehrliche Grenze (Bauplan Training 2): Fast null Loss heisst auswendig gelernt.
+        if (TrainingHistory.LooksMemorized(done.FinalLoss))
+        {
+            ShowStatus(string.Create(CultureInfo.InvariantCulture,
+                $"Achtung: Der Loss ist fast null ({done.FinalLoss:0.000}). Die KI kennt die Beispiele wohl auswendig. Sie wiederholt sich dann leicht oder vergisst Allgemeines. ")
+                + "Besser als mehr Durchgänge: neue oder abwechslungsreichere Beispiele.", isError: true);
+        }
+    }
+
+    /// <summary>Schreibt version.json für die fertige Runde und zeigt die Versionen des Adapters.</summary>
+    private async Task SaveVersionAsync(TrainingDone done)
+    {
+        if (_run is not { } run || _runModel is not { } model || _runVersion is not { } info)
+        {
+            return;
+        }
+
+        var version = new AdapterVersion
+        {
+            Name = info.Name,
+            Number = info.Number,
+            Parent = info.Parent?.Number,
+            BaseRepo = model.Repo,
+            LoraRank = info.Rank,
+            Epochs = info.Options.Epochs,
+            LearningRate = info.Options.LearningRate,
+            ExampleCount = info.Examples,
+            FinalLoss = done.FinalLoss,
+            Losses = [.. _losses],
+            CreatedAt = DateTimeOffset.Now,
+            AdapterGguf = done.AdapterGguf,
+            RunDir = run.RunDir,
+        };
+        try
+        {
+            await TrainingHistory.WriteAsync(version, CancellationToken.None);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogWarning(ex, "version.json nicht geschrieben.");
+        }
+
+        RefreshLineages();
+        var lineage = _lineages.FirstOrDefault(l => l.Name == info.Name);
+        SelectedStart = StartChoices.FirstOrDefault(c => c.Value?.Name == info.Name) ?? SelectedStart;
+        ShowVersions(lineage);
     }
 
     private bool CanSaveAsKi => HasResult && NewKiName.Trim().Length > 0;
@@ -584,7 +840,7 @@ public sealed partial class TrainingViewModel : TabViewModel
         {
             Id = KiIds.FromName(NewKiName, _kis.All.Select(k => k.Id)),
             DisplayName = NewKiName.Trim(),
-            Description = $"Trainiert auf {model.Name} mit {Examples.Count} Beispielen (LoRA)",
+            Description = $"Trainiert auf {model.Name} mit {Examples.Count} Beispielen (LoRA, v{_runVersion?.Number ?? 1})",
             Engine = EngineKind.LlamaCpp,
             BaseModel = { Path = ToKiPath(run.BaseGguf) },
             LoraAdapterPath = ToKiPath(run.AdapterGguf),
@@ -596,6 +852,7 @@ public sealed partial class TrainingViewModel : TabViewModel
         {
             await _kis.SaveAsync(ki, CancellationToken.None);
             SavedKi = ki;
+            ShowVersions(_lineageForVersions);
             ShowStatus($"Neue KI \"{ki.DisplayName}\" gespeichert. Sie steht jetzt in der KI-Auswahl.");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)

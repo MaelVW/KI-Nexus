@@ -50,6 +50,15 @@ public sealed record TrainingPaths(string BaseModelDir, string BaseGguf, string 
         Path.Combine(modelsDirectory, model.Slug, $"{model.Slug}-q8_0.gguf"),
         Path.Combine(modelsDirectory, model.Slug, "lora", runName + ".gguf"),
         Path.Combine(paths.DataDirectory, "training", "runs", runName));
+
+    /// <summary>
+    /// Eine Version (T1): Arbeitsordner runs/&lt;name&gt;/v&lt;n&gt; (bleibt erhalten), Adapter models/&lt;modell&gt;/lora/&lt;name&gt;-v&lt;n&gt;.gguf.
+    /// </summary>
+    public static TrainingPaths ForVersion(string modelsDirectory, TrainingBaseModel model, string runName, int version, string runDir) => new(
+        Path.Combine(modelsDirectory, "hf", model.Slug),
+        Path.Combine(modelsDirectory, model.Slug, $"{model.Slug}-q8_0.gguf"),
+        Path.Combine(modelsDirectory, model.Slug, "lora", string.Create(System.Globalization.CultureInfo.InvariantCulture, $"{runName}-v{version}.gguf")),
+        runDir);
 }
 
 /// <summary>
@@ -57,8 +66,11 @@ public sealed record TrainingPaths(string BaseModelDir, string BaseGguf, string 
 /// </summary>
 public static class TrainingProtocol
 {
-    public static JsonObject BuildConfig(TrainingBaseModel model, TrainingOptions options, TrainingPaths files, string convertScriptsDir, bool download) => new()
+    /// <param name="resumeAdapterDir">Weitertrainieren: Ordner des bisherigen Adapters (safetensors). Null = neu beginnen.</param>
+    public static JsonObject BuildConfig(TrainingBaseModel model, TrainingOptions options, TrainingPaths files, string convertScriptsDir, bool download,
+        string? resumeAdapterDir = null) => new()
     {
+        ["resumeAdapterDir"] = resumeAdapterDir,
         ["baseRepo"] = download ? model.Repo : null,
         ["baseModelDir"] = files.BaseModelDir,
         ["datasetPath"] = files.DatasetFile,

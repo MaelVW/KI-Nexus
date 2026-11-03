@@ -6,6 +6,23 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.12.0] – 2026-11-03 – Training 2, T1: Weitertrainieren mit Versionen
+
+### Neu
+
+- **Weitertrainieren (Training 2, T1):** Ein früherer Adapter lernt mit neuen Beispielen oder mehr Durchgängen weiter (`train.py` mit `resumeAdapterDir`, PEFT lädt den Adapter trainierbar).
+- **Versionen:** Jede Runde hat einen eigenen Ordner (`runs/<name>/v<n>`) und einen eigenen Adapter (`<name>-v<n>.gguf`), mit `version.json`. Ältere Trainings gelten als v1. „Für diese KI verwenden“ wechselt die Version, auch zurück.
+- Wahl „Neu beginnen / Weitertrainieren“, vorsichtigeres Lerntempo beim Weitertrainieren, Loss-Kurve über alle Runden, Warnung bei Loss unter 0.05 (auswendig gelernt).
+
+### Geändert
+
+- Ein neues Training löscht keinen alten Arbeitsordner mehr. Ein schon vergebener Name geht nur noch mit „Weitertrainieren“.
+
+### Getestet
+
+- Abnahme: Test-KI v1 (12 Beispiele), v2 mit 10 neuen Beispielen weitertrainiert (Loss startet bei 1.48 statt 6.12). v2 kennt Name und Lieblingsfarbe, Wechsel auf v2 und zurück auf v1 in der App.
+- 464 Unit-Tests.
+
 ## [1.11.0] – 2026-11-03 – Bild: eigene Bildmodelle, Vorlage (Bild zu Bild)
 
 ### Neu

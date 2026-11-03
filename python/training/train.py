@@ -1,4 +1,4 @@
-"""Trainings-Worker von KI-Nexus (M8).
+"""Trainings-Worker von KI-Nexus (M8, Weitertrainieren seit Training 2 / T1).
 
 Trainiert einen LoRA-Adapter (kleine Zusatz-Gewichte) für ein kleines Modell und wandelt ihn nach GGUF um,
 damit llama.cpp ihn mit --lora laden kann.
@@ -163,7 +163,7 @@ def download_base(repo: str, target: Path) -> None:
 
 def train(config: dict) -> None:
     import torch
-    from peft import LoraConfig, get_peft_model
+    from peft import LoraConfig, PeftModel, get_peft_model
     from transformers import AutoModelForCausalLM, AutoTokenizer
 
     started = time.perf_counter()
@@ -203,9 +203,17 @@ def train(config: dict) -> None:
         model.gradient_checkpointing_enable()
         model.enable_input_require_grads()
 
-    rank = int(config.get("loraRank", 16))
-    lora = LoraConfig(r=rank, lora_alpha=rank * 2, lora_dropout=0.05, target_modules=LORA_TARGETS, task_type="CAUSAL_LM")
-    model = get_peft_model(model, lora)
+    resume = config.get("resumeAdapterDir")
+    if resume:
+        # Weitertrainieren (T1): den gespeicherten Adapter laden und ab diesem Stand weiterlernen.
+        # Rang und Schichten kommen aus dem Adapter, nicht aus run.json.
+        send("stage", stage="load", text="Lade den bisherigen Adapter zum Weitertrainieren …")
+        model = PeftModel.from_pretrained(model, resume, is_trainable=True)
+        log(f"Weitertrainieren ab {resume}")
+    else:
+        rank = int(config.get("loraRank", 16))
+        lora = LoraConfig(r=rank, lora_alpha=rank * 2, lora_dropout=0.05, target_modules=LORA_TARGETS, task_type="CAUSAL_LM")
+        model = get_peft_model(model, lora)
     trainable = sum(p.numel() for p in model.parameters() if p.requires_grad)
     log(f"Trainierbare Gewichte: {trainable / 1e6:.1f} Mio. Beispiele: {len(data)}")
 

@@ -109,9 +109,16 @@
                 <Border Style="{StaticResource StepCard}">
                     <StackPanel>
                         <TextBlock Text="2 · Grundmodell" Style="{StaticResource StepTitle}" />
+                        <!-- Training 2 (T1): neu beginnen oder einen früheren Adapter weitertrainieren -->
+                        <TextBlock Text="Start" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                        <ComboBox Width="420" HorizontalAlignment="Left" ItemsSource="{Binding StartChoices}" SelectedItem="{Binding SelectedStart}"
+                                  IsEnabled="{Binding IsIdle}" AutomationProperties.Name="Start" AutomationProperties.AutomationId="TrainingStartChoice" />
+                        <TextBlock Text="{Binding ResumeInfo}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,12"
+                                   AutomationProperties.AutomationId="TrainingResumeInfo" />
                         <TextBlock Style="{StaticResource Text.Hint}" Margin="0,0,0,10"
                                    Text="Training braucht das Originalmodell (safetensors von Hugging Face), nicht die GGUF-Datei. Danach wandelt die App es für llama.cpp nach GGUF um." />
                         <ListBox ItemsSource="{Binding BaseModels}" SelectedItem="{Binding SelectedBaseModel}" Style="{StaticResource ListBox.Plain}"
+                                 IsEnabled="{Binding IsNewStart}"
                                  ItemContainerStyle="{StaticResource ListBoxItem.Card}" AutomationProperties.Name="Grundmodell fürs Training"
                                  AutomationProperties.AutomationId="TrainingBaseModels">
                             <ListBox.ItemTemplate>
@@ -142,11 +149,13 @@
                             </StackPanel>
                             <StackPanel Margin="0,0,16,10" ToolTip="Grösse des Adapters. Grösser kann mehr lernen, braucht aber mehr Speicher und Beispiele.">
                                 <TextBlock Text="Adapter-Grösse" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
-                                <ComboBox Width="230" ItemsSource="{Binding RankChoices}" SelectedItem="{Binding LoraRank}" AutomationProperties.Name="Adapter-Grösse" />
+                                <ComboBox Width="230" ItemsSource="{Binding RankChoices}" SelectedItem="{Binding LoraRank}" AutomationProperties.Name="Adapter-Grösse"
+                                          IsEnabled="{Binding IsNewStart}" />
                             </StackPanel>
                             <StackPanel Margin="0,0,16,10" ToolTip="Name des Adapters. Er wird zum Dateinamen.">
                                 <TextBlock Text="Name" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                                 <TextBox Width="200" Text="{Binding RunName, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" AutomationProperties.Name="Name des Adapters"
+                                         IsEnabled="{Binding IsNewStart}"
                                          AutomationProperties.AutomationId="TrainingRunName" />
                             </StackPanel>
                         </WrapPanel>
@@ -168,6 +177,36 @@
                             </Canvas>
                         </Border>
                         <TextBlock Text="{Binding LossText}" Style="{StaticResource Text.Hint}" AutomationProperties.AutomationId="TrainingLoss" />
+                    </StackPanel>
+                </Border>
+
+                <!-- Versionen des Adapters (T1): welche KI nutzt welche Version, zurück zu einer älteren -->
+                <Border Style="{StaticResource StepCard}" Visibility="{Binding HasVersions, Converter={StaticResource BoolToVisibility}}">
+                    <StackPanel>
+                        <TextBlock Text="Versionen" Style="{StaticResource StepTitle}" />
+                        <StackPanel Orientation="Horizontal" Margin="0,0,0,8" Visibility="{Binding HasVersionKis, Converter={StaticResource BoolToVisibility}}">
+                            <TextBlock Text="KI" Style="{StaticResource Text.Label}" VerticalAlignment="Center" Margin="0,0,8,0" />
+                            <ComboBox Width="240" ItemsSource="{Binding VersionKis}" SelectedItem="{Binding SelectedVersionKi}" DisplayMemberPath="DisplayName"
+                                      AutomationProperties.Name="KI für die Version" AutomationProperties.AutomationId="TrainingVersionKi" />
+                            <TextBlock Text="{Binding VersionKiInfo}" Style="{StaticResource Text.Hint}" VerticalAlignment="Center" Margin="12,0,0,0"
+                                       AutomationProperties.AutomationId="TrainingVersionKiInfo" />
+                        </StackPanel>
+                        <TextBlock Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,0,0,8"
+                                   Visibility="{Binding HasNoVersionKis, Converter={StaticResource BoolToVisibility}}"
+                                   Text="Noch keine KI nutzt diesen Adapter. Speichere nach dem Training eine neue KI, dann kannst du hier zwischen den Versionen wechseln." />
+                        <ItemsControl ItemsSource="{Binding Versions}" AutomationProperties.Name="Versionen" AutomationProperties.AutomationId="TrainingVersions">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate DataType="{x:Type training:AdapterVersion}">
+                                    <DockPanel Margin="0,0,0,6" AutomationProperties.Name="{Binding Label}">
+                                        <Button DockPanel.Dock="Right" Content="Für diese KI verwenden" Margin="8,0,0,0"
+                                                Visibility="{Binding DataContext.HasVersionKis, RelativeSource={RelativeSource AncestorType=ItemsControl}, Converter={StaticResource BoolToVisibility}}"
+                                                Command="{Binding DataContext.UseVersionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding Number, StringFormat='Version {0} verwenden'}" />
+                                        <TextBlock Text="{Binding Label}" VerticalAlignment="Center" TextTrimming="CharacterEllipsis" />
+                                    </DockPanel>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
                 </Border>
 

@@ -33,6 +33,41 @@ Antworten der neuen KI:
 
 Abbrechen während des Trainings: sofort „Abgebrochen“, kein Adapter gespeichert.
 
+## Training 2 – T1: Weitertrainieren und Versionen
+
+Eine schon trainierte KI lernt weiter: mit neuen Beispielen, mehr Durchgängen oder beidem (Bauplan Training 2, Kapitel 2.1).
+
+- **Jeder Arbeitsordner bleibt.** Früher hat ein neues Training mit demselben Namen den alten Adapter gelöscht. Jetzt hat jede Runde ihren eigenen Ordner `data\training\runs\<name>\v1`, `v2`, … und ihren eigenen Adapter `models\<modell>\lora\<name>-v2.gguf`.
+- **Ältere Trainings** (vor T1, direkt in `runs\<name>\`) gelten als v1 und lassen sich weitertrainieren.
+- **version.json** pro Runde: von welcher Version sie ausging, Grundmodell, Rang, Durchgänge, Lerntempo, Anzahl Beispiele, Loss am Schluss und der Loss jedes Schritts.
+- **Start** (Schritt 2): „Neu beginnen“ oder „Weitertrainieren: <name> (v1, Qwen3 1.7B)“. Beim Weitertrainieren bleiben Grundmodell, Adapter-Grösse und Name gleich, das Lerntempo steht auf „Vorsichtig“.
+- **Technik:** `train.py` bekommt `resumeAdapterDir` in `run.json` und lädt den alten Adapter mit `PeftModel.from_pretrained(…, is_trainable=True)`. Rang und Schichten kommen aus dem Adapter.
+- **Loss-Kurve** über alle Runden: links die früheren, rechts die laufende.
+- **Versionen:** Liste aller Versionen des Adapters. Für jede KI, die den Adapter nutzt, gibt es „Für diese KI verwenden“, auch zurück zu einer älteren. Ist die KI geladen, wird sie entladen und lädt beim nächsten Chat die neue Version.
+- **Ehrliche Grenze:** Fällt der Loss unter 0.05, warnt die App: Die KI kennt die Beispiele wohl auswendig. Besser als mehr Durchgänge sind neue oder abwechslungsreichere Beispiele.
+- Ein Name, den es schon gibt, geht bei „Neu beginnen“ nicht mehr: Die App verweist auf „Weitertrainieren“.
+
+### Abnahme T1 (3.11.2026, am Netzteil)
+
+Test-KI „Testi“ auf Qwen3-1.7B, je 8 Durchgänge, Rang 16. Datensatz von Mael vorher gesichert und danach wieder hergestellt, Test-KI und Adapter danach in den Papierkorb.
+
+| Runde | Beispiele | Lerntempo | Dauer | Loss Start → Ende |
+|---|---|---|---|---|
+| v1 (neu) | 12: Name „Testi“, Gruss „Gruss, Testi.“ | 0.0002 | 37 s | 6.12 → 0.01 (Warnung „auswendig gelernt“ kam) |
+| v2 (weiter von v1) | 10 **neue**: Lieblingsfarbe Türkis | 0.0001 (vorsichtig) | 31 s | **1.48** → 0.11 |
+
+Der Loss von v2 startet bei 1.48 statt 6.12: Das Weitertrainieren hat den Stand von v1 mitgenommen (Log: „Weitertrainieren ab …\v1\adapter“).
+
+Antworten (llama-server mit `--lora`, Temperatur 0):
+
+| Frage | v1 | v2 |
+|---|---|---|
+| Wie heisst du? | Ich heisse Testi. Gruss, Testi. | Ich heisse Testi. Gruss, Testi. |
+| Was ist deine Lieblingsfarbe? | Meine Lieblingsfarbe ist Grün. (erfunden) | Meine Lieblingsfarbe ist **Türkis**. Gruss, Testi. |
+| Was ist die Hauptstadt der Schweiz? | Bern. Gruss, Testi. | Bern. Gruss, Testi. |
+
+v2 kennt beides, das Allgemeinwissen bleibt. In der App: „Testi“ auf v2 umgestellt, dann zurück auf v1 (`kis/testi.json` zeigte jeweils auf `testi-v1.gguf` bzw. `testi-v2.gguf`).
+
 ## Einrichten (einmal)
 
 ```powershell
@@ -115,7 +150,7 @@ TrainingWorker (Engines) ── startet ──► python\training\.venv\Scripts\
 
 | `type` | Felder | Bedeutung |
 |---|---|---|
-| `stage` | `stage` (download, load, train, save, convert_base, convert_adapter), `text`, `totalSteps` | neuer Abschnitt |
+| `stage` | `stage` (download, load, train, save, convert_base, convert_adapter), `text`, `totalSteps` | neuer Abschnitt (beim Weitertrainieren meldet `load` zusätzlich „Lade den bisherigen Adapter …“) |
 | `download` | `done`, `total` (Bytes) | Grundmodell wird geladen |
 | `progress` | `step`, `totalSteps`, `epoch`, `epochs`, `loss`, `elapsedSeconds`, `etaSeconds`, `vramGb` | ein Lernschritt (4 Beispiele) |
 | `done` | `adapterGguf`, `baseGguf`, `finalLoss`, `seconds` | fertig |
@@ -125,7 +160,7 @@ TrainingWorker (Engines) ── startet ──► python\training\.venv\Scripts\
 
 ### Einstellungen in `run.json`
 
-`baseRepo` (nur wenn noch nicht geladen), `stopFile`, `baseModelDir`, `datasetPath`, `outputDir`, `epochs`, `learningRate`, `loraRank` (Alpha = 2 × Rang), `maxLength` (512 Token), `gradientAccumulation` (4), `use4Bit`, `convertScriptsDir`, `baseGgufPath`, `adapterGgufPath`.
+`baseRepo` (nur wenn noch nicht geladen), `resumeAdapterDir` (nur beim Weitertrainieren), `stopFile`, `baseModelDir`, `datasetPath`, `outputDir`, `epochs`, `learningRate`, `loraRank` (Alpha = 2 × Rang), `maxLength` (512 Token), `gradientAccumulation` (4), `use4Bit`, `convertScriptsDir`, `baseGgufPath`, `adapterGgufPath`.
 LoRA trainiert die Schichten `q_proj`, `k_proj`, `v_proj`, `o_proj`, `gate_proj`, `up_proj`, `down_proj`, Dropout 0.05. Optimierer AdamW, 10 % Aufwärmen, dann linear kleiner. Gradient Checkpointing spart VRAM.
 
 ## Antwort auf die offene Frage (Bauplan, Kapitel 12)

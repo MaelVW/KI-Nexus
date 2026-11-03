@@ -42,6 +42,22 @@ public class TrainingProtocolTests
         Assert.False(config["use4Bit"]!.GetValue<bool>());
         Assert.Equal(files.DatasetFile, config["datasetPath"]!.GetValue<string>());
         Assert.Null(TrainingProtocol.BuildConfig(model, new TrainingOptions(), files, @"C:\conv", download: false)["baseRepo"]);
+        Assert.Null(config["resumeAdapterDir"]);
+    }
+
+    [Fact]
+    public void Config_ForAVersionResumesFromTheOldAdapter()
+    {
+        var model = TrainingModels.Recommended[0];
+        var files = TrainingPaths.ForVersion(@"C:\Projekt\models", model, "nexi", 2, @"C:\Projekt\data\training\runs\nexi\v2");
+
+        Assert.Equal(@"C:\Projekt\models\qwen3-1.7b\lora\nexi-v2.gguf", files.AdapterGguf);
+        Assert.Equal(@"C:\Projekt\data\training\runs\nexi\v2\run.json", files.ConfigFile);
+
+        var config = TrainingProtocol.BuildConfig(model, new TrainingOptions(Epochs: 3, LearningRate: 1e-4), files, @"C:\conv", download: false,
+            resumeAdapterDir: @"C:\Projekt\data\training\runs\nexi\adapter");
+        Assert.Equal(@"C:\Projekt\data\training\runs\nexi\adapter", config["resumeAdapterDir"]!.GetValue<string>());
+        Assert.Equal(0.0001, config["learningRate"]!.GetValue<double>());
     }
 
     [Fact]
