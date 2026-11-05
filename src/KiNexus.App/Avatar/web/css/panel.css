@@ -529,3 +529,6 @@ button.recording {
 .motion-box .button-row button { min-width: 38px; }
 
 .emotion-map { display: grid; gap: 6px; }
+
+/* KI-Nexus: Im Avatar-Feld (nurAvatar) ist das Fenster schmal, die Bühne soll trotzdem die ganze Höhe füllen. */
+body.avatar-only #stage-wrap { flex: 1; height: 100vh; }

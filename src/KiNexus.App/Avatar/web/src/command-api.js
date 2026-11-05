@@ -328,7 +328,12 @@ export class CommandApi {
   connectHost() {
     const webview = window.chrome && window.chrome.webview;
     if (webview) {
-      webview.addEventListener('message', (event) => this.handle(event.data));
+      // KI-Nexus: Fehler eines Befehls an die App zurückmelden (sonst sieht man sie nur im Panel).
+      webview.addEventListener('message', (event) => this.handle(event.data).then((result) => {
+        if (result && !result.ok) {
+          webview.postMessage({ type: 'commandError', command: event.data && event.data.type, error: result.error });
+        }
+      }));
     }
     window.addEventListener('message', (event) => {
       const sameOrigin = event.origin === window.location.origin || event.origin === 'null';

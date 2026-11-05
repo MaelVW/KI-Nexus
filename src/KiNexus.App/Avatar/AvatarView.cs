@@ -33,7 +33,11 @@ public sealed class AvatarView : UserControl
     private readonly DispatcherTimer _mouthTimer = new() { Interval = TimeSpan.FromMilliseconds(50) };
     private bool _ready;
     private double _lastMouth = -1;
-    private string? _modelFolder;
+
+    /// <summary>models/avatar im Projektordner: Nur hier liegen Avatare, nur diesen Ordner sieht die Seite.</summary>
+    public static string AvatarFolder { get; } = Path.Combine(
+        KiNexus.Core.Paths.AppPaths.Detect(AppContext.BaseDirectory, Environment.GetEnvironmentVariable(KiNexus.Core.Paths.AppPaths.RootEnvironmentVariable)).Root,
+        "models", "avatar");
 
     public AvatarView()
     {
@@ -106,6 +110,9 @@ public sealed class AvatarView : UserControl
         core.Settings.AreBrowserAcceleratorKeysEnabled = false;
         core.Settings.IsZoomControlEnabled = false;
         core.SetVirtualHostNameToFolderMapping(AppHost, web, CoreWebView2HostResourceAccessKind.Deny);
+        // Modelle nur aus models/avatar: Die Seite sieht keinen anderen Ordner. Vor dem Laden der Seite setzen.
+        Directory.CreateDirectory(AvatarFolder);
+        core.SetVirtualHostNameToFolderMapping(ModelHost, AvatarFolder, CoreWebView2HostResourceAccessKind.Allow);
         core.NewWindowRequested += (_, e) => e.Handled = true;
         core.NavigationStarting += (_, e) =>
         {
@@ -130,9 +137,16 @@ public sealed class AvatarView : UserControl
                 return;
             }
 
+            Log("blockiert: " + e.Request.Uri);
             e.Response = core.Environment.CreateWebResourceResponse(null, 403, "Gesperrt", "");
         };
         core.WebMessageReceived += (_, e) => OnMessage(e.WebMessageAsJson);
+        // Fehler der Seite und blockierte Inhalte (CSP) kommen als Meldung zurück, fürs Protokoll.
+        await core.AddScriptToExecuteOnDocumentCreatedAsync("""
+            window.addEventListener('error', e => chrome.webview.postMessage({ type: 'jsError', message: String(e.message), source: String(e.filename) + ':' + e.lineno }));
+            window.addEventListener('unhandledrejection', e => chrome.webview.postMessage({ type: 'jsError', message: String(e.reason && e.reason.message || e.reason) }));
+            document.addEventListener('securitypolicyviolation', e => chrome.webview.postMessage({ type: 'cspBlocked', directive: e.violatedDirective, uri: String(e.blockedURI) }));
+            """);
         core.NavigationCompleted += (_, _) =>
         {
             _ready = true;
@@ -143,8 +157,24 @@ public sealed class AvatarView : UserControl
         core.Navigate($"https://{AppHost}/index.html?nurAvatar");
     }
 
+    /// <summary>Protokoll in data/logs/avatar.log (Meldungen der Seite, Fehler, blockierte Anfragen).</summary>
+    private static void Log(string line)
+    {
+        try
+        {
+            var paths = KiNexus.Core.Paths.AppPaths.Detect(AppContext.BaseDirectory, Environment.GetEnvironmentVariable(KiNexus.Core.Paths.AppPaths.RootEnvironmentVariable));
+            Directory.CreateDirectory(paths.LogsDirectory);
+            File.AppendAllText(Path.Combine(paths.LogsDirectory, "avatar.log"), $"{DateTime.Now:HH:mm:ss.fff} {line}{Environment.NewLine}");
+        }
+        catch (IOException)
+        {
+            // Protokoll ist nicht wichtig genug, um den Avatar zu stören.
+        }
+    }
+
     private void OnMessage(string json)
     {
+        Log("Seite: " + (json.Length > 400 ? json[..400] : json));
         try
         {
             using var document = JsonDocument.Parse(json);
@@ -166,7 +196,7 @@ public sealed class AvatarView : UserControl
 
     private void OnAvatarFileChanged()
     {
-        if (!_ready || _web.CoreWebView2 is not { } core)
+        if (!_ready || _web.CoreWebView2 is null)
         {
             return;
         }
@@ -177,19 +207,15 @@ public sealed class AvatarView : UserControl
             return;
         }
 
-        var folder = Path.GetDirectoryName(file)!;
-        if (!string.Equals(folder, _modelFolder, StringComparison.OrdinalIgnoreCase))
+        var full = Path.GetFullPath(file);
+        if (!full.StartsWith(AvatarFolder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase))
         {
-            if (_modelFolder is not null)
-            {
-                core.ClearVirtualHostNameToFolderMapping(ModelHost);
-            }
-
-            core.SetVirtualHostNameToFolderMapping(ModelHost, folder, CoreWebView2HostResourceAccessKind.Allow);
-            _modelFolder = folder;
+            Log("nicht in models/avatar: " + full);
+            return;
         }
 
-        Post(new { type = "loadUrl", url = $"https://{ModelHost}/{Uri.EscapeDataString(Path.GetFileName(file))}" });
+        var relative = string.Join('/', Path.GetRelativePath(AvatarFolder, full).Split(Path.DirectorySeparatorChar).Select(Uri.EscapeDataString));
+        Post(new { type = "loadUrl", url = $"https://{ModelHost}/{relative}" });
     }
 
     private void SendState()
@@ -221,7 +247,13 @@ public sealed class AvatarView : UserControl
     {
         if (_ready && _web.CoreWebView2 is { } core)
         {
-            core.PostWebMessageAsJson(JsonSerializer.Serialize(command));
+            var json = JsonSerializer.Serialize(command);
+            if (!json.Contains("setMouth", StringComparison.Ordinal))
+            {
+                Log("App: " + json);
+            }
+
+            core.PostWebMessageAsJson(json);
         }
     }
 }

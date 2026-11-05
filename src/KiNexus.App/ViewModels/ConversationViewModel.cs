@@ -185,8 +185,18 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
             return;
         }
 
-        var relative = Path.GetRelativePath(_paths.Root, file);
-        await SaveAvatarAsync(ki, relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative) ? file : relative.Replace('\\', '/'));
+        // Avatare liegen in models/avatar (nur diesen Ordner sieht das Browser-Feld). Liegt die Datei woanders, wird sie dorthin kopiert.
+        var folder = KiNexus.App.Avatar.AvatarView.AvatarFolder;
+        Directory.CreateDirectory(folder);
+        var target = Path.GetFullPath(file).StartsWith(folder + Path.DirectorySeparatorChar, StringComparison.OrdinalIgnoreCase)
+            ? file
+            : Path.Combine(folder, Path.GetFileName(file));
+        if (!string.Equals(target, file, StringComparison.OrdinalIgnoreCase))
+        {
+            File.Copy(file, target, overwrite: true);
+        }
+
+        await SaveAvatarAsync(ki, Path.GetRelativePath(_paths.Root, target).Replace('\\', '/'));
     }
 
     [RelayCommand]

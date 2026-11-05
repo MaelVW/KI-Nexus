@@ -5,16 +5,17 @@ Stand: 5. November 2026. Plan: `KI-Nexus-Erweiterung-Avatar.md` (im Ordner `KI-N
 | Phase | Inhalt | Status |
 |---|---|---|
 | E3.0 | Testpanel übernehmen (`src/KiNexus.App/Avatar/web/`), in WebView2 mit `?nurAvatar` | ✅ gebaut |
-| E3.1 | WebView2-Feld, lokale Dateien, Sicherheit, VRM laden, Leerlauf (Blinzeln, Atmen aus dem Testpanel) | ✅ gebaut, Abnahme in der App offen |
+| E3.1 | WebView2-Feld, lokale Dateien, Sicherheit, VRM laden, Leerlauf (Blinzeln, Atmen aus dem Testpanel) | ✅ abgenommen (Seed-san erscheint, lädt ohne Internet) |
 | E3.2 | Lippen und Zustände aus dem Gesprächsmodus | ✅ gebaut, Abnahme mit echter Stimme offen |
 | E3.3–E3.7 | Gefühle, Create-Hub, Live2D, Gesten, Webcam | offen |
 
 ## Aufbau
 
-- **Web-Code:** unverändert aus dem Avatar-Testpanel 0.2 (`index.html`, `css`, `js` (fertige Bündel), `vendor` (MediaPipe), `src` (Quellen zum Neubündeln mit `build.cjs`)). Neu ist nur eine strenge **Content-Security-Policy** in `index.html`.
+- **Web-Code:** unverändert aus dem Avatar-Testpanel 0.2 (`index.html`, `css`, `js` (fertige Bündel), `vendor` (MediaPipe), `src` (Quellen zum Neubündeln mit `build.cjs`)). Neu sind nur eine strenge **Content-Security-Policy** in `index.html`, eine CSS-Regel (im schmalen Feld füllt die Bühne die ganze Höhe) und `commandError`: Schlägt ein Befehl fehl, meldet die Seite das der App.
 - **Live2D Cubism Core** ist **nicht** im Repository (Lizenz von Live2D, das Repository ist öffentlich). `src/KiNexus.App/Avatar/web/live2d/live2dcubismcore*.js` steht in `.gitignore`. Thema von E3.5.
 - **`AvatarView`** (`src/KiNexus.App/Avatar/AvatarView.cs`): WPF-Steuerelement mit WebView2 (`Microsoft.Web.WebView2` 1.0.4258.31).
-  - `https://avatar.kinexus/` → die Web-Dateien neben der App, `https://modelle.kinexus/` → der Ordner des gewählten Modells (`SetVirtualHostNameToFolderMapping`).
+  - `https://avatar.kinexus/` → die Web-Dateien neben der App, `https://modelle.kinexus/` → nur `modelsvatar` (`SetVirtualHostNameToFolderMapping`, vor dem Laden der Seite gesetzt, sonst scheitert `fetch`). Wählt man ein VRM anderswo, kopiert die App es nach `modelsvatar`.
+  - **Protokoll:** `data\logsvatar.log` (Befehle der App, Meldungen der Seite, JavaScript-Fehler, blockierte Anfragen).
   - **Sicherheit:** Jede Anfrage an eine andere Adresse wird mit 403 blockiert (`WebResourceRequested`), Navigation nur innerhalb von `avatar.kinexus`, keine neuen Fenster, keine DevTools, kein Kontextmenü, alle Berechtigungen (Kamera, Mikrofon) abgelehnt (die Webcam kommt erst mit E3.7 und einem Schalter).
   - Befehle als JSON (`PostWebMessageAsJson`), genau wie im Testpanel: `loadUrl`, `setState`, `setLipSyncMode` (`aus`), `setMouth`, `unload`.
 - **KI-Profil:** neues Feld `avatarPath` (VRM, relativ zum Projektordner oder voll). Im Gesprächsmodus: „Avatar wählen …“ und „Ohne Avatar“.
@@ -38,7 +39,6 @@ Stand: 5. November 2026. Plan: `KI-Nexus-Erweiterung-Avatar.md` (im Ordner `KI-N
 
 ## Noch offen / nicht geprüft
 
-- Abnahme in der App: VRM erscheint im Gesprächsmodus und blinzelt, ohne Internet.
 - Mund beim echten Sprechen und die Verzögerung zwischen Stimme und Mund.
 - VRAM und CPU zusammen mit gemma4:26b.
 - E3.3 (Gefühle), E3.4 (Create-Hub: Avatare), E3.5 (Live2D, braucht dein Okay zur Lizenz der Cubism Core), E3.6, E3.7 (Webcam).
