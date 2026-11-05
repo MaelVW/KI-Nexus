@@ -288,7 +288,10 @@
                         </StackPanel>
                     </Border>
 
-                    <WrapPanel Margin="0,-6,0,16">
+                    <CheckBox Style="{StaticResource ToggleSwitch}" Content="Im Privatordner speichern" IsChecked="{Binding SaveToPrivate}" Margin="0,-6,0,12"
+                              AutomationProperties.AutomationId="StudioSaveToPrivate"
+                              ToolTip="Das Ergebnis kommt direkt in den Privatordner. In der Galerie siehst du es nur unter „Privat“." />
+                    <WrapPanel Margin="0,0,0,16">
                         <Button Style="{StaticResource Button.Primary}" Content="{Binding GenerateText}" Command="{Binding GenerateCommand}" Margin="0,0,8,0"
                                 AutomationProperties.AutomationId="VideoGenerate" />
                         <Button Content="Abbrechen" Command="{Binding CancelCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="VideoCancel" />
@@ -397,6 +400,9 @@
                             <Button Content="Nochmal (neuer Seed)" Command="{Binding RepeatNewSeedCommand}" Margin="0,0,8,8"
                                     ToolTip="Derselbe Prompt, aber ein anderes Ergebnis" />
                             <Button Style="{StaticResource Button.Ghost}" Content="Ordner öffnen" Command="{Binding OpenFolderCommand}" Margin="0,0,8,8" />
+                            <Button Style="{StaticResource Button.Ghost}" Content="{Binding PrivateButtonText}" Command="{Binding TogglePrivateCommand}" Margin="0,0,8,8"
+                                    AutomationProperties.AutomationId="StudioTogglePrivate"
+                                    ToolTip="Private Einträge stehen nur unter „Privat“ in der Galerie. Versteckt, aber nicht verschlüsselt (data\videos\privat, data\images\privat)." />
                             <Button Style="{StaticResource Button.Ghost}" Content="In den Papierkorb" Command="{Binding DeleteVideoCommand}" Margin="0,0,8,8"
                                     AutomationProperties.AutomationId="VideoDelete" />
                         </WrapPanel>
@@ -413,6 +419,14 @@
                                              IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:GalleryFilter.Videos}}" />
                                 <RadioButton Style="{StaticResource SegmentButton}" GroupName="galleryFilter" Content="Bilder" AutomationProperties.AutomationId="GalleryImages"
                                              IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:GalleryFilter.Images}}" />
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="galleryFilter" AutomationProperties.AutomationId="GalleryPrivate"
+                                             AutomationProperties.Name="Privat" ToolTip="Der Privatordner: Diese Videos und Bilder stehen sonst nirgends in der Galerie."
+                                             IsChecked="{Binding Filter, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:GalleryFilter.Private}}">
+                                    <StackPanel Orientation="Horizontal">
+                                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="12" Text="{x:Static app:Glyphs.Lock}" />
+                                        <TextBlock Text="Privat" Margin="6,0,0,0" />
+                                    </StackPanel>
+                                </RadioButton>
                             </StackPanel>
                         </Border>
                         <TextBlock Text="Galerie" Style="{StaticResource StepTitle}" Margin="0" VerticalAlignment="Center" />

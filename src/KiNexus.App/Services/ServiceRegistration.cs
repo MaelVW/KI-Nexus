@@ -57,6 +57,8 @@ public static class ServiceRegistration
         services.AddSingleton<TuningViewModel>();
         services.AddSingleton<SystemPromptViewModel>();
         services.AddSingleton<TrainingViewModel>();
+        services.AddSingleton(provider => new KiNexus.Core.Training.CustomTrainingModels(Path.Combine(paths.DataDirectory, "training", "eigene-modelle.json"),
+            provider.GetRequiredService<ILogger<KiNexus.Core.Training.CustomTrainingModels>>()));
         services.AddSingleton<VideoViewModel>();
         services.AddSingleton<MainViewModel>();
         services.AddSingleton<MainWindow>();
@@ -148,6 +150,8 @@ public static class ServiceRegistration
         services.AddSingleton(_ => new AttachmentStore(paths.AttachmentsDirectory));
         services.AddSingleton<ChatService>();
         services.AddSingleton<SystemPromptService>();
+        services.AddSingleton(provider => new PromptTemplateStore(Path.Combine(paths.DataDirectory, "prompt-vorlagen.json"),
+            provider.GetRequiredService<ILogger<PromptTemplateStore>>()));
         services.AddSingleton<KiReadinessViewModel>();
         services.AddSingleton<ChatSessionViewModel>();
         services.AddSingleton<ChatListViewModel>();

@@ -1,7 +1,8 @@
 namespace KiNexus.Core.Kis;
 
-/// <summary>Eine Vorlage für den Systemprompt (Assistent "Neue KI", Schritt 3).</summary>
-public sealed record PromptTemplate(string Name, string Text)
+/// <summary>Eine Vorlage für den Systemprompt (Assistent "Neue KI", Schritt 3, und System-Prompt-Tab).</summary>
+/// <param name="IsCustom">Eine eigene Vorlage (data/prompt-vorlagen.json), keine eingebaute. Nur eigene kann man löschen.</param>
+public sealed record PromptTemplate(string Name, string Text, bool IsCustom = false)
 {
     public override string ToString() => Name;
 }

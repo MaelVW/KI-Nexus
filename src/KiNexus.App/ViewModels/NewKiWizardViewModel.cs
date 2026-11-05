@@ -23,7 +23,7 @@ public sealed record ModelChoice(string Title, string Subtitle, EngineKind Engin
 /// Assistent "Neue KI" in 4 Schritten (Bauplan 8.3): Grundmodell, Name, Systemprompt, Parameter.
 /// Speichert als kis/&lt;id&gt;.json und bietet danach einen Test-Chat an.
 /// </summary>
-public sealed partial class NewKiWizardViewModel(CreateHubViewModel hub, IKiRegistry kis, OllamaBackend ollama) : ObservableObject
+public sealed partial class NewKiWizardViewModel(CreateHubViewModel hub, IKiRegistry kis, OllamaBackend ollama, PromptTemplateStore promptTemplates) : ObservableObject
 {
     public const int StepCount = 4;
 
@@ -70,7 +70,8 @@ public sealed partial class NewKiWizardViewModel(CreateHubViewModel hub, IKiRegi
 
     // ----------------------------------------------------------- Schritt 3: Systemprompt
 
-    public IReadOnlyList<PromptTemplate> PromptTemplates => KiTemplates.Prompts;
+    /// <summary>Die eingebauten Vorlagen und die eigenen aus dem System-Prompt-Tab (bei jedem Öffnen neu gelesen).</summary>
+    public IReadOnlyList<PromptTemplate> PromptTemplates => [.. KiTemplates.Prompts, .. promptTemplates.Load()];
 
     [ObservableProperty] private string _systemPrompt = KiTemplates.Prompts[0].Text;
 
@@ -292,6 +293,7 @@ public sealed partial class NewKiWizardViewModel(CreateHubViewModel hub, IKiRegi
         Name = "";
         Description = "";
         SystemPrompt = KiTemplates.Prompts[0].Text;
+        OnPropertyChanged(nameof(PromptTemplates)); // neue eigene Vorlagen zeigen
         SelectedPreset = KiTemplates.Parameters[0];
         ContextLength = 8192;
         ThinkByDefault = false;

@@ -22,6 +22,9 @@ public sealed record VideoEntry
 
     [JsonIgnore] public bool IsImage => Kind == ImageKind;
 
+    /// <summary>Liegt im Privatordner (data/videos/privat bzw. data/images/privat): nur in der Galerie unter „Privat“ sichtbar.</summary>
+    [JsonIgnore] public bool IsPrivate { get; init; }
+
     /// <summary>Bild: das wievielte aus demselben Auftrag (ab 0) und wie viele es waren. Gleicher Seed braucht dieselbe Anzahl.</summary>
     public int BatchIndex { get; init; }
 
@@ -78,7 +81,12 @@ public sealed record VideoEntry
 /// </summary>
 public sealed partial class VideoLibrary(string directory, ILogger<VideoLibrary> logger)
 {
+    /// <summary>Unterordner für private Einträge. Versteckt nur in der Galerie, die Dateien sind nicht verschlüsselt.</summary>
+    public const string PrivateFolderName = "privat";
+
     public string Directory => directory;
+
+    public string PrivateDirectory => Path.Combine(directory, PrivateFolderName);
 
     /// <summary>Nimmt ein fertiges Video auf. Die Dateien werden aus dem Rohordner verschoben.</summary>
     public async Task<VideoEntry> AddAsync(VideoDone done, VideoRequest request, VideoModelSet models, CancellationToken ct)
@@ -132,53 +140,86 @@ public sealed partial class VideoLibrary(string directory, ILogger<VideoLibrary>
         return entry;
     }
 
-    /// <summary>Alle Videos, das neueste zuerst. Einträge ohne MP4 fallen weg.</summary>
+    /// <summary>Alle Videos (auch die privaten), das neueste zuerst. Einträge ohne MP4 fallen weg.</summary>
     public async Task<IReadOnlyList<VideoEntry>> LoadAllAsync(CancellationToken ct)
     {
-        if (!System.IO.Directory.Exists(directory))
-        {
-            return [];
-        }
-
         var entries = new List<VideoEntry>();
-        foreach (var file in System.IO.Directory.EnumerateFiles(directory, "*.json"))
+        foreach (var (folder, isPrivate) in new[] { (directory, false), (PrivateDirectory, true) })
         {
-            try
+            if (!System.IO.Directory.Exists(folder))
             {
-                await using var stream = File.OpenRead(file);
-                var entry = await JsonSerializer.DeserializeAsync<VideoEntry>(stream, JsonDefaults.Options, ct).ConfigureAwait(false);
-                var id = Path.GetFileNameWithoutExtension(file);
-                var video = Path.Combine(directory, id + ".mp4");
-                if (entry is null || !File.Exists(video))
-                {
-                    continue;
-                }
-
-                var thumbnail = Path.Combine(directory, id + ".png");
-                var start = entry.StartImage is { } name ? Path.Combine(directory, name) : null;
-                entries.Add(entry with
-                {
-                    Id = id,
-                    VideoPath = video,
-                    ThumbnailPath = File.Exists(thumbnail) ? thumbnail : null,
-                    StartImagePath = start is not null && File.Exists(start) ? start : null,
-                });
+                continue;
             }
-            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(folder, "*.json"))
             {
-                logger.LogWarning(ex, "Video-Eintrag {File} ist nicht lesbar.", file);
+                if (await LoadOneAsync(folder, Path.GetFileNameWithoutExtension(file), isPrivate, ct).ConfigureAwait(false) is { } entry)
+                {
+                    entries.Add(entry);
+                }
             }
         }
 
         return [.. entries.OrderByDescending(e => e.CreatedAt)];
     }
 
-    /// <summary>Alle Dateien eines Videos (MP4, Vorschaubild, JSON), z.B. zum Löschen.</summary>
-    public IReadOnlyList<string> FilesOf(VideoEntry entry) =>
-    [
-        .. new[] { ".mp4", ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists),
-        .. entry.StartImagePath is { } start && File.Exists(start) ? [start] : Array.Empty<string>(),
-    ];
+    /// <summary>In den Privatordner oder zurück. Alle Dateien des Eintrags werden verschoben.</summary>
+    public async Task<VideoEntry> SetPrivateAsync(VideoEntry entry, bool isPrivate, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (entry.IsPrivate == isPrivate)
+        {
+            return entry;
+        }
+
+        var target = isPrivate ? PrivateDirectory : directory;
+        GalleryFiles.Move(FilesOf(entry), target);
+        logger.LogInformation("Video {Id} {Where}.", entry.Id, isPrivate ? "in den Privatordner verschoben" : "aus dem Privatordner geholt");
+        return await LoadOneAsync(target, entry.Id, isPrivate, ct).ConfigureAwait(false)
+            ?? throw new IOException($"Video {entry.Id} ist nach dem Verschieben nicht lesbar.");
+    }
+
+    private async Task<VideoEntry?> LoadOneAsync(string folder, string id, bool isPrivate, CancellationToken ct)
+    {
+        var file = Path.Combine(folder, id + ".json");
+        try
+        {
+            await using var stream = File.OpenRead(file);
+            var entry = await JsonSerializer.DeserializeAsync<VideoEntry>(stream, JsonDefaults.Options, ct).ConfigureAwait(false);
+            var video = Path.Combine(folder, id + ".mp4");
+            if (entry is null || !File.Exists(video))
+            {
+                return null;
+            }
+
+            var thumbnail = Path.Combine(folder, id + ".png");
+            var start = entry.StartImage is { } name ? Path.Combine(folder, name) : null;
+            return entry with
+            {
+                Id = id,
+                IsPrivate = isPrivate,
+                VideoPath = video,
+                ThumbnailPath = File.Exists(thumbnail) ? thumbnail : null,
+                StartImagePath = start is not null && File.Exists(start) ? start : null,
+            };
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Video-Eintrag {File} ist nicht lesbar.", file);
+            return null;
+        }
+    }
+
+    /// <summary>Alle Dateien eines Videos (MP4, Vorschaubild, JSON, Startbild), z.B. zum Löschen oder Verschieben.</summary>
+    public IReadOnlyList<string> FilesOf(VideoEntry entry)
+    {
+        var folder = entry.IsPrivate ? PrivateDirectory : directory;
+        return
+        [
+            .. new[] { ".mp4", ".png", ".json" }.Select(ext => Path.Combine(folder, entry.Id + ext)).Where(File.Exists),
+            .. entry.StartImagePath is { } start && File.Exists(start) ? [start] : Array.Empty<string>(),
+        ];
+    }
 
     /// <summary>ComfyUI hängt "_00001_" an. Das braucht der Name nicht.</summary>
     internal static string CleanName(string name)

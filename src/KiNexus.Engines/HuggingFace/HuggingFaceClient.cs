@@ -41,6 +41,13 @@ public sealed class HuggingFaceClient : IDisposable
         return HuggingFaceProtocol.Group(repo, HuggingFaceProtocol.ParseTree(document.RootElement));
     }
 
+    /// <summary>Was das Training über ein Modell wissen muss: Bauart, Grösse, Chat-Vorlage, gesperrt, Lizenz, Original.</summary>
+    public async Task<KiNexus.Core.Training.TrainingModelInfo> GetTrainingInfoAsync(string repo, CancellationToken ct)
+    {
+        using var document = await GetJsonAsync(HuggingFaceProtocol.ModelInfoPath(repo), ct).ConfigureAwait(false);
+        return HuggingFaceProtocol.ParseTrainingInfo(repo, document.RootElement);
+    }
+
     /// <summary>
     /// Öffnet eine Datei zum Herunterladen, ab Byte <paramref name="offset"/> (zum Fortsetzen).
     /// Hugging Face leitet auf einen Download-Server weiter. Den Token schickt .NET dabei nicht mit.

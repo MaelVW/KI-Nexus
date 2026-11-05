@@ -186,6 +186,15 @@ Bildmodelle, die man selbst lädt (Hugging-Face-Suche oder Import), erscheinen i
 - Text-Encoder und VAE kommen immer aus `models\image` (von `setup-video.ps1 -Images`). ComfyUI bekommt den Ordner des Modells in `kinexus-paths.yaml` dazu.
 - **FLUX.2 klein 9B** ist eingebaut, aber nicht getestet (Lizenz: FLUX Non-Commercial, nur privat).
 
+## Privatordner (seit 5.11.2026)
+
+Videos und Bilder kann man in einen **Privatordner** legen. Dort stehen sie nicht mehr in der normalen Galerie (weder unter „Alle“ noch unter „Videos“ oder „Bilder“), sondern nur unter dem Filter **„Privat“** (mit Schloss).
+
+- Knopf **„In den Privatordner“** beim gewählten Eintrag, dort auch „Aus dem Privatordner“ zurück.
+- Schalter **„Im Privatordner speichern“** über „Video erzeugen“ / „Bilder erzeugen“: Das Ergebnis kommt direkt in den Privatordner, die Galerie springt nicht dorthin.
+- Die Dateien liegen in `data\videos\privat\` bzw. `data\images\privat\` (MP4 oder PNG, JSON, Vorschau, Start-, Referenz- und Vorlagebilder werden mitverschoben). Gibt es im Ziel schon eine Datei mit gleichem Namen, wird nichts verschoben.
+- **Ehrliche Grenze:** versteckt nur in der Galerie, **nicht verschlüsselt** und ohne Passwort. Wer den Ordner im Explorer öffnet, sieht die Dateien.
+
 ## Noch nicht geprüft
 
 - Grössere Formate als 1216×832 und vier Bilder in 1024×1024 auf einmal (Speicher).

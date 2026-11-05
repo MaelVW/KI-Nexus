@@ -123,14 +123,54 @@
                                  AutomationProperties.AutomationId="TrainingBaseModels">
                             <ListBox.ItemTemplate>
                                 <DataTemplate DataType="{x:Type training:TrainingBaseModel}">
-                                    <StackPanel>
-                                        <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
-                                        <TextBlock Text="{Binding Details}" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
-                                    </StackPanel>
+                                    <DockPanel>
+                                        <!-- Eigene Modelle kann man wieder aus der Liste nehmen. -->
+                                        <Button DockPanel.Dock="Right" Style="{StaticResource Button.Ghost}" Content="Entfernen" VerticalAlignment="Center"
+                                                Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}"
+                                                Command="{Binding DataContext.RemoveCustomModelCommand, RelativeSource={RelativeSource AncestorType=ListBox}}"
+                                                CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='{}{0} aus der Liste nehmen'}" />
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding Title}" FontWeight="SemiBold" />
+                                            <TextBlock Text="{Binding Details}" Style="{StaticResource Text.Muted}" FontSize="{StaticResource FontSize.Small}" />
+                                        </StackPanel>
+                                    </DockPanel>
                                 </DataTemplate>
                             </ListBox.ItemTemplate>
                         </ListBox>
                         <TextBlock Text="{Binding BaseModelInfo}" Style="{StaticResource Text.Hint}" Margin="0,8,0,0" AutomationProperties.AutomationId="TrainingBaseInfo" />
+
+                        <!-- Eigenes Grundmodell: jedes Original von Hugging Face bis ca. 5B Parameter -->
+                        <StackPanel Margin="0,14,0,0" IsEnabled="{Binding IsIdle}">
+                            <TextBlock Text="Eigenes Grundmodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                            <WrapPanel>
+                                <TextBox Width="320" Text="{Binding CustomRepo, UpdateSourceTrigger=PropertyChanged}" MaxLength="120" VerticalContentAlignment="Center"
+                                         Margin="0,0,8,8" AutomationProperties.Name="Hugging-Face-Name des Originalmodells"
+                                         AutomationProperties.AutomationId="TrainingCustomRepo" ToolTip="z.B. HuggingFaceTB/SmolLM3-3B oder google/gemma-3-1b-it" />
+                                <Button Content="Prüfen und hinzufügen" Command="{Binding CheckCustomModelCommand}" Margin="0,0,8,8"
+                                        AutomationProperties.AutomationId="TrainingCheckCustom" />
+                                <Button Content="Vorschläge aus meinen Modellen" Command="{Binding SuggestFromLibraryCommand}" Margin="0,0,8,8"
+                                        AutomationProperties.AutomationId="TrainingSuggest"
+                                        ToolTip="Sucht zu deinen heruntergeladenen Modellen (GGUF) das Original auf Hugging Face. Fragt nur auf Klick." />
+                            </WrapPanel>
+                            <TextBlock Text="{Binding CustomModelInfo}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap"
+                                       AutomationProperties.AutomationId="TrainingCustomInfo" AutomationProperties.LiveSetting="Polite" />
+                            <ItemsControl ItemsSource="{Binding Suggestions}" Margin="0,6,0,0" AutomationProperties.Name="Vorschläge"
+                                          AutomationProperties.AutomationId="TrainingSuggestions">
+                                <ItemsControl.ItemTemplate>
+                                    <DataTemplate DataType="{x:Type vm:TrainingSuggestion}">
+                                        <DockPanel Margin="0,0,0,6">
+                                            <Button DockPanel.Dock="Right" Content="Hinzufügen" Margin="8,0,0,0" VerticalAlignment="Top"
+                                                    Command="{Binding DataContext.AddSuggestionCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                                    CommandParameter="{Binding}" AutomationProperties.Name="{Binding Model.Repo, StringFormat='{}{0} hinzufügen'}" />
+                                            <StackPanel>
+                                                <TextBlock Text="{Binding Model.Title}" FontWeight="SemiBold" />
+                                                <TextBlock Text="{Binding Reason}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" />
+                                            </StackPanel>
+                                        </DockPanel>
+                                    </DataTemplate>
+                                </ItemsControl.ItemTemplate>
+                            </ItemsControl>
+                        </StackPanel>
                     </StackPanel>
                 </Border>
 

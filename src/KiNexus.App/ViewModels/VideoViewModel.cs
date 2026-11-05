@@ -43,12 +43,20 @@ public enum GalleryFilter
     All,
     Videos,
     Images,
+
+    /// <summary>Nur der Privatordner. Private Einträge stehen sonst nirgends.</summary>
+    Private,
 }
 
 /// <summary>Ein Auftrag in der Warteschlange: ein Video oder Bilder. Beide laufen nacheinander über ComfyUI.</summary>
 public abstract record StudioJob
 {
     public abstract string Label { get; }
+
+    /// <summary>Das Ergebnis kommt direkt in den Privatordner.</summary>
+    public bool Private { get; init; }
+
+    protected string PrivateLabel => Private ? " · privat" : "";
 
     /// <summary>Schritte beim Entrauschen, für die Schätzung der Restzeit.</summary>
     public abstract int Steps { get; }
@@ -63,7 +71,7 @@ public sealed record VideoJob(VideoRequest Request, VideoModelSet Models) : Stud
 {
     /// <summary>z.B. "768×512 · 4 s · LTX-2.3 distilled (Q4_K_M) · A golden retriever …".</summary>
     public override string Label => string.Create(CultureInfo.InvariantCulture,
-        $"Video · {Request.Width}×{Request.Height} · {Request.Seconds:0} s{(Request.StartImagePath is null ? "" : " · mit Startbild")} · {Models.Name} · {Short(Request.Prompt)}");
+        $"Video · {Request.Width}×{Request.Height} · {Request.Seconds:0} s{(Request.StartImagePath is null ? "" : " · mit Startbild")}{PrivateLabel} · {Models.Name} · {Short(Request.Prompt)}");
 
     public override int Steps => Models.Steps;
 }
@@ -73,7 +81,7 @@ public sealed record ImageJob(ImageRequest Request, ImageModelSet Models) : Stud
 {
     /// <summary>z.B. "2 Bilder · 1024×1024 · FLUX.2 klein 4B (Q8_0) · A golden retriever …".</summary>
     public override string Label => string.Create(CultureInfo.InvariantCulture,
-        $"{(Request.Count == 1 ? "1 Bild" : $"{Request.Count} Bilder")} · {Request.Width}×{Request.Height}{References}{(Request.SourceImage is null ? "" : $" · Vorlage {Request.Strength:0.00}")} · {Models.Name} · {Short(Request.Prompt)}");
+        $"{(Request.Count == 1 ? "1 Bild" : $"{Request.Count} Bilder")} · {Request.Width}×{Request.Height}{References}{(Request.SourceImage is null ? "" : $" · Vorlage {Request.Strength:0.00}")}{PrivateLabel} · {Models.Name} · {Short(Request.Prompt)}");
 
     private string References => Request.ReferenceImages?.Count switch
     {
@@ -839,7 +847,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
                 return null;
             }
 
-            return new ImageJob(image, SelectedImageModel);
+            return new ImageJob(image, SelectedImageModel) { Private = SaveToPrivate };
         }
 
         var request = BuildRequest(seed);
@@ -850,8 +858,11 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         }
 
         _ = RememberModelAsync();
-        return new VideoJob(request, Models);
+        return new VideoJob(request, Models) { Private = SaveToPrivate };
     }
+
+    /// <summary>Neue Videos und Bilder direkt in den Privatordner (nur unter „Privat“ in der Galerie zu sehen).</summary>
+    [ObservableProperty] private bool _saveToPrivate;
 
     /// <summary>Arbeitet die Warteschlange ab, ein Auftrag nach dem anderen. Abbrechen stoppt nur den laufenden.</summary>
     private async Task RunQueueAsync()
@@ -1115,9 +1126,9 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     public ObservableCollection<VideoEntry> Videos { get; } = [];
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedInfo), nameof(HasSelectedImage), nameof(HasSelectedVideo))]
+    [NotifyPropertyChangedFor(nameof(HasSelection), nameof(SelectedInfo), nameof(HasSelectedImage), nameof(HasSelectedVideo), nameof(PrivateButtonText))]
     [NotifyCanExecuteChangedFor(nameof(ReusePromptCommand), nameof(RepeatSameSeedCommand), nameof(RepeatNewSeedCommand), nameof(DeleteVideoCommand))]
-    [NotifyCanExecuteChangedFor(nameof(UseAsStartImageCommand), nameof(UseAsReferenceCommand), nameof(UseAsSourceCommand))]
+    [NotifyCanExecuteChangedFor(nameof(UseAsStartImageCommand), nameof(UseAsReferenceCommand), nameof(UseAsSourceCommand), nameof(TogglePrivateCommand))]
     private VideoEntry? _selectedVideo;
 
     public bool HasSelection => SelectedVideo is not null;
@@ -1135,9 +1146,10 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     private bool Matches(VideoEntry entry) => Filter switch
     {
-        GalleryFilter.Videos => !entry.IsImage,
-        GalleryFilter.Images => entry.IsImage,
-        _ => true,
+        GalleryFilter.Private => entry.IsPrivate,
+        GalleryFilter.Videos => !entry.IsPrivate && !entry.IsImage,
+        GalleryFilter.Images => !entry.IsPrivate && entry.IsImage,
+        _ => !entry.IsPrivate,
     };
 
     /// <summary>Zeigt aus allen Einträgen die, die zum Filter passen. Die Auswahl bleibt, wenn sie noch sichtbar ist.</summary>
@@ -1154,13 +1166,22 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         OnPropertyChanged(nameof(HasNoVideos));
     }
 
-    /// <summary>Neue Einträge vorne einfügen. Passt der Filter nicht, wird er auf "Alle" gestellt, damit man sie sieht.</summary>
+    /// <summary>
+    /// Neue Einträge vorne einfügen. Passt der Filter nicht, wird er auf "Alle" gestellt, damit man sie sieht.
+    /// Private Einträge zeigt die Galerie nur unter „Privat“: Dafür wird der Filter nie von selbst umgestellt.
+    /// </summary>
     private void AddEntries(IReadOnlyList<VideoEntry> entries)
     {
         _allEntries.InsertRange(0, entries);
         if (!entries.All(Matches))
         {
-            Filter = GalleryFilter.All;
+            if (!entries[0].IsPrivate)
+            {
+                Filter = GalleryFilter.All; // ApplyFilter zeigt sie dann schon
+                SelectedVideo = entries[0];
+            }
+
+            return;
         }
 
         for (var i = entries.Count - 1; i >= 0; i--)
@@ -1170,6 +1191,73 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
         SelectedVideo = entries[0];
         OnPropertyChanged(nameof(HasNoVideos));
+    }
+
+    /// <summary>„In den Privatordner“ oder „Aus dem Privatordner“, je nach gewähltem Eintrag.</summary>
+    public string PrivateButtonText => SelectedVideo is { IsPrivate: true } ? "Aus dem Privatordner" : "In den Privatordner";
+
+    /// <summary>
+    /// Verschiebt den gewählten Eintrag in den Privatordner oder zurück. Danach ist er im aktuellen Filter nicht mehr zu sehen
+    /// (ausser man ist schon unter „Privat“ und holt ihn zurück).
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(HasSelection))]
+    private async Task TogglePrivateAsync()
+    {
+        if (SelectedVideo is not { } entry)
+        {
+            return;
+        }
+
+        var what = entry.IsImage ? "Das Bild" : "Das Video";
+        var index = Videos.IndexOf(entry);
+        SelectedVideo = null; // Der Player gibt die Datei frei.
+        try
+        {
+            var moved = entry.IsImage
+                ? await _images.SetPrivateAsync(entry, !entry.IsPrivate, CancellationToken.None)
+                : await _library.SetPrivateAsync(entry, !entry.IsPrivate, CancellationToken.None);
+            _allEntries[_allEntries.IndexOf(entry)] = moved;
+            if (SamePathOrNull(StartImagePath, entry.VideoPath))
+            {
+                StartImagePath = null;
+            }
+
+            if (SamePathOrNull(SourceImagePath, entry.VideoPath))
+            {
+                SourceImagePath = null;
+            }
+
+            Videos.Remove(entry);
+            SelectedVideo = Videos.Count == 0 ? null : Videos[Math.Min(Math.Max(0, index), Videos.Count - 1)];
+            OnPropertyChanged(nameof(HasNoVideos));
+            ShowStatus(moved.IsPrivate
+                ? $"{what} liegt jetzt im Privatordner. Du findest es in der Galerie unter „Privat“."
+                : $"{what} ist wieder in der normalen Galerie.");
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            SelectedVideo = entry;
+            ShowStatus($"{what} liess sich nicht verschieben: {ex.Message}", isError: true);
+        }
+    }
+
+    /// <summary>Nach dem Erzeugen: Bei „Im Privatordner speichern“ gleich verschieben.</summary>
+    private async Task<IReadOnlyList<VideoEntry>> MaybePrivateAsync(IReadOnlyList<VideoEntry> entries, StudioJob job)
+    {
+        if (!job.Private)
+        {
+            return entries;
+        }
+
+        var moved = new List<VideoEntry>();
+        foreach (var entry in entries)
+        {
+            moved.Add(entry.IsImage
+                ? await _images.SetPrivateAsync(entry, true, CancellationToken.None)
+                : await _library.SetPrivateAsync(entry, true, CancellationToken.None));
+        }
+
+        return moved;
     }
 
     /// <summary>z.B. "768×512 · 3.9 s · mit Ton · Seed 42 · erzeugt in 2 min 20 s · 02.11.2026 15:30".</summary>
@@ -1206,9 +1294,12 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     {
         try
         {
-            var entry = await _library.AddAsync(done, job.Request, job.Models, CancellationToken.None);
-            AddEntries([entry]);
-            ShowStatus($"Das Video ist fertig und läuft rechts im Player. Datei: data\\videos\\{entry.Id}.mp4");
+            var entries = await MaybePrivateAsync([await _library.AddAsync(done, job.Request, job.Models, CancellationToken.None)], job);
+            var entry = entries[0];
+            AddEntries(entries);
+            ShowStatus(entry.IsPrivate
+                ? "Das Video ist fertig und liegt im Privatordner (Galerie → „Privat“)."
+                : $"Das Video ist fertig und läuft rechts im Player. Datei: data\\videos\\{entry.Id}.mp4");
         }
         catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
         {
@@ -1221,9 +1312,11 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     {
         try
         {
-            var entries = await _images.AddAsync(done, job.Request, job.Models, CancellationToken.None);
+            var entries = await MaybePrivateAsync(await _images.AddAsync(done, job.Request, job.Models, CancellationToken.None), job);
             AddEntries(entries);
-            ShowStatus(entries.Count == 1
+            ShowStatus(entries[0].IsPrivate
+                ? (entries.Count == 1 ? "Das Bild ist fertig und liegt im Privatordner (Galerie → „Privat“)." : $"{entries.Count} Bilder sind fertig und liegen im Privatordner (Galerie → „Privat“).")
+                : entries.Count == 1
                 ? $"Das Bild ist fertig. Datei: data\\images\\{entries[0].Id}.png"
                 : $"{entries.Count} Bilder sind fertig, in der Galerie und in data\\images.");
         }
@@ -1348,7 +1441,13 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     }
 
     [RelayCommand]
-    private void OpenFolder() => _shell.OpenFolder(SelectedVideo is { IsImage: true } ? _images.Directory : _library.Directory);
+    private void OpenFolder() => _shell.OpenFolder(SelectedVideo switch
+    {
+        { IsImage: true, IsPrivate: true } => _images.PrivateDirectory,
+        { IsImage: true } => _images.Directory,
+        { IsPrivate: true } => _library.PrivateDirectory,
+        _ => _library.Directory,
+    });
 
     /// <summary>In den Papierkorb, nicht endgültig gelöscht. Der Player gibt die Datei vorher frei.</summary>
     [RelayCommand(CanExecute = nameof(CanDelete))]

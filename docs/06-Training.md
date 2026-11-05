@@ -109,6 +109,23 @@ Warum Qwen3: frei (Apache 2.0), nicht gesperrt, reines Textmodell, das PEFT und 
 
 Das Originalmodell landet in `models\hf\<name>\` (z.B. `models\hf\qwen3-1.7b\`).
 
+#### Eigene Grundmodelle (seit 5.11.2026)
+
+Neben den drei empfohlenen geht **jedes Originalmodell von Hugging Face**, wenn es passt:
+
+| Regel | Warum |
+|---|---|
+| höchstens **5B** Parameter, ab 3B nur mit 4 Bit (QLoRA) | sonst reicht der Grafikspeicher (8 GB) nicht |
+| Bauart `qwen2`, `qwen3`, `llama`, `mistral`, `gemma`, `gemma2`, `gemma3_text`, `granite`, `smollm3`, `olmo2` | `train.py` trainiert die Schichten `q_proj` … `down_proj`, und llama.cpp muss den Adapter umwandeln können. Nicht dabei: `phi3` (zusammengelegte Schichten), Bild-Text-Modelle (`gemma3`, `qwen2_vl`) |
+| mit **Chat-Vorlage** (in `tokenizer_config.json` oder als `chat_template.jinja`) | ohne Vorlage kann das Training kein Gespräch bauen (Basis-Modelle) |
+| gesperrte Modelle (gated) | gehen, wenn man auf Hugging Face die Bedingungen akzeptiert und den Token im Create-Hub hinterlegt hat |
+
+- **„Prüfen und hinzufügen“:** Hugging-Face-Namen eintippen (z.B. `HuggingFaceTB/SmolLM3-3B`). Die App fragt Hugging Face (`api/models/<name>` mit config, safetensors, gated, Modellkarte, Dateiliste) und sagt, ob es geht und warum nicht.
+- **„Vorschläge aus meinen Modellen“:** Für die heruntergeladenen Sprachmodelle von Hugging Face (meist GGUF) sucht die App das Original: das Repository selbst, wenn es safetensors hat, sonst das `base_model` aus der Modellkarte. Höchstens 10 Modelle, nur auf Klick.
+- **Wichtig:** Eine GGUF-Datei aus dem Create-Hub selbst kann man nicht trainieren. Training braucht das Original (safetensors). Die Vorschläge finden es meist.
+- Eigene Modelle stehen in `data\training\eigene-modelle.json` und in der Liste mit „· eigenes“. „Entfernen“ nimmt sie nur aus der Liste, ein schon geladenes Original bleibt in `models\hf\`.
+- Geprüft an echten Angaben von Hugging Face (5.11.2026): SmolLM3-3B (smollm3, 3.1B, Vorlage als Datei) geht mit 4 Bit, gemma-3-1b-it (gemma3_text, 1.0B, gated) geht mit Token, Qwen3-4B-Instruct-2507 geht mit 4 Bit, Phi-4-mini (phi3) geht nicht.
+
 ### 3 · Training
 
 | Einstellung | Standard | Bedeutung |

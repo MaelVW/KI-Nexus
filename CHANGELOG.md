@@ -6,6 +6,16 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Studio: Privatordner.** „In den Privatordner“ beim gewählten Video oder Bild, Schalter „Im Privatordner speichern“ für neue Aufträge. Private Einträge stehen nur unter dem Galerie-Filter „Privat“ (`data/videos/privat`, `data/images/privat`). Versteckt, nicht verschlüsselt.
+- **System-Prompt: eigene Vorlagen.** Den Prompt im Editor unter einem Namen speichern, danach wie die eingebauten einfügen (auch im Assistenten „Neue KI“), mit ✕ löschen. Datei `data/prompt-vorlagen.json`.
+- **Training: eigene Grundmodelle.** „Prüfen und hinzufügen“ für jedes Originalmodell von Hugging Face bis 5B Parameter mit passender Bauart und Chat-Vorlage. „Vorschläge aus meinen Modellen“ sucht zu heruntergeladenen GGUF-Modellen das Original. Datei `data/training/eigene-modelle.json`.
+
+### Behoben
+
+- Studio: Fertige Bilder oder Videos erschienen doppelt in der Galerie, wenn ein anderer Filter aktiv war.
+
 ## [1.13.0] – 2026-11-03 – Installieren und Updates
 
 ### Neu

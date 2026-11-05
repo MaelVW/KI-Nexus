@@ -61,6 +61,17 @@
 
             <!-- Vorlagen: werden an der Stelle des Cursors eingefügt. -->
             <DockPanel Grid.Row="1" Margin="0,0,0,8">
+                <!-- Eigene Vorlage: den Prompt im Editor unter einem Namen speichern. -->
+                <StackPanel DockPanel.Dock="Bottom" Orientation="Horizontal" Margin="0,0,0,4">
+                    <TextBox Width="220" Text="{Binding NewTemplateName, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" VerticalContentAlignment="Center"
+                             AutomationProperties.Name="Name der eigenen Vorlage" AutomationProperties.AutomationId="PromptTemplateName"
+                             ToolTip="Name der eigenen Vorlage, z.B. „Bewerbungen“" />
+                    <Button Content="Als eigene Vorlage speichern" Command="{Binding SaveAsTemplateCommand}" Margin="8,0,12,0"
+                            AutomationProperties.AutomationId="PromptSaveTemplate"
+                            ToolTip="Speichert den Prompt im Editor als Vorlage. Sie steht danach bei allen KIs zur Auswahl." />
+                    <TextBlock Text="{Binding TemplateStatus}" Style="{StaticResource Text.Hint}" VerticalAlignment="Center" TextWrapping="Wrap" MaxWidth="420"
+                               AutomationProperties.AutomationId="PromptTemplateStatus" />
+                </StackPanel>
                 <TextBlock DockPanel.Dock="Left" Text="Vorlage einfügen:" Style="{StaticResource Text.Muted}" VerticalAlignment="Top" Margin="0,7,10,8" />
                 <ItemsControl ItemsSource="{Binding Templates}" Focusable="False">
                     <ItemsControl.ItemsPanel>
@@ -70,8 +81,17 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate DataType="{x:Type kis:PromptTemplate}">
-                            <Button Content="{Binding Name}" Margin="0,0,8,8" Click="OnInsertTemplate"
-                                    ToolTip="{Binding Text}" AutomationProperties.Name="{Binding Name, StringFormat='Vorlage {0} einfügen'}" />
+                            <StackPanel Orientation="Horizontal" Margin="0,0,8,8">
+                                <Button Content="{Binding Name}" Click="OnInsertTemplate"
+                                        ToolTip="{Binding Text}" AutomationProperties.Name="{Binding Name, StringFormat='Vorlage {0} einfügen'}" />
+                                <!-- Eigene Vorlagen kann man löschen. -->
+                                <Button Style="{StaticResource Button.Icon}" Margin="2,0,0,0" ToolTip="Eigene Vorlage löschen"
+                                        Visibility="{Binding IsCustom, Converter={StaticResource BoolToVisibility}}"
+                                        Command="{Binding DataContext.DeleteTemplateCommand, RelativeSource={RelativeSource AncestorType=ItemsControl}}"
+                                        CommandParameter="{Binding}" AutomationProperties.Name="{Binding Name, StringFormat='Vorlage {0} löschen'}">
+                                    <TextBlock Style="{StaticResource Text.Icon}" FontSize="11" Text="{x:Static app:Glyphs.Close}" />
+                                </Button>
+                            </StackPanel>
                         </DataTemplate>
                     </ItemsControl.ItemTemplate>
                 </ItemsControl>

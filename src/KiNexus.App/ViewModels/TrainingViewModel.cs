@@ -26,6 +26,12 @@ public sealed record TrainingChoice<T>(T Value, string Label)
     public override string ToString() => Label;
 }
 
+/// <summary>Ein Vorschlag für ein eigenes Grundmodell: das Original zu einem heruntergeladenen GGUF-Modell.</summary>
+public sealed record TrainingSuggestion(TrainingBaseModel Model, string Reason)
+{
+    public override string ToString() => $"{Model.Repo}: {Reason}";
+}
+
 /// <summary>
 /// Der Training-Tab (Bauplan 8.6): Datensatz, Grundmodell, Training mit Fortschritt und Loss-Kurve, Ergebnis als neue KI.
 /// Trainiert wird ein LoRA-Adapter mit PEFT im Python-Worker. llama.cpp lädt ihn danach mit --lora.
@@ -43,6 +49,8 @@ public sealed partial class TrainingViewModel : TabViewModel
     private readonly EngineManager _engines;
     private readonly TrainingWorker _worker;
     private readonly SecretStore _tokens;
+    private readonly CustomTrainingModels _custom;
+    private readonly KiNexus.Engines.HuggingFace.HuggingFaceClient _huggingFace;
     private readonly IDialogService _dialogs;
     private readonly ILogger<TrainingViewModel> _logger;
     private readonly SynchronizationContext _ui;
@@ -60,7 +68,8 @@ public sealed partial class TrainingViewModel : TabViewModel
     private bool _checked;
 
     public TrainingViewModel(AppPaths paths, ISettingsService settings, IChatRepository chats, IKiRegistry kis, ModelLibrary library,
-        EngineManager engines, TrainingWorker worker, SecretStore tokens, IDialogService dialogs, ILogger<TrainingViewModel> logger)
+        EngineManager engines, TrainingWorker worker, SecretStore tokens, CustomTrainingModels custom, KiNexus.Engines.HuggingFace.HuggingFaceClient huggingFace,
+        IDialogService dialogs, ILogger<TrainingViewModel> logger)
         : base("training", "Training", Glyphs.Training)
     {
         _paths = paths;
@@ -71,6 +80,12 @@ public sealed partial class TrainingViewModel : TabViewModel
         _engines = engines;
         _worker = worker;
         _tokens = tokens;
+        _custom = custom;
+        _huggingFace = huggingFace;
+        foreach (var model in TrainingModels.Recommended.Concat(custom.Load().Where(c => !TrainingModels.Recommended.Any(r => r.Repo == c.Repo))))
+        {
+            BaseModels.Add(model);
+        }
         _dialogs = dialogs;
         _logger = logger;
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
@@ -323,7 +338,174 @@ public sealed partial class TrainingViewModel : TabViewModel
 
     // ----------------------------------------------------------- 2. Grundmodell
 
-    public IReadOnlyList<TrainingBaseModel> BaseModels => TrainingModels.Recommended;
+    /// <summary>Die empfohlenen Grundmodelle, danach die eigenen (bis 5B Parameter).</summary>
+    public ObservableCollection<TrainingBaseModel> BaseModels { get; } = [];
+
+    // ----------------------------------------------------------- Eigene Grundmodelle
+
+    /// <summary>Hugging-Face-Name eines Originalmodells, z.B. "HuggingFaceTB/SmolLM3-3B".</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckCustomModelCommand))]
+    private string _customRepo = "";
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CheckCustomModelCommand), nameof(SuggestFromLibraryCommand))]
+    private bool _isCheckingCustom;
+
+    [ObservableProperty]
+    private string _customModelInfo =
+        $"Jedes Originalmodell (safetensors) von Hugging Face bis ca. {CustomTrainingModels.MaxParametersB:0}B Parameter, mit Chat-Vorlage. "
+        + "GGUF-Dateien aus dem Create-Hub kann man nicht trainieren: „Vorschläge“ sucht dazu das Original.";
+
+    /// <summary>Gefundene Originale zu den heruntergeladenen Modellen.</summary>
+    public ObservableCollection<TrainingSuggestion> Suggestions { get; } = [];
+
+    private bool CanCheckCustom => !IsCheckingCustom && TrainingModels.IsValidRepo(CustomRepo.Trim());
+
+    private bool CanSuggest => !IsCheckingCustom;
+
+    /// <summary>Fragt Hugging Face nach dem Modell (nur auf Klick) und nimmt es auf, wenn es passt.</summary>
+    [RelayCommand(CanExecute = nameof(CanCheckCustom))]
+    private async Task CheckCustomModelAsync()
+    {
+        var repo = CustomRepo.Trim();
+        IsCheckingCustom = true;
+        CustomModelInfo = $"Frage Hugging Face nach {repo} …";
+        try
+        {
+            var (model, note) = CustomTrainingModels.Evaluate(await _huggingFace.GetTrainingInfoAsync(repo, CancellationToken.None));
+            CustomModelInfo = note;
+            if (model is not null)
+            {
+                AddCustom(model);
+                CustomRepo = "";
+            }
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or KiNexus.Engines.HuggingFace.HuggingFaceException or TaskCanceledException
+                                       or System.Text.Json.JsonException)
+        {
+            CustomModelInfo = $"{repo} liess sich nicht prüfen: {ex.Message}";
+        }
+        finally
+        {
+            IsCheckingCustom = false;
+        }
+    }
+
+    /// <summary>
+    /// Zu jedem heruntergeladenen Sprachmodell von Hugging Face (meist GGUF) das Original suchen: das Repository selbst, wenn es
+    /// safetensors hat, sonst das "base_model" aus der Modellkarte. Fragt Hugging Face nur auf Klick, höchstens für 10 Modelle.
+    /// </summary>
+    [RelayCommand(CanExecute = nameof(CanSuggest))]
+    private async Task SuggestFromLibraryAsync()
+    {
+        IsCheckingCustom = true;
+        Suggestions.Clear();
+        var sources = _library.Scan()
+            .Where(m => m.IsLanguageModel && m.Manifest.Source.StartsWith("huggingface:", StringComparison.OrdinalIgnoreCase))
+            .Select(m => (Folder: m.FolderName, Repo: m.Manifest.Source["huggingface:".Length..]))
+            .DistinctBy(m => m.Repo, StringComparer.OrdinalIgnoreCase)
+            .Take(10)
+            .ToList();
+        var skipped = new List<string>();
+        try
+        {
+            CustomModelInfo = sources.Count == 0
+                ? "Keine Modelle von Hugging Face in models/. Gib den Namen eines Originalmodells oben ein."
+                : $"Suche die Originale zu {sources.Count} Modellen …";
+            foreach (var (folder, repo) in sources)
+            {
+                var info = await _huggingFace.GetTrainingInfoAsync(repo, CancellationToken.None);
+                List<string> candidates = info.Parameters is not null ? [repo] : [.. info.BaseModels.Take(2)];
+                foreach (var candidate in candidates.Where(c => !BaseModels.Any(b => string.Equals(b.Repo, c, StringComparison.OrdinalIgnoreCase))))
+                {
+                    var (model, note) = CustomTrainingModels.Evaluate(candidate == repo ? info : await _huggingFace.GetTrainingInfoAsync(candidate, CancellationToken.None));
+                    if (model is not null && !Suggestions.Any(s => s.Model.Repo == model.Repo))
+                    {
+                        Suggestions.Add(new TrainingSuggestion(model, $"Original zu „{folder}“. {note}"));
+                    }
+                    else if (model is null)
+                    {
+                        skipped.Add($"{folder}: {note}");
+                    }
+                }
+            }
+
+            if (sources.Count > 0)
+            {
+                CustomModelInfo = (Suggestions.Count == 0 ? "Keine trainierbaren Originale gefunden." : $"{Suggestions.Count} Vorschläge: unten mit „Hinzufügen“ aufnehmen.")
+                    + (skipped.Count > 0 ? " Nicht passend: " + string.Join(" · ", skipped.Take(4)) : "");
+            }
+        }
+        catch (Exception ex) when (ex is System.Net.Http.HttpRequestException or KiNexus.Engines.HuggingFace.HuggingFaceException or TaskCanceledException
+                                       or System.Text.Json.JsonException)
+        {
+            CustomModelInfo = "Hugging Face antwortet nicht: " + ex.Message;
+        }
+        finally
+        {
+            IsCheckingCustom = false;
+        }
+    }
+
+    [RelayCommand]
+    private void AddSuggestion(TrainingSuggestion suggestion)
+    {
+        AddCustom(suggestion.Model);
+        Suggestions.Remove(suggestion);
+    }
+
+    /// <summary>Aus der Liste nehmen. Das geladene Originalmodell in models/hf bleibt (löschen im Explorer).</summary>
+    [RelayCommand]
+    private void RemoveCustomModel(TrainingBaseModel model)
+    {
+        if (!model.IsCustom || IsTraining)
+        {
+            return;
+        }
+
+        try
+        {
+            _custom.Remove(model.Repo);
+            BaseModels.Remove(model);
+            if (SelectedBaseModel == model)
+            {
+                SelectedBaseModel = BaseModels[0];
+            }
+
+            CustomModelInfo = $"{model.Repo} ist nicht mehr in der Liste. Ein schon geladenes Original liegt weiter in models\\hf\\{model.Slug}.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            CustomModelInfo = "Entfernen fehlgeschlagen: " + ex.Message;
+        }
+    }
+
+    private void AddCustom(TrainingBaseModel model)
+    {
+        try
+        {
+            _custom.Add(model);
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            CustomModelInfo = "Speichern fehlgeschlagen: " + ex.Message;
+            return;
+        }
+
+        if (BaseModels.FirstOrDefault(m => string.Equals(m.Repo, model.Repo, StringComparison.OrdinalIgnoreCase)) is { } old)
+        {
+            BaseModels.Remove(old);
+        }
+
+        BaseModels.Add(model);
+        if (IsNewStart)
+        {
+            SelectedBaseModel = model;
+        }
+
+        RefreshLineages();
+    }
 
     [ObservableProperty] private TrainingBaseModel _selectedBaseModel;
 

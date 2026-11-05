@@ -35,6 +35,57 @@ public static partial class HuggingFaceProtocol
         return builder.ToString();
     }
 
+    /// <summary>Angaben zu einem Modell fürs Training (config, safetensors, gated, Modellkarte).</summary>
+    public static string ModelInfoPath(string repo) =>
+        $"api/models/{EscapeRepo(repo)}?expand[]=config&expand[]=safetensors&expand[]=gated&expand[]=cardData&expand[]=siblings";
+
+    /// <summary>Liest die Antwort von <see cref="ModelInfoPath"/>. Fehlt etwas, bleibt es null (z.B. Parameter bei reinen GGUF-Repositories).</summary>
+    public static KiNexus.Core.Training.TrainingModelInfo ParseTrainingInfo(string repo, JsonElement root)
+    {
+        string? modelType = null;
+        var hasTemplate = false;
+        if (root.TryGetProperty("config", out var config) && config.ValueKind == JsonValueKind.Object)
+        {
+            modelType = GetString(config, "model_type");
+            hasTemplate = config.TryGetProperty("tokenizer_config", out var tokenizer) && tokenizer.ValueKind == JsonValueKind.Object
+                          && tokenizer.TryGetProperty("chat_template", out var template)
+                          && template.ValueKind is JsonValueKind.String or JsonValueKind.Array
+                          && template.ToString().Length > 0;
+        }
+
+        // Neuere Modelle (z.B. SmolLM3) haben die Chat-Vorlage in einer eigenen Datei statt in tokenizer_config.
+        if (!hasTemplate && root.TryGetProperty("siblings", out var siblings) && siblings.ValueKind == JsonValueKind.Array)
+        {
+            hasTemplate = siblings.EnumerateArray().Any(s => GetString(s, "rfilename") is "chat_template.jinja" or "chat_template.json");
+        }
+
+        long? parameters = root.TryGetProperty("safetensors", out var safetensors) && safetensors.ValueKind == JsonValueKind.Object
+                           && GetLong(safetensors, "total") is > 0 and var total
+            ? total
+            : null;
+        var baseModels = new List<string>();
+        if (root.TryGetProperty("cardData", out var card) && card.ValueKind == JsonValueKind.Object && card.TryGetProperty("base_model", out var bases))
+        {
+            if (bases.ValueKind == JsonValueKind.String && bases.GetString() is { Length: > 0 } single)
+            {
+                baseModels.Add(single);
+            }
+            else if (bases.ValueKind == JsonValueKind.Array)
+            {
+                baseModels.AddRange(bases.EnumerateArray().Where(b => b.ValueKind == JsonValueKind.String).Select(b => b.GetString()!).Where(b => b.Length > 0));
+            }
+        }
+
+        return new KiNexus.Core.Training.TrainingModelInfo(
+            GetString(root, "id") ?? repo,
+            modelType,
+            parameters,
+            hasTemplate,
+            root.TryGetProperty("gated", out var gated) && gated.ValueKind is JsonValueKind.String or JsonValueKind.True,
+            ReadLicense(root),
+            baseModels);
+    }
+
     public static string TreePath(string repo) => $"api/models/{EscapeRepo(repo)}/tree/main?recursive=true";
 
     /// <summary>Download-Pfad. Jeder Teil des Pfads wird einzeln maskiert, die Schrägstriche bleiben.</summary>

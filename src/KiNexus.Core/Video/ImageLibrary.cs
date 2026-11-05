@@ -11,6 +11,9 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
 {
     public string Directory => directory;
 
+    /// <summary>Unterordner für private Bilder (data/images/privat).</summary>
+    public string PrivateDirectory => Path.Combine(directory, VideoLibrary.PrivateFolderName);
+
     /// <summary>Nimmt die Bilder eines Auftrags auf, eines pro Datei. Die Dateien werden aus dem Rohordner verschoben.</summary>
     public async Task<IReadOnlyList<VideoEntry>> AddAsync(ImageDone done, ImageRequest request, ImageModelSet models, CancellationToken ct)
     {
@@ -78,54 +81,87 @@ public sealed class ImageLibrary(string directory, ILogger<ImageLibrary> logger)
         return entries;
     }
 
-    /// <summary>Alle Bilder, das neueste zuerst. Einträge ohne PNG fallen weg.</summary>
+    /// <summary>Alle Bilder (auch die privaten), das neueste zuerst. Einträge ohne PNG fallen weg.</summary>
     public async Task<IReadOnlyList<VideoEntry>> LoadAllAsync(CancellationToken ct)
     {
-        if (!System.IO.Directory.Exists(directory))
-        {
-            return [];
-        }
-
         var entries = new List<VideoEntry>();
-        foreach (var file in System.IO.Directory.EnumerateFiles(directory, "*.json"))
+        foreach (var (folder, isPrivate) in new[] { (directory, false), (PrivateDirectory, true) })
         {
-            try
+            if (!System.IO.Directory.Exists(folder))
             {
-                await using var stream = File.OpenRead(file);
-                var entry = await JsonSerializer.DeserializeAsync<VideoEntry>(stream, JsonDefaults.Options, ct).ConfigureAwait(false);
-                var id = Path.GetFileNameWithoutExtension(file);
-                var image = Path.Combine(directory, id + ".png");
-                if (entry is null || !File.Exists(image))
-                {
-                    continue;
-                }
-
-                entries.Add(entry with
-                {
-                    Id = id,
-                    Kind = VideoEntry.ImageKind,
-                    VideoPath = image,
-                    ThumbnailPath = image,
-                    ReferenceImagePaths = [.. entry.ReferenceImages.Select(name => Path.Combine(directory, name)).Where(File.Exists)],
-                    SourceImagePath = entry.SourceImage is { } source && File.Exists(Path.Combine(directory, source)) ? Path.Combine(directory, source) : null,
-                });
+                continue;
             }
-            catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+
+            foreach (var file in System.IO.Directory.EnumerateFiles(folder, "*.json"))
             {
-                logger.LogWarning(ex, "Bild-Eintrag {File} ist nicht lesbar.", file);
+                if (await LoadOneAsync(folder, Path.GetFileNameWithoutExtension(file), isPrivate, ct).ConfigureAwait(false) is { } entry)
+                {
+                    entries.Add(entry);
+                }
             }
         }
 
         return [.. entries.OrderByDescending(e => e.CreatedAt)];
     }
 
-    /// <summary>PNG, JSON und Referenzbilder eines Bilds, z.B. zum Löschen.</summary>
-    public IReadOnlyList<string> FilesOf(VideoEntry entry) =>
-    [
-        .. new[] { ".png", ".json" }.Select(ext => Path.Combine(directory, entry.Id + ext)).Where(File.Exists),
-        .. entry.ReferenceImagePaths.Where(File.Exists),
-        .. entry.SourceImagePath is { } source && File.Exists(source) ? [source] : Array.Empty<string>(),
-    ];
+    /// <summary>In den Privatordner oder zurück. PNG, JSON, Referenzen und Vorlage werden verschoben.</summary>
+    public async Task<VideoEntry> SetPrivateAsync(VideoEntry entry, bool isPrivate, CancellationToken ct)
+    {
+        ArgumentNullException.ThrowIfNull(entry);
+        if (entry.IsPrivate == isPrivate)
+        {
+            return entry;
+        }
+
+        var target = isPrivate ? PrivateDirectory : directory;
+        GalleryFiles.Move(FilesOf(entry), target);
+        logger.LogInformation("Bild {Id} {Where}.", entry.Id, isPrivate ? "in den Privatordner verschoben" : "aus dem Privatordner geholt");
+        return await LoadOneAsync(target, entry.Id, isPrivate, ct).ConfigureAwait(false)
+            ?? throw new IOException($"Bild {entry.Id} ist nach dem Verschieben nicht lesbar.");
+    }
+
+    private async Task<VideoEntry?> LoadOneAsync(string folder, string id, bool isPrivate, CancellationToken ct)
+    {
+        var file = Path.Combine(folder, id + ".json");
+        try
+        {
+            await using var stream = File.OpenRead(file);
+            var entry = await JsonSerializer.DeserializeAsync<VideoEntry>(stream, JsonDefaults.Options, ct).ConfigureAwait(false);
+            var image = Path.Combine(folder, id + ".png");
+            if (entry is null || !File.Exists(image))
+            {
+                return null;
+            }
+
+            return entry with
+            {
+                Id = id,
+                Kind = VideoEntry.ImageKind,
+                IsPrivate = isPrivate,
+                VideoPath = image,
+                ThumbnailPath = image,
+                ReferenceImagePaths = [.. entry.ReferenceImages.Select(name => Path.Combine(folder, name)).Where(File.Exists)],
+                SourceImagePath = entry.SourceImage is { } source && File.Exists(Path.Combine(folder, source)) ? Path.Combine(folder, source) : null,
+            };
+        }
+        catch (Exception ex) when (ex is JsonException or IOException or UnauthorizedAccessException)
+        {
+            logger.LogWarning(ex, "Bild-Eintrag {File} ist nicht lesbar.", file);
+            return null;
+        }
+    }
+
+    /// <summary>PNG, JSON, Referenzbilder und Vorlage eines Bilds, z.B. zum Löschen oder Verschieben.</summary>
+    public IReadOnlyList<string> FilesOf(VideoEntry entry)
+    {
+        var folder = entry.IsPrivate ? PrivateDirectory : directory;
+        return
+        [
+            .. new[] { ".png", ".json" }.Select(ext => Path.Combine(folder, entry.Id + ext)).Where(File.Exists),
+            .. entry.ReferenceImagePaths.Where(File.Exists),
+            .. entry.SourceImagePath is { } source && File.Exists(source) ? [source] : Array.Empty<string>(),
+        ];
+    }
 
     private string UniqueId(string baseName)
     {

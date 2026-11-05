@@ -53,6 +53,7 @@ public sealed partial class CreateHubViewModel : TabViewModel
         HuggingFaceClient huggingFace,
         ModelDownloader downloader,
         SecretStore tokenStore,
+        PromptTemplateStore promptTemplates,
         ILoggerFactory loggers)
         : base("createHub", "Create-Hub", Glyphs.Library)
     {
@@ -65,7 +66,7 @@ public sealed partial class CreateHubViewModel : TabViewModel
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
 
         Overview = new CreateHubOverviewViewModel(this, kis, library, engines, dialogs, shell, ollama, loggers.CreateLogger<CreateHubOverviewViewModel>());
-        Wizard = new NewKiWizardViewModel(this, kis, ollama);
+        Wizard = new NewKiWizardViewModel(this, kis, ollama, promptTemplates);
         Import = new ImportViewModel(this, importer, ollamaStore, ollamaImporter, library, dialogs, loggers.CreateLogger<ImportViewModel>());
         HuggingFace = new HuggingFaceViewModel(this, huggingFace, downloader, tokenStore, shell, dialogs, loggers.CreateLogger<HuggingFaceViewModel>());
     }

@@ -4,6 +4,7 @@ using System.IO;
 using System.Net.Http;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using KiNexus.App.Services;
 using KiNexus.Core;
 using KiNexus.Core.Chats;
 using KiNexus.Core.Inference;
@@ -54,26 +55,107 @@ public sealed partial class SystemPromptViewModel : KiEditorTabViewModel
     private const int TestHistoryLimit = 6;
 
     private readonly SystemPromptService _prompts;
+    private readonly PromptTemplateStore _templates;
+    private readonly IDialogService _dialogs;
     private readonly EngineManager _engines;
     private CancellationTokenSource? _testCts;
     private string _savedPrompt = "";
     private int _versionsVersion;
     private string? _testKiId;
 
-    public SystemPromptViewModel(KiEditorServices services, SystemPromptService prompts, EngineManager engines, ILogger<SystemPromptViewModel> logger)
+    public SystemPromptViewModel(KiEditorServices services, SystemPromptService prompts, PromptTemplateStore templates, EngineManager engines,
+        ILogger<SystemPromptViewModel> logger)
         : base("systemPrompt", "System-Prompt", Glyphs.Edit, services, logger)
     {
         _prompts = prompts;
+        _templates = templates;
+        _dialogs = services.Dialogs;
         _engines = engines;
+        ShowTemplates(templates.Load());
     }
 
-    public IReadOnlyList<PromptTemplate> Templates => KiTemplates.Prompts;
+    /// <summary>Die eingebauten Vorlagen, danach die eigenen.</summary>
+    public ObservableCollection<PromptTemplate> Templates { get; } = [];
+
+    // ----------------------------------------------------------- Eigene Vorlagen
+
+    /// <summary>Name für "Als Vorlage speichern".</summary>
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(SaveAsTemplateCommand))]
+    private string _newTemplateName = "";
+
+    [ObservableProperty] private string _templateStatus = "Eigene Vorlagen gelten für alle KIs. Einfügen wie die eingebauten.";
+
+    private bool CanSaveAsTemplate => NewTemplateName.Trim().Length > 0 && Prompt.Trim().Length > 0;
+
+    /// <summary>Den Prompt im Editor als eigene Vorlage speichern (auch ungespeichert). Gleicher Name = ersetzen.</summary>
+    [RelayCommand(CanExecute = nameof(CanSaveAsTemplate))]
+    private void SaveAsTemplate()
+    {
+        var name = NewTemplateName.Trim();
+        if (name.Length > PromptTemplateStore.MaxNameLength)
+        {
+            TemplateStatus = $"Der Name ist zu lang (höchstens {PromptTemplateStore.MaxNameLength} Zeichen).";
+            return;
+        }
+
+        if (KiTemplates.Prompts.Any(t => string.Equals(t.Name, name, StringComparison.OrdinalIgnoreCase)))
+        {
+            TemplateStatus = $"\"{name}\" ist eine eingebaute Vorlage. Wähle einen anderen Namen.";
+            return;
+        }
+
+        if (_templates.Exists(name) && !_dialogs.Confirm("Vorlage ersetzen", $"Eine eigene Vorlage \"{name}\" gibt es schon. Ersetzen?", "Ersetzen"))
+        {
+            return;
+        }
+
+        try
+        {
+            ShowTemplates(_templates.Save(name, Prompt));
+            NewTemplateName = "";
+            TemplateStatus = $"Vorlage \"{name}\" gespeichert.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or ArgumentException)
+        {
+            TemplateStatus = "Speichern fehlgeschlagen: " + ex.Message;
+        }
+    }
+
+    [RelayCommand]
+    private void DeleteTemplate(PromptTemplate template)
+    {
+        if (!template.IsCustom || !_dialogs.Confirm("Vorlage löschen", $"Die eigene Vorlage \"{template.Name}\" löschen?", "Löschen"))
+        {
+            return;
+        }
+
+        try
+        {
+            ShowTemplates(_templates.Delete(template.Name));
+            TemplateStatus = $"Vorlage \"{template.Name}\" gelöscht.";
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            TemplateStatus = "Löschen fehlgeschlagen: " + ex.Message;
+        }
+    }
+
+    private void ShowTemplates(IReadOnlyList<PromptTemplate> custom)
+    {
+        Templates.Clear();
+        foreach (var template in KiTemplates.Prompts.Concat(custom))
+        {
+            Templates.Add(template);
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TokenText))]
     [NotifyPropertyChangedFor(nameof(IsDirty))]
     [NotifyCanExecuteChangedFor(nameof(SaveCommand))]
     [NotifyCanExecuteChangedFor(nameof(DiscardCommand))]
+    [NotifyCanExecuteChangedFor(nameof(SaveAsTemplateCommand))]
     private string _prompt = "";
 
     public string TokenText

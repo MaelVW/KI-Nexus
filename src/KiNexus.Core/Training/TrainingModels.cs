@@ -9,13 +9,16 @@ namespace KiNexus.Core.Training;
 /// <param name="Use4Bit">Nur mit 4 Bit (QLoRA) passt das Modell in 8 GB VRAM.</param>
 public sealed record TrainingBaseModel(string Repo, string Name, double ParametersB, double DownloadGb, bool Use4Bit, string License, string Note)
 {
-    public string Title => $"{Name} · {ParametersB.ToString("0.#", CultureInfo.InvariantCulture)}B";
+    public string Title => $"{Name} · {ParametersB.ToString("0.#", CultureInfo.InvariantCulture)}B{(IsCustom ? " · eigenes" : "")}";
 
     public string Details => string.Create(CultureInfo.InvariantCulture,
         $"{Repo} · Download {DownloadGb:0.#} GB · Lizenz {License}{(Use4Bit ? " · nur mit 4 Bit (QLoRA)" : "")}");
 
     /// <summary>Ordnername in models/, z.B. "qwen3-1.7b".</summary>
     public string Slug => TrainingModels.Slug(Repo);
+
+    /// <summary>Selbst hinzugefügt (data/training/eigene-modelle.json), nicht aus der Empfehlung.</summary>
+    public bool IsCustom { get; init; }
 
     public override string ToString() => Title;
 }

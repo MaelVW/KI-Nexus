@@ -39,6 +39,7 @@ public static class Glyphs
     public const string Send = "\uE724";
     public const string Stop = "\uE71A";
     public const string Image = "\uEB9F";
+    public const string Lock = "\uE72E";
     public const string Sidebar = "\uE700";
     public const string Lightbulb = "\uEA80";
     public const string Warning = "\uE7BA";
