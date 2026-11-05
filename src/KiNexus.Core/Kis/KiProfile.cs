@@ -18,6 +18,9 @@ public sealed class KiProfile
     public KiParameters Parameters { get; set; } = new();
     public EngineOptions EngineOptions { get; set; } = new();
     public string? LoraAdapterPath { get; set; }
+
+    /// <summary>Avatar im Gesprächsmodus (Erweiterung E3): eine VRM-Datei, relativ zum Projektordner oder voll. Null = Orb.</summary>
+    public string? AvatarPath { get; set; }
     public KiVoiceOptions Voice { get; set; } = new();
     public DateTimeOffset CreatedAt { get; set; }
     public DateTimeOffset UpdatedAt { get; set; }

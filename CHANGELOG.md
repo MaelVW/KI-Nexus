@@ -8,6 +8,8 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ### Neu
 
+- **Avatar (Erweiterung E3.0–E3.2):** Im Gesprächsmodus kann eine KI ein VRM-Modell als Gesicht haben („Avatar wählen …“, Feld `avatarPath`). Grundlage ist der Code aus dem Avatar-Testpanel in einem WebView2-Feld, nur mit lokalen Dateien (alle anderen Anfragen blockiert). Zustände (zuhören, denken, sprechen) und Mund aus der Lautstärke gehen an den Avatar. Doku: `docs/13-Avatar.md`.
+
 - **Studio: Szenen.** Längere Videos aus mehreren Clips: Projekt, Stil-Text, Szenen als Liste (eine pro Zeile, wahlweise mit Sekunden). Ab Szene 2 startet jede mit dem letzten Bild der vorherigen. Die Szenen laufen über die Warteschlange, fertige bleiben (Fortsetzen nach Neustart), „Ab Szene N neu erzeugen“. Zusammensetzen mit PyAV (`python/video/szenen_zusammen.py`), das Video kommt in die Galerie.
 - Abnahme: 3 Szenen mit dem offiziellen Modell ohne sichtbaren Sprung, 8 min 28 s. 498 Unit-Tests. Details in `docs/10-Video.md`.
 

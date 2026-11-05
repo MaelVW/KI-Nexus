@@ -22,6 +22,12 @@
     <PackageReference Include="Serilog" />
     <PackageReference Include="Serilog.Extensions.Logging" />
     <PackageReference Include="Serilog.Sinks.File" />
+    <PackageReference Include="Microsoft.Web.WebView2" />
+  </ItemGroup>
+
+  <!-- Avatar (Erweiterung E3): die Web-Dateien aus dem Testpanel, neben die App kopiert. Die Quellen in src/ braucht nur, wer neu bündelt. -->
+  <ItemGroup>
+    <None Include="Avatar\web\**\*" Exclude="Avatar\web\src\**;Avatar\web\build.cjs;Avatar\web\package.json" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>
 
   <ItemGroup>

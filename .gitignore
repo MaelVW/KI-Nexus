@@ -22,3 +22,6 @@ TestResults/
 __pycache__/
 *.pyc
 /python/training/.venv/
+
+# Live2D Cubism Core (Lizenz von Live2D, legt jeder selbst dazu, siehe docs/12-Avatar.md)
+src/KiNexus.App/Avatar/web/live2d/live2dcubismcore*.js

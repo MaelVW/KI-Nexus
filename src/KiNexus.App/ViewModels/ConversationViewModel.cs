@@ -5,6 +5,7 @@ using System.Windows.Input;
 using System.Windows.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
+using KiNexus.App.Services;
 using KiNexus.Core.Kis;
 using KiNexus.Core.Paths;
 using KiNexus.Core.Settings;
@@ -62,6 +63,8 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
     private readonly PcmPlayer _player;
     private readonly ISettingsService _settings;
     private readonly AppPaths _paths;
+    private readonly IKiRegistry _kis;
+    private readonly IDialogService _dialogs;
     private readonly ILogger<ConversationViewModel> _logger;
     private readonly SynchronizationContext _ui;
     private readonly DispatcherTimer _timer;
@@ -91,9 +94,11 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
 
     public ConversationViewModel(
         ChatSessionViewModel session, VoiceWorker worker, PcmPlayer player, ISettingsService settings, AppPaths paths,
-        ILogger<ConversationViewModel> logger)
+        IKiRegistry kis, IDialogService dialogs, ILogger<ConversationViewModel> logger)
     {
         Session = session;
+        _kis = kis;
+        _dialogs = dialogs;
         _worker = worker;
         _player = player;
         _settings = settings;
@@ -109,6 +114,8 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
         {
             if (e.PropertyName == nameof(ChatSessionViewModel.Ki))
             {
+                OnPropertyChanged(nameof(AvatarFile));
+                OnPropertyChanged(nameof(HasAvatar));
                 ApplyMode(ResolveMode());
                 _ = UpdateVoiceAsync();
             }
@@ -160,6 +167,45 @@ public sealed partial class ConversationViewModel : ObservableObject, IAsyncDisp
     {
         get => Mode == VoiceMode.HandsFree;
         set => Mode = value ? VoiceMode.HandsFree : VoiceMode.PushToTalk;
+    }
+
+    // ----------------------------------------------------------- Avatar (Erweiterung E3)
+
+    /// <summary>Die VRM-Datei der KI als voller Pfad, wenn es sie gibt. Sonst null (dann nur der Orb).</summary>
+    public string? AvatarFile => _kis.Find(Session.Ki?.Id)?.AvatarPath is { Length: > 0 } path && File.Exists(_paths.Resolve(path)) ? _paths.Resolve(path) : null;
+
+    public bool HasAvatar => AvatarFile is not null;
+
+    /// <summary>Der KI einen Avatar geben (VRM). Gespeichert im KI-Profil (avatarPath), relativ zum Projektordner, wenn er darin liegt.</summary>
+    [RelayCommand]
+    private async Task PickAvatarAsync()
+    {
+        if (Session.Ki is not { } ki || _dialogs.PickAvatarFile() is not { } file)
+        {
+            return;
+        }
+
+        var relative = Path.GetRelativePath(_paths.Root, file);
+        await SaveAvatarAsync(ki, relative.StartsWith("..", StringComparison.Ordinal) || Path.IsPathRooted(relative) ? file : relative.Replace('\\', '/'));
+    }
+
+    [RelayCommand]
+    private async Task ClearAvatarAsync()
+    {
+        if (Session.Ki is { AvatarPath: not null } ki)
+        {
+            await SaveAvatarAsync(ki, null);
+        }
+    }
+
+    private async Task SaveAvatarAsync(KiProfile ki, string? path)
+    {
+        var updated = KiNexus.Core.JsonDefaults.Clone(ki);
+        updated.AvatarPath = path;
+        await _kis.SaveAsync(updated, CancellationToken.None);
+
+        OnPropertyChanged(nameof(AvatarFile));
+        OnPropertyChanged(nameof(HasAvatar));
     }
 
     /// <summary>1.0 bis 1.35: Der Orb atmet mit der Lautstärke.</summary>

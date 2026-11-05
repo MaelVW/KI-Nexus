@@ -1,0 +1,22 @@
+{
+  "name": "ki-nexus-avatar-testpanel",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Avatar-Testpanel für KI-Nexus (Erweiterung E3): VRM- und Live2D-Avatar mit Control-Panel und Gesichtserkennung.",
+  "scripts": {
+    "build": "node build.cjs",
+    "vendor": "node build.cjs --vendor"
+  },
+  "dependencies": {
+    "@mediapipe/tasks-vision": "1.1.1",
+    "@pixiv/three-vrm": "3.5.5",
+    "@pixiv/three-vrm-animation": "3.5.5",
+    "jszip": "3.10.1",
+    "pixi-live2d-display-lipsyncpatch": "0.5.0-ls-8",
+    "pixi.js": "7.4.3",
+    "three": "0.186.1"
+  },
+  "devDependencies": {
+    "esbuild": "0.28.2"
+  }
+}

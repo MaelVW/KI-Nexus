@@ -35,6 +35,9 @@ public interface IDialogService
 
     /// <summary>Lässt einen Datensatz wählen (JSONL oder JSON). Null, wenn abgebrochen.</summary>
     string? PickDatasetFile();
+
+    /// <summary>Lässt ein VRM-Modell wählen. Null, wenn abgebrochen.</summary>
+    string? PickAvatarFile();
 }
 
 public sealed class DialogService(IServiceProvider services) : IDialogService
@@ -92,6 +95,16 @@ public sealed class DialogService(IServiceProvider services) : IDialogService
         {
             Title = "Datensatz importieren",
             Filter = "Datensätze (*.jsonl;*.json)|*.jsonl;*.json|Alle Dateien (*.*)|*.*",
+        };
+        return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileName : null;
+    }
+
+    public string? PickAvatarFile()
+    {
+        var dialog = new OpenFileDialog
+        {
+            Title = "Avatar wählen (VRM)",
+            Filter = "VRM-Modelle (*.vrm)|*.vrm",
         };
         return dialog.ShowDialog(Application.Current.MainWindow) == true ? dialog.FileName : null;
     }

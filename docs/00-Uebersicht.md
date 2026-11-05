@@ -30,6 +30,7 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | Training 2 T1 | Weitertrainieren mit Versionen (v1, v2, …), zurück zu einer älteren, Warnung bei Auswendiglernen, siehe `docs/06-Training.md` | ✅ fertig (v1.12.0) |
 | Installieren und Updates | Ein Befehl zum Installieren, „Nach Updates suchen“ in den Einstellungen (nur auf Klick), Releases mit `scripts/release.ps1`, siehe `docs/12-Updates.md` | ✅ fertig (v1.13.0) |
 | Komfort 1 | Privatordner im Studio, eigene Vorlagen für den System-Prompt, eigene Grundmodelle fürs Training (bis 5B) | ✅ fertig (v1.14.0) |
+| Avatar E3.0–E3.2 | VRM im Gesprächsmodus (WebView2 mit Testpanel-Code), Zustände und Mund, siehe `docs/13-Avatar.md` | 🔧 gebaut, Abnahme offen |
 | Szenen S1–S2 | Längere Videos aus Szenen (letztes Bild → nächste Szene), Warteschlange, Zusammensetzen. S3 (Keyframes) offen | ✅ fertig (unveröffentlicht) |
 
 ## Ordner
