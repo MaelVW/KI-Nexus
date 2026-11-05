@@ -3,7 +3,7 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 1.13.0.** Chat (Simpel, Terminal, Gespräch), Create-Hub mit Hugging Face, Open WebUI, Training mit Versionen und das Studio für Videos und Bilder. Was neu ist: `CHANGELOG.md`.
+> **Stand: Version 1.14.0.** Chat (Simpel, Terminal, Gespräch), Create-Hub mit Hugging Face, Open WebUI, Training mit Versionen und das Studio für Videos und Bilder. Was neu ist: `CHANGELOG.md`.
 
 ![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
 

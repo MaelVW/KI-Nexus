@@ -6,6 +6,8 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+## [1.14.0] – 2026-11-05 – Privatordner, eigene Vorlagen, eigene Grundmodelle
+
 ### Neu
 
 - **Studio: Privatordner.** „In den Privatordner“ beim gewählten Video oder Bild, Schalter „Im Privatordner speichern“ für neue Aufträge. Private Einträge stehen nur unter dem Galerie-Filter „Privat“ (`data/videos/privat`, `data/images/privat`). Versteckt, nicht verschlüsselt.

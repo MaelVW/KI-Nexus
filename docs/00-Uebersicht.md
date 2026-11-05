@@ -29,6 +29,7 @@ Fang hier an, wenn du dich im Projekt zurechtfinden willst.
 | Bild Modelle + Vorlage | Eigene Bildmodelle (FLUX.2 klein 4B/9B, Z-Image) erkannt, Bild zu Bild mit Stärke | ✅ fertig (v1.11.0) |
 | Training 2 T1 | Weitertrainieren mit Versionen (v1, v2, …), zurück zu einer älteren, Warnung bei Auswendiglernen, siehe `docs/06-Training.md` | ✅ fertig (v1.12.0) |
 | Installieren und Updates | Ein Befehl zum Installieren, „Nach Updates suchen“ in den Einstellungen (nur auf Klick), Releases mit `scripts/release.ps1`, siehe `docs/12-Updates.md` | ✅ fertig (v1.13.0) |
+| Komfort 1 | Privatordner im Studio, eigene Vorlagen für den System-Prompt, eigene Grundmodelle fürs Training (bis 5B) | ✅ fertig (v1.14.0) |
 
 ## Ordner
 
