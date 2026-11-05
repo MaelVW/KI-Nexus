@@ -16,6 +16,10 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 - Studio: Fertige Bilder oder Videos erschienen doppelt in der Galerie, wenn ein anderer Filter aktiv war.
 
+### Getestet
+
+- Abnahme in der App: Privatordner hin und zurück, eigene Vorlage speichern und löschen, Training mit dem eigenen Modell SmolLM2-360M (llama) in 46 s inkl. Download und Umwandlung. 493 Unit-Tests.
+
 ## [1.13.0] – 2026-11-03 – Installieren und Updates
 
 ### Neu

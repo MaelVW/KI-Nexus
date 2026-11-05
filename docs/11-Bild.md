@@ -194,6 +194,7 @@ Videos und Bilder kann man in einen **Privatordner** legen. Dort stehen sie nich
 - Schalter **„Im Privatordner speichern“** über „Video erzeugen“ / „Bilder erzeugen“: Das Ergebnis kommt direkt in den Privatordner, die Galerie springt nicht dorthin.
 - Die Dateien liegen in `data\videos\privat\` bzw. `data\images\privat\` (MP4 oder PNG, JSON, Vorschau, Start-, Referenz- und Vorlagebilder werden mitverschoben). Gibt es im Ziel schon eine Datei mit gleichem Namen, wird nichts verschoben.
 - **Ehrliche Grenze:** versteckt nur in der Galerie, **nicht verschlüsselt** und ohne Passwort. Wer den Ordner im Explorer öffnet, sieht die Dateien.
+- Abnahme in der App (5.11.2026): Ein Bild „In den Privatordner“: Alle 25 → 24, Bilder 6 → 5, Privat 0 → 1, Dateien in `data\images\privat`. „Aus dem Privatordner“: wieder genau wie vorher.
 
 ## Noch nicht geprüft
 

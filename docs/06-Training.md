@@ -124,6 +124,7 @@ Neben den drei empfohlenen geht **jedes Originalmodell von Hugging Face**, wenn 
 - **„Vorschläge aus meinen Modellen“:** Für die heruntergeladenen Sprachmodelle von Hugging Face (meist GGUF) sucht die App das Original: das Repository selbst, wenn es safetensors hat, sonst das `base_model` aus der Modellkarte. Höchstens 10 Modelle, nur auf Klick.
 - **Wichtig:** Eine GGUF-Datei aus dem Create-Hub selbst kann man nicht trainieren. Training braucht das Original (safetensors). Die Vorschläge finden es meist.
 - Eigene Modelle stehen in `data\training\eigene-modelle.json` und in der Liste mit „· eigenes“. „Entfernen“ nimmt sie nur aus der Liste, ein schon geladenes Original bleibt in `models\hf\`.
+- Abnahme in der App (5.11.2026): Phi-4-mini mit Grund abgelehnt (Bauart phi3). `HuggingFaceTB/SmolLM2-360M-Instruct` (llama, 0.4B) angenommen und gewählt, 12 Beispiele, 3 Durchgänge: Download 0.7 GB, Training, Umwandlung von Grundmodell und Adapter in **46 s**, VRAM 0.9 GB. llama.cpp lädt das Ergebnis und antwortet (mit 0.36B und 3 Durchgängen noch schwach). „Vorschläge“ fand bei Maels Modellen nichts Neues. Testmodell danach in den Papierkorb.
 - Geprüft an echten Angaben von Hugging Face (5.11.2026): SmolLM3-3B (smollm3, 3.1B, Vorlage als Datei) geht mit 4 Bit, gemma-3-1b-it (gemma3_text, 1.0B, gated) geht mit Token, Qwen3-4B-Instruct-2507 geht mit 4 Bit, Phi-4-mini (phi3) geht nicht.
 
 ### 3 · Training
