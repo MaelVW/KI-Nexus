@@ -155,8 +155,6 @@
                                  IsChecked="{Binding Chat.Style, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Terminal}}" />
                     <RadioButton Style="{StaticResource SegmentButton}" Content="Simpel" AutomationProperties.AutomationId="Style_Simple"
                                  IsChecked="{Binding Chat.Style, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Simple}}" />
-                    <RadioButton Style="{StaticResource SegmentButton}" Content="Gespräch" AutomationProperties.AutomationId="Style_Conversation"
-                                 IsChecked="{Binding Chat.Style, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Conversation}}" />
                 </StackPanel>
             </Border>
 
@@ -265,7 +263,20 @@
             <TabControl.ItemTemplate>
                 <DataTemplate DataType="{x:Type vm:TabViewModel}">
                     <StackPanel Orientation="Horizontal">
-                        <TextBlock Style="{StaticResource Text.Icon}" FontSize="14" Margin="0,0,8,0" Text="{Binding Icon}" />
+                        <TextBlock FontSize="14" Margin="0,0,8,0" Text="{Binding Icon}">
+                            <TextBlock.Style>
+                                <Style TargetType="TextBlock" BasedOn="{StaticResource Text.Icon}">
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding HasIconGeometry}" Value="True">
+                                            <Setter Property="Visibility" Value="Collapsed" />
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </TextBlock.Style>
+                        </TextBlock>
+                        <Path Data="{Binding IconGeometry}" Width="15" Height="15" Stretch="Uniform" Margin="0,0,8,0" VerticalAlignment="Center"
+                              Fill="{Binding Foreground, RelativeSource={RelativeSource AncestorType=TabItem}}"
+                              Visibility="{Binding HasIconGeometry, Converter={StaticResource BoolToVisibility}}" />
                         <TextBlock Text="{Binding Title}" />
                     </StackPanel>
                 </DataTemplate>

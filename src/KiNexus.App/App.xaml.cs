@@ -30,7 +30,16 @@ public partial class App : Application
             RegisterGlobalErrorHandlers();
             Log.Information("KI-Nexus {Version} startet. Projektordner: {Root}", AppInfo.Version, paths.Root);
 
+            Modules.AppModules.Load(AppContext.BaseDirectory);
             _services = ServiceRegistration.Build(paths);
+            foreach (var module in Modules.AppModules.Loaded)
+            {
+                if (module.CreateResources() is { } resources)
+                {
+                    Resources.MergedDictionaries.Add(resources);
+                }
+            }
+
             var settings = await _services.GetRequiredService<ISettingsService>().LoadAsync(CancellationToken.None);
             _services.GetRequiredService<ThemeService>().ApplyAccent(settings.AccentColor);
             await _services.GetRequiredService<IKiRegistry>().LoadAsync(CancellationToken.None);

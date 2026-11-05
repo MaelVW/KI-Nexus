@@ -3,15 +3,13 @@
 KI-Nexus ist eine Desktop-App für Windows. Damit chattest du mit deinen lokalen KI-Modellen, verwaltest Modelle und baust eigene KIs.
 Alles läuft lokal auf dem Laptop: keine Cloud-KI, keine Telemetrie.
 
-> **Stand: Version 1.14.0.** Chat (Simpel, Terminal, Gespräch), Create-Hub mit Hugging Face, Open WebUI, Training mit Versionen und das Studio für Videos und Bilder. Was neu ist: `CHANGELOG.md`.
+> **Stand: Version 1.14.0.** Chat (Simpel, Terminal), Create-Hub mit Hugging Face, Open WebUI, Training mit Versionen und das Studio für Videos und Bilder. Was neu ist: `CHANGELOG.md`.
 
 ![Simpel-Stil von KI-Nexus](docs/bilder/hauptfenster-m2.png)
 
 ![Terminal-Stil von KI-Nexus](docs/bilder/terminal-m2.png)
 
 ![Create-Hub mit Ampel](docs/bilder/create-hub-m3.png)
-
-![Gespräch-Stil mit Orb](docs/bilder/gespraech-m4.png)
 
 ## Installieren (für Kollegen)
 
@@ -33,8 +31,7 @@ Er lädt die neueste freigegebene Version nach `%USERPROFILE%\KI-Nexus`, baut si
 5. Fehlt einer KI die Modell-Datei, bietet ein Hinweis über dem Chat „Aus Ollama übernehmen“ an. Das braucht keinen zusätzlichen Speicherplatz (Hardlink).
 6. Neue Modelle und KIs: Tab **Create-Hub** (`Strg + 5`).
 7. **Open WebUI:** Weltkugel in der Kopfleiste → Starten. Der Browser öffnet sich von selbst.
-8. Für den **Gespräch-Stil** einmal `.\scripts\setup-voice.ps1` ausführen (lädt ca. 1.8 GB: Python-Pakete, Whisper, deutsche Stimme).
-9. Für **Video** (Tab Video, `Strg + 6`) einmal `.\scripts\setup-video.ps1 -Models` ausführen (ComfyUI und das Videomodell LTX-2.3, zusammen ca. 25 GB). Details: `docs/10-Video.md`.
+8. Für **Video** (Tab Video, `Strg + 6`) einmal `.\scripts\setup-video.ps1 -Models` ausführen (ComfyUI und das Videomodell LTX-2.3, zusammen ca. 25 GB). Details: `docs/10-Video.md`.
 
 ## Voraussetzungen
 
@@ -44,7 +41,7 @@ Er lädt die neueste freigegebene Version nach `%USERPROFILE%\KI-Nexus`, baut si
 | .NET SDK | 10.0 | `dotnet --list-sdks` |
 | NVIDIA-Treiber | mit CUDA 13 (getestet: 592.01) | `nvidia-smi` |
 | Ollama | optional | Ollama-App |
-| uv (Python) | für den Gespräch-Stil (getestet: 0.11.26) | `uv --version` |
+| uv (Python) | für Training und Video (getestet: 0.11.26) | `uv --version` |
 
 ## Für Entwickler
 

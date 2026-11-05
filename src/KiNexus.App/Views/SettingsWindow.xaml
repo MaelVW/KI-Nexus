@@ -149,8 +149,6 @@
                                                  IsChecked="{Binding DefaultChatStyle, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Terminal}}" />
                                     <RadioButton Style="{StaticResource SegmentButton}" Content="Simpel"
                                                  IsChecked="{Binding DefaultChatStyle, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Simple}}" />
-                                    <RadioButton Style="{StaticResource SegmentButton}" Content="Gespräch"
-                                                 IsChecked="{Binding DefaultChatStyle, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static settings:ChatStyle.Conversation}}" />
                                 </StackPanel>
                             </Border>
                             <TextBlock Style="{StaticResource Text.Hint}" Text="Mit diesem Stil startet die App." />
@@ -311,8 +309,8 @@
                     </Grid>
                 </Border>
 
-                <!-- Sprache (Gespräch-Stil) -->
-                <Border Style="{StaticResource SettingsCard}">
+                <!-- Sprache (Gesprächsmodus im privaten Fun-Tab): nur sichtbar, wenn es das Modul gibt -->
+                <Border Style="{StaticResource SettingsCard}" Visibility="{Binding HasConversation, Converter={StaticResource BoolToVisibility}}">
                     <Grid>
                         <Grid.ColumnDefinitions>
                             <ColumnDefinition Width="{StaticResource LabelWidth}" />

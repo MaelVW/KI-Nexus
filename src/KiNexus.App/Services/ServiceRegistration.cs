@@ -51,6 +51,10 @@ public static class ServiceRegistration
 
         AddEngines(services, paths);
         AddChats(services, paths);
+        foreach (var module in Modules.AppModules.Loaded)
+        {
+            module.ConfigureServices(services, paths);
+        }
 
         services.AddSingleton<CreateHubViewModel>();
         services.AddSingleton<KiEditorServices>();
@@ -155,7 +159,6 @@ public static class ServiceRegistration
         services.AddSingleton<KiReadinessViewModel>();
         services.AddSingleton<ChatSessionViewModel>();
         services.AddSingleton<ChatListViewModel>();
-        services.AddSingleton<ConversationViewModel>();
         services.AddSingleton<OpenWebUiViewModel>();
     }
 

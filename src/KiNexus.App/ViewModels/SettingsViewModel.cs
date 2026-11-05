@@ -81,6 +81,9 @@ public sealed partial class SettingsViewModel : ObservableObject
 
     public IReadOnlyList<SettingChoice> VoiceChoices { get; }
 
+    /// <summary>Den Gesprächsmodus gibt es nur mit dem privaten Fun-Modul. Ohne ihn sind die Sprach-Einstellungen versteckt.</summary>
+    public bool HasConversation => Modules.AppModules.HasConversation;
+
     public IReadOnlyList<SettingChoice> WhisperChoices { get; }
 
     public IReadOnlyList<SettingChoice> PushToTalkKeyChoices { get; } =

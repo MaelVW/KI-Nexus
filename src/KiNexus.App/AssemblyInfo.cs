@@ -8,3 +8,6 @@ using System.Windows;
                                                 //(used if a resource is not found in the page,
                                                 // app, or any theme specific resource dictionaries)
 )]
+
+// Das private Modul (Fun-Tab) darf interne Teile der App nutzen.
+[assembly: System.Runtime.CompilerServices.InternalsVisibleTo("KiNexus.Fun")]

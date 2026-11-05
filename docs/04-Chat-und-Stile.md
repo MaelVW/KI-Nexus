@@ -1,5 +1,7 @@
 # 04 – Chat und Stile
 
+> **Hinweis (5. November 2026):** Der Gesprächsmodus ist nicht mehr Teil des öffentlichen Repositorys. Er liegt im privaten Fun-Tab (Ordner `privat\`, nur auf Maels PC). Die Beschreibung unten gilt dort weiter.
+
 Ein Chat hat drei Ansichten: Terminal, Simpel und Gespräch.
 Du kannst mitten im Chat den Stil wechseln, der Verlauf bleibt gleich. Alle drei Stile zeigen nämlich denselben Chat.
 Alle Chats liegen in `data/chats.db`. Den Gespräch-Stil (mit Stimme) beschreibt [05-Sprache.md](05-Sprache.md).

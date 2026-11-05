@@ -1,5 +1,7 @@
 # 05 – Sprache
 
+> **Hinweis (5. November 2026):** Der Gesprächsmodus ist nicht mehr Teil des öffentlichen Repositorys. Er liegt im privaten Fun-Tab (Ordner `privat\`, nur auf Maels PC). Die Beschreibung unten gilt dort weiter.
+
 Im **Gespräch-Stil** sprichst du Hochdeutsch mit der KI, und sie antwortet mit einer deutschen Stimme.
 Die Spracherkennung (Whisper) und die Sprachausgabe (Piper) laufen lokal in einem Python-Hilfsprozess. Nichts geht ins Internet.
 

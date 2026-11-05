@@ -1,3 +1,4 @@
+using System.Windows.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using KiNexus.Core.Settings;
 
@@ -16,6 +17,11 @@ public abstract class TabViewModel(string id, string title, string icon) : Obser
     public string Id { get; } = id;
     public string Title { get; } = title;
     public string Icon { get; } = icon;
+
+    /// <summary>Statt der Schrift-Glyphe eine eigene Form (z.B. die lachende Maske im Fun-Tab). Null = Glyphe.</summary>
+    public virtual Geometry? IconGeometry => null;
+
+    public bool HasIconGeometry => IconGeometry is not null;
 }
 
 /// <summary>Ein Tab, der erst in einem späteren Meilenstein gebaut wird.</summary>
@@ -27,33 +33,28 @@ public sealed class PlaceholderTabViewModel(string id, string title, string icon
 
 /// <summary>
 /// Der Chat-Tab: Seitenleiste + ein Chat in drei Ansichten (Stile).
-/// Terminal, Simpel und Gespräch zeigen denselben ChatSessionViewModel.
+/// Terminal und Simpel zeigen denselben ChatSessionViewModel. Der Gesprächsmodus ist im privaten Fun-Tab.
 /// </summary>
 public sealed partial class ChatTabViewModel : TabViewModel
 {
-    public ChatTabViewModel(ChatStyle initialStyle, ChatSessionViewModel session, ChatListViewModel chatList, TerminalViewModel terminal,
-        ConversationViewModel conversation)
+    public ChatTabViewModel(ChatStyle initialStyle, ChatSessionViewModel session, ChatListViewModel chatList, TerminalViewModel terminal)
         : base("chat", "Chat", Glyphs.Chat)
     {
-        _style = initialStyle;
+        _style = initialStyle == ChatStyle.Conversation ? ChatStyle.Simple : initialStyle;
         Session = session;
         ChatList = chatList;
         Terminal = terminal;
-        Conversation = conversation;
     }
 
     public ChatSessionViewModel Session { get; }
     public ChatListViewModel ChatList { get; }
     public TerminalViewModel Terminal { get; }
-    public ConversationViewModel Conversation { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSimple))]
     [NotifyPropertyChangedFor(nameof(IsTerminal))]
-    [NotifyPropertyChangedFor(nameof(IsConversation))]
     private ChatStyle _style;
 
     public bool IsSimple => Style == ChatStyle.Simple;
     public bool IsTerminal => Style == ChatStyle.Terminal;
-    public bool IsConversation => Style == ChatStyle.Conversation;
 }

@@ -40,9 +40,9 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         TuningViewModel tuning,
         TrainingViewModel training,
         SystemPromptViewModel systemPrompt,
-        ConversationViewModel conversation,
         OpenWebUiViewModel openWebUi,
         VideoViewModel video,
+        IServiceProvider services,
         ILogger<MainViewModel> logger)
     {
         _settings = settings;
@@ -54,7 +54,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
         _logger = logger;
         _ui = SynchronizationContext.Current ?? new SynchronizationContext();
 
-        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, session, chatList, new TerminalViewModel(session, this), conversation);
+        Chat = new ChatTabViewModel(settings.Current.DefaultChatStyle, session, chatList, new TerminalViewModel(session, this));
         Tabs =
         [
             Chat,
@@ -63,6 +63,7 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
             systemPrompt,
             createHub,
             video,
+            .. Modules.AppModules.Loaded.SelectMany(module => module.CreateTabs(services, this)),
         ];
         createHub.Shell = this;
         training.Shell = this;
@@ -227,7 +228,11 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     {
         try
         {
-            await Chat.Conversation.ShutdownAsync();
+            foreach (var module in Modules.AppModules.Loaded)
+            {
+                await module.UnloadAsync();
+            }
+
             await _engines.UnloadAsync(CancellationToken.None);
         }
         catch (InferenceException ex)
@@ -255,7 +260,11 @@ public sealed partial class MainViewModel : ObservableObject, IChatShell
     public async Task ShutdownAsync()
     {
         await _shutdown.CancelAsync();
-        await Chat.Conversation.DisposeAsync();
+        foreach (var module in Modules.AppModules.Loaded)
+        {
+            await module.ShutdownAsync();
+        }
+
         await OpenWebUi.DisposeAsync();
         await Training.DisposeAsync();
         await Video.DisposeAsync();

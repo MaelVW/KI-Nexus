@@ -150,7 +150,7 @@
                                     </TextBlock.Style>
                                 </TextBlock>
 
-                                <md:MarkdownView Markdown="{Binding Content}" IsStreaming="{Binding IsStreaming}" Flavor="Bubble"
+                                <md:MarkdownView Markdown="{Binding DisplayContent}" IsStreaming="{Binding IsStreaming}" Flavor="Bubble"
                                                  AutomationProperties.AutomationId="AnswerText" />
 
                                 <!-- Knöpfe pro Antwort: kopieren, neu erzeugen, bewerten, Info. -->

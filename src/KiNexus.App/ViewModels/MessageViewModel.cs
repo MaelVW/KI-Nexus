@@ -71,7 +71,14 @@ public sealed partial class MessageViewModel : ObservableObject
         ? "Denkt nach …"
         : ThinkingMs is long ms ? $"Nachgedacht für {Math.Max(1, Math.Round(ms / 1000.0))} Sekunden" : "Gedanken";
 
-    partial void OnContentChanged(string value) => OnPropertyChanged(nameof(ThinkingHeader));
+    /// <summary>Der Text ohne Gefühls-Markierungen ([[gefuehl:…]], Avatar). So wird er angezeigt.</summary>
+    public string DisplayContent => KiNexus.Core.Chats.EmotionTags.Strip(Content);
+
+    partial void OnContentChanged(string value)
+    {
+        OnPropertyChanged(nameof(ThinkingHeader));
+        OnPropertyChanged(nameof(DisplayContent));
+    }
 
     /// <summary>Übernimmt die gespeicherten Werte (Id, Statistik) nach dem Streamen.</summary>
     public void ApplySaved(MessageRecord record)
