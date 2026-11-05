@@ -65,7 +65,12 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "Tag konnte nicht erstellt werden." }
     git push origin $tag
     if ($LASTEXITCODE -ne 0) { throw "Tag konnte nicht gepusht werden." }
-    & $gh release create $tag --title $title --notes-file $notesFile --verify-tag
+    # Direkt nach dem Push sieht GitHub den Tag manchmal noch nicht (--verify-tag scheitert). Darum bis zu dreimal versuchen.
+    for ($try = 1; $try -le 3; $try++) {
+        Start-Sleep -Seconds (3 * $try)
+        & $gh release create $tag --title $title --notes-file $notesFile --verify-tag
+        if ($LASTEXITCODE -eq 0) { break }
+    }
     if ($LASTEXITCODE -ne 0) { throw "Release konnte nicht erstellt werden. Der Tag $tag ist schon auf GitHub, Release dort von Hand anlegen." }
     Remove-Item $notesFile -ErrorAction SilentlyContinue
     Write-Host ""
