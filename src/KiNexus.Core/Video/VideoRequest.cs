@@ -11,6 +11,7 @@ namespace KiNexus.Core.Video;
 /// <param name="Seed">Startzahl fürs Rauschen. Gleicher Seed und gleicher Prompt ergeben dasselbe Video.</param>
 /// <param name="NegativePrompt">Was nicht vorkommen soll. Wirkt nur, wenn das Modell mit CFG über 1 rechnet.</param>
 /// <param name="StartImagePath">Bild zu Video: Dieses Bild ist das erste Bild des Videos. Null = Text zu Video.</param>
+/// <param name="SaveLastFrame">Das letzte Bild zusätzlich als PNG speichern (Szenen: Startbild der nächsten Szene).</param>
 public sealed record VideoRequest(
     string Prompt,
     int Width = 768,
@@ -20,7 +21,8 @@ public sealed record VideoRequest(
     long Seed = 42,
     bool WithAudio = true,
     string? NegativePrompt = null,
-    string? StartImagePath = null)
+    string? StartImagePath = null,
+    bool SaveLastFrame = false)
 {
     /// <summary>Bildformate, die ComfyUI als Startbild liest.</summary>
     public static readonly IReadOnlyList<string> ImageExtensions = [".png", ".jpg", ".jpeg", ".webp", ".bmp"];

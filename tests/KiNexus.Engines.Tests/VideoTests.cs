@@ -15,6 +15,18 @@ public class VideoTests
     // ----------------------------------------------------------------- Workflow
 
     [Fact]
+    public void Builder_SavesLastFrameForScenes()
+    {
+        var workflow = ComfyWorkflowBuilder.Build(new VideoRequest("x", Frames: 49, SaveLastFrame: true), Models, "szene");
+
+        Assert.Equal(48, Inputs(workflow, "KN_LastFrame")["batch_index"]!.GetValue<int>());
+        Assert.Equal(Inputs(workflow, "KN_Thumbnail")["image"]!.ToJsonString(), Inputs(workflow, "KN_LastFrame")["image"]!.ToJsonString());
+        Assert.Equal("szene_ende", Inputs(workflow, "KN_SaveLastFrame")["filename_prefix"]!.GetValue<string>());
+        AssertAllLinksExist(workflow);
+        Assert.DoesNotContain(ComfyWorkflowBuilder.Build(new VideoRequest("x"), Models, "v"), n => n.Value?["_meta"]?["title"]?.GetValue<string>() == "KN_LastFrame");
+    }
+
+    [Fact]
     public void Builder_FillsTemplateByTitle()
     {
         var request = new VideoRequest("  A fox jumps.  ", Width: 512, Height: 320, Frames: 49, FrameRate: 24, Seed: 7);

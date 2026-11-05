@@ -34,7 +34,8 @@ public sealed record VideoStep(int Step, int TotalSteps, double ElapsedSeconds) 
 /// <param name="VideoPath">Die fertige MP4-Datei.</param>
 /// <param name="Seconds">So lange hat der Auftrag gedauert (ohne Start des Dienstes).</param>
 /// <param name="ThumbnailPath">Ein Bild aus der Mitte des Videos (PNG) für die Galerie, falls vorhanden.</param>
-public sealed record VideoDone(string VideoPath, double Seconds, string? ThumbnailPath = null) : VideoProgress;
+/// <param name="LastFramePath">Das letzte Bild als PNG (nur mit <see cref="VideoRequest.SaveLastFrame"/>), Startbild der nächsten Szene.</param>
+public sealed record VideoDone(string VideoPath, double Seconds, string? ThumbnailPath = null, string? LastFramePath = null) : VideoProgress;
 
 /// <summary>Ein Bild-Auftrag ist fertig.</summary>
 /// <param name="ImagePaths">Die fertigen PNG-Dateien, eine pro Bild.</param>

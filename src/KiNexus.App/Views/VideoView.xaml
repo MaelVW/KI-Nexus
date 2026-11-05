@@ -59,6 +59,11 @@
                                         <TextBlock Text="Bild" Margin="8,0,0,0" />
                                     </StackPanel>
                                 </RadioButton>
+                                <RadioButton Style="{StaticResource SegmentButton}" GroupName="studioMode" AutomationProperties.AutomationId="StudioScenes"
+                                             AutomationProperties.Name="Szenen" ToolTip="Längere Videos aus mehreren Szenen, nahtlos aneinander"
+                                             IsChecked="{Binding Mode, Converter={StaticResource EnumEquals}, ConverterParameter={x:Static vm:StudioMode.Scenes}}">
+                                    <TextBlock Text="Szenen" />
+                                </RadioButton>
                             </StackPanel>
                         </Border>
                         <TextBlock Text="Studio" FontFamily="{StaticResource Font.UiDisplay}" FontSize="{StaticResource FontSize.Title}" FontWeight="SemiBold"
@@ -108,7 +113,7 @@
                                 <TextBlock Text="{Binding ImageModelNote}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,12"
                                            AutomationProperties.AutomationId="ImageModelNote" />
                             </StackPanel>
-                            <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Visibility="{Binding UsesVideoSettings, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Videomodell" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <ComboBox ItemsSource="{Binding VideoModels}" SelectedItem="{Binding SelectedModel}" AutomationProperties.Name="Videomodell"
                                       AutomationProperties.AutomationId="VideoModel" />
@@ -119,6 +124,51 @@
                                       AutomationProperties.AutomationId="VideoProcess"
                                       ToolTip="Muss zum Modell passen. Ein dev-Modell mit „Schnell“ gibt ein verrauschtes Video." />
                             </StackPanel>
+                            <!-- Szenen: Projekt, Stil und Szenenliste -->
+                            <StackPanel Visibility="{Binding IsScenesMode, Converter={StaticResource BoolToVisibility}}" Margin="0,0,0,12">
+                                <TextBlock Text="Projekt" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
+                                <WrapPanel>
+                                    <ComboBox Width="200" ItemsSource="{Binding SceneProjects}" SelectedItem="{Binding SelectedSceneProject}" Margin="0,0,8,8"
+                                              AutomationProperties.Name="Projekt" AutomationProperties.AutomationId="SceneProject" />
+                                    <TextBox Width="140" Text="{Binding NewSceneProjectName, UpdateSourceTrigger=PropertyChanged}" MaxLength="40" Margin="0,0,8,8"
+                                             VerticalContentAlignment="Center" AutomationProperties.Name="Name für ein neues Projekt"
+                                             AutomationProperties.AutomationId="SceneNewName" />
+                                    <Button Content="Neues Projekt" Command="{Binding CreateSceneProjectCommand}" Margin="0,0,0,8" AutomationProperties.AutomationId="SceneCreate" />
+                                </WrapPanel>
+                                <TextBlock Text="Stil (gilt für alle Szenen)" Style="{StaticResource Text.Label}" Margin="0,4,0,4" />
+                                <TextBox Text="{Binding SceneStyle, UpdateSourceTrigger=PropertyChanged}" TextWrapping="Wrap" MinHeight="40"
+                                         AutomationProperties.Name="Stil" AutomationProperties.AutomationId="SceneStyle"
+                                         ToolTip="z.B. „warm evening light, handheld camera, a golden retriever with a red collar“. Hält das Aussehen zusammen." />
+                                <TextBlock Text="Szenen (eine pro Zeile, wahlweise „5 | Prompt“ für 5 Sekunden)" Style="{StaticResource Text.Label}" Margin="0,10,0,4" />
+                                <TextBox Text="{Binding ScenesText, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="120"
+                                         MaxHeight="260" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" SpellCheck.IsEnabled="False"
+                                         AutomationProperties.Name="Szenen" AutomationProperties.AutomationId="ScenesText" />
+                                <TextBlock Text="{Binding SceneInfo}" Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,6,0,0"
+                                           AutomationProperties.AutomationId="SceneInfo" />
+                                <TextBlock Style="{StaticResource Text.Hint}" TextWrapping="Wrap" Margin="0,4,0,0"
+                                           Text="Ab Szene 2 startet jede mit dem letzten Bild der vorherigen. Ehrlich: Über viele Szenen verändern sich Figuren und Farben langsam, und der Ton hat an den Übergängen kurze Sprünge." />
+                                <ItemsControl ItemsSource="{Binding SceneRows}" Margin="0,10,0,0" AutomationProperties.Name="Szenen-Status"
+                                              AutomationProperties.AutomationId="SceneRows">
+                                    <ItemsControl.ItemTemplate>
+                                        <DataTemplate DataType="{x:Type vm:SceneRow}">
+                                            <DockPanel Margin="0,0,0,6" AutomationProperties.Name="{Binding StatusText}">
+                                                <Border DockPanel.Dock="Left" Width="64" Height="40" Background="Black" CornerRadius="{StaticResource Radius.Small}"
+                                                        ClipToBounds="True" Margin="0,0,8,0">
+                                                    <Image Source="{Binding ThumbnailPath, Converter={StaticResource Thumbnail}}" Stretch="Uniform" />
+                                                </Border>
+                                                <StackPanel>
+                                                    <TextBlock TextTrimming="CharacterEllipsis" FontSize="{StaticResource FontSize.Small}">
+                                                        <Run Text="{Binding Number, Mode=OneWay}" /><Run Text=". " /><Run Text="{Binding Text, Mode=OneWay}" />
+                                                    </TextBlock>
+                                                    <TextBlock Text="{Binding StatusText}" Style="{StaticResource Text.Hint}" TextTrimming="CharacterEllipsis" />
+                                                </StackPanel>
+                                            </DockPanel>
+                                        </DataTemplate>
+                                    </ItemsControl.ItemTemplate>
+                                </ItemsControl>
+                            </StackPanel>
+
+                            <StackPanel Visibility="{Binding IsNotScenesMode, Converter={StaticResource BoolToVisibility}}">
                             <TextBox Text="{Binding Prompt, UpdateSourceTrigger=PropertyChanged}" AcceptsReturn="True" TextWrapping="Wrap" MinHeight="110"
                                      MaxHeight="220" VerticalScrollBarVisibility="Auto" VerticalContentAlignment="Top" SpellCheck.IsEnabled="False"
                                      AutomationProperties.Name="{Binding PromptName}" AutomationProperties.AutomationId="VideoPrompt" />
@@ -130,6 +180,7 @@
                                 <Button Style="{StaticResource Button.Ghost}" Content="Rückgängig" Command="{Binding UndoPromptCommand}"
                                         AutomationProperties.AutomationId="VideoUndoPrompt" />
                             </WrapPanel>
+                            </StackPanel>
 
                             <!-- Bild: Format und Anzahl -->
                             <WrapPanel Visibility="{Binding IsImageMode, Converter={StaticResource BoolToVisibility}}">
@@ -214,7 +265,7 @@
                                            AutomationProperties.AutomationId="ImageReferenceHint" />
                             </StackPanel>
 
-                            <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Visibility="{Binding UsesVideoSettings, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Startbild (optional, Bild zu Video)" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <Grid Margin="0,0,0,12">
                                 <Grid.ColumnDefinitions>
@@ -263,6 +314,7 @@
                                       ToolTip="Das Modell erzeugt Bild und Ton zusammen. Ohne Ton hat das Video keine Tonspur." />
                             </StackPanel>
 
+                            <StackPanel Visibility="{Binding IsNotScenesMode, Converter={StaticResource BoolToVisibility}}">
                             <TextBlock Text="Seed" Style="{StaticResource Text.Label}" Margin="0,0,0,4" />
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,12">
                                 <TextBox Width="150" Text="{Binding SeedText, UpdateSourceTrigger=PropertyChanged}" MaxLength="15" VerticalContentAlignment="Center"
@@ -274,9 +326,10 @@
                                           AutomationProperties.AutomationId="VideoKeepSeed"
                                           ToolTip="Aus: Jeder Auftrag bekommt einen neuen Seed. Ein: Der Seed im Feld bleibt." />
                             </StackPanel>
+                            </StackPanel>
 
                             <!-- Speicher-Ampel (nur Video) -->
-                            <StackPanel Visibility="{Binding IsVideoMode, Converter={StaticResource BoolToVisibility}}">
+                            <StackPanel Visibility="{Binding UsesVideoSettings, Converter={StaticResource BoolToVisibility}}">
                             <StackPanel Orientation="Horizontal" Margin="0,0,0,4" DataContext="{Binding Fit}">
                                 <Ellipse Width="10" Height="10" VerticalAlignment="Center" Fill="{Binding Level, Converter={StaticResource FitBrush}}" />
                                 <TextBlock Margin="8,0,0,0" Text="{Binding Label, StringFormat='Speicher: {0}'}" FontWeight="SemiBold"
@@ -291,7 +344,19 @@
                     <CheckBox Style="{StaticResource ToggleSwitch}" Content="Im Privatordner speichern" IsChecked="{Binding SaveToPrivate}" Margin="0,-6,0,12"
                               AutomationProperties.AutomationId="StudioSaveToPrivate"
                               ToolTip="Das Ergebnis kommt direkt in den Privatordner. In der Galerie siehst du es nur unter „Privat“." />
-                    <WrapPanel Margin="0,0,0,16">
+                    <!-- Szenen: eigene Knöpfe -->
+                    <WrapPanel Margin="0,0,0,16" Visibility="{Binding IsScenesMode, Converter={StaticResource BoolToVisibility}}">
+                        <Button Style="{StaticResource Button.Primary}" Content="Alle Szenen erzeugen" Command="{Binding GenerateScenesCommand}" Margin="0,0,8,8"
+                                AutomationProperties.AutomationId="SceneGenerate"
+                                ToolTip="Offene Szenen kommen der Reihe nach in die Warteschlange. Fertige bleiben. Am Schluss wird zusammengesetzt." />
+                        <TextBlock Text="Ab Szene" VerticalAlignment="Center" Margin="0,0,6,8" />
+                        <TextBox Width="40" Text="{Binding RegenerateFrom, UpdateSourceTrigger=PropertyChanged}" MaxLength="3" VerticalContentAlignment="Center"
+                                 Margin="0,0,6,8" AutomationProperties.Name="Ab Szene Nummer" AutomationProperties.AutomationId="SceneFrom" />
+                        <Button Content="neu erzeugen" Command="{Binding RegenerateScenesCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="SceneRegenerate" />
+                        <Button Content="Zusammensetzen" Command="{Binding ComposeScenesCommand}" Margin="0,0,8,8" AutomationProperties.AutomationId="SceneCompose" />
+                        <Button Content="Abbrechen" Command="{Binding CancelCommand}" Margin="0,0,8,8" />
+                    </WrapPanel>
+                    <WrapPanel Margin="0,0,0,16" Visibility="{Binding IsNotScenesMode, Converter={StaticResource BoolToVisibility}}">
                         <Button Style="{StaticResource Button.Primary}" Content="{Binding GenerateText}" Command="{Binding GenerateCommand}" Margin="0,0,8,0"
                                 AutomationProperties.AutomationId="VideoGenerate" />
                         <Button Content="Abbrechen" Command="{Binding CancelCommand}" Margin="0,0,8,0" AutomationProperties.AutomationId="VideoCancel" />

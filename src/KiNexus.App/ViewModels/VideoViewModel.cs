@@ -35,7 +35,21 @@ public enum StudioMode
 {
     Video,
     Image,
+
+    /// <summary>Längere Videos aus mehreren Szenen (Bauplan Szenen).</summary>
+    Scenes,
 }
+
+/// <summary>Eine Szene eines Projekts in der Warteschlange. Den Auftrag baut sie erst beim Start (Startbild = letztes Bild davor).</summary>
+public sealed record SceneJob(string Project, int Index, int Count, string Prompt, int StepCount) : StudioJob
+{
+    public override string Label => $"Szene {Index + 1}/{Count} · {Project}{PrivateLabel} · {Short(Prompt)}";
+
+    public override int Steps => StepCount;
+}
+
+/// <summary>Eine Zeile in der Szenenliste: Nummer, Prompt, Status und Vorschaubild.</summary>
+public sealed record SceneRow(int Number, string Text, string StatusText, string? ThumbnailPath);
 
 /// <summary>Welche Einträge die Galerie zeigt.</summary>
 public enum GalleryFilter
@@ -135,8 +149,8 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
     private string? _promptBeforeImprove;
     private bool _disposed;
 
-    /// <summary>Der Prompt der anderen Art (Video oder Bild). Beim Umschalten tauschen die beiden.</summary>
-    private string _otherPrompt = "";
+    /// <summary>Jede Art (Video, Bild) behält ihren eigenen Prompt.</summary>
+    private readonly Dictionary<StudioMode, string> _modePrompts = [];
 
     /// <summary>Alle Einträge der Galerie, ungefiltert. <see cref="Videos"/> zeigt davon, was der Filter durchlässt.</summary>
     private readonly List<VideoEntry> _allEntries = [];
@@ -211,12 +225,20 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsImageMode), nameof(IsVideoMode), nameof(GenerateText), nameof(PromptHint), nameof(PromptName))]
+    [NotifyPropertyChangedFor(nameof(IsScenesMode), nameof(IsNotScenesMode), nameof(UsesVideoSettings))]
     [NotifyCanExecuteChangedFor(nameof(GenerateCommand), nameof(EnqueueCommand), nameof(ImprovePromptCommand), nameof(UndoPromptCommand))]
     private StudioMode _mode;
 
     public bool IsImageMode => Mode == StudioMode.Image;
 
     public bool IsVideoMode => Mode == StudioMode.Video;
+
+    public bool IsScenesMode => Mode == StudioMode.Scenes;
+
+    public bool IsNotScenesMode => !IsScenesMode;
+
+    /// <summary>Videomodell, Ablauf, Format und Ton gelten für Video und Szenen.</summary>
+    public bool UsesVideoSettings => Mode != StudioMode.Image;
 
     /// <summary>Ehrliche Grenzen für Bilder (gemessen in B0, docs/11-Bild.md).</summary>
     public string ImageLimits =>
@@ -231,14 +253,357 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
         ? "Beschreib Motiv, Umgebung, Licht und Stil. Auf Englisch klappt es am besten, z.B. „A red fox in a snowy forest at sunrise, soft light, photo.“ Text im Bild in Anführungszeichen."
         : "Beschreib Szene, Bewegung, Kamera und Ton. Auf Englisch klappt es am besten, z.B. „A red fox jumps over a snowy log, crunching snow, soft wind, handheld camera.“";
 
-    partial void OnModeChanged(StudioMode value)
+    partial void OnModeChanged(StudioMode oldValue, StudioMode newValue)
     {
         // Jede Art behält ihren eigenen Prompt: Ein Video-Prompt beschreibt Bewegung und Ton, ein Bild-Prompt nicht.
-        (Prompt, _otherPrompt) = (_otherPrompt, Prompt);
+        _modePrompts[oldValue] = Prompt;
+        Prompt = _modePrompts.GetValueOrDefault(newValue, "");
+        if (newValue == StudioMode.Scenes)
+        {
+            RefreshSceneProjects();
+        }
+
         _promptBeforeImprove = null;
         CanUndoPrompt = false;
         CheckSetup();
         UpdateFit();
+    }
+
+    // ----------------------------------------------------------- Szenen (Bauplan Szenen, S1–S2)
+
+    private SceneProjectStore SceneStore => new(Path.Combine(_paths.DataDirectory, "videos", "projekte"));
+
+    public ObservableCollection<string> SceneProjects { get; } = [];
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(GenerateScenesCommand), nameof(RegenerateScenesCommand), nameof(ComposeScenesCommand))]
+    private string? _selectedSceneProject;
+
+    [ObservableProperty]
+    [NotifyCanExecuteChangedFor(nameof(CreateSceneProjectCommand))]
+    private string _newSceneProjectName = "";
+
+    /// <summary>Gilt für alle Szenen, z.B. „warm evening light, handheld camera, a golden retriever with a red collar“.</summary>
+    [ObservableProperty] private string _sceneStyle = "";
+
+    /// <summary>Eine Szene pro Zeile, wahlweise "Sekunden | Prompt".</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(SceneInfo))]
+    private string _scenesText = "";
+
+    [ObservableProperty] private string _regenerateFrom = "1";
+
+    public ObservableCollection<SceneRow> SceneRows { get; } = [];
+
+    /// <summary>z.B. "6 Szenen · 24 s · ca. 15 min Rechenzeit (distilled, 768×512)".</summary>
+    public string SceneInfo
+    {
+        get
+        {
+            var scenes = SceneProject.ParseText(ScenesText);
+            var seconds = scenes.Sum(s => s.Seconds);
+            // Gemessen in V0/V2: 4 s mit 768×512 und distilled ca. 2½ min. dev braucht ca. 2½-mal so lang.
+            var minutes = seconds / 4 * 2.5 * (IsDevProcess ? 2.5 : 1) * (SelectedFormat.Width * SelectedFormat.Height / (768.0 * 512));
+            return string.Create(CultureInfo.InvariantCulture,
+                $"{scenes.Count} Szenen · {seconds:0} s · ca. {Math.Ceiling(minutes):0} min Rechenzeit ({(IsDevProcess ? "dev" : "distilled")}, {SelectedFormat.Width}×{SelectedFormat.Height}).");
+        }
+    }
+
+    private bool HasSceneProject => SelectedSceneProject is not null;
+
+    private bool CanCreateSceneProject => SceneProjectStore.Slug(NewSceneProjectName).Length > 0;
+
+    partial void OnSelectedSceneProjectChanged(string? value)
+    {
+        if (value is not null && SceneStore.Load(value) is { } project)
+        {
+            SceneStyle = project.Style;
+            ScenesText = project.ToText();
+            if (Formats.FirstOrDefault(f => f.Width == project.Width && f.Height == project.Height) is { } format)
+            {
+                SelectedFormat = format;
+            }
+
+            WithAudio = project.WithAudio;
+        }
+
+        ShowSceneRows();
+    }
+
+    private void RefreshSceneProjects()
+    {
+        var keep = SelectedSceneProject;
+        SceneProjects.Clear();
+        foreach (var name in SceneStore.Names())
+        {
+            SceneProjects.Add(name);
+        }
+
+        SelectedSceneProject = SceneProjects.FirstOrDefault(n => n == keep) ?? SceneProjects.FirstOrDefault();
+    }
+
+    [RelayCommand(CanExecute = nameof(CanCreateSceneProject))]
+    private void CreateSceneProject()
+    {
+        var name = SceneProjectStore.Slug(NewSceneProjectName);
+        if (SceneStore.Load(name) is null)
+        {
+            SceneStore.Save(new SceneProject { Name = name, Width = SelectedFormat.Width, Height = SelectedFormat.Height, WithAudio = WithAudio });
+        }
+
+        NewSceneProjectName = "";
+        RefreshSceneProjects();
+        SelectedSceneProject = name;
+        ShowStatus($"Projekt „{name}“ ist bereit. Schreib die Szenen (eine pro Zeile) und klick auf „Alle Szenen erzeugen“.");
+    }
+
+    /// <summary>Formular ins Projekt übernehmen. Ändert sich Format oder Ton, müssen alle Szenen neu.</summary>
+    private SceneProject? SaveSceneForm()
+    {
+        if (SelectedSceneProject is not { } name || SceneStore.Load(name) is not { } project)
+        {
+            return null;
+        }
+
+        if (project.Width != SelectedFormat.Width || project.Height != SelectedFormat.Height || project.WithAudio != WithAudio
+            || project.Style != SceneStyle.Trim())
+        {
+            project.ResetFrom(0);
+        }
+
+        project.Style = SceneStyle.Trim();
+        project.Width = SelectedFormat.Width;
+        project.Height = SelectedFormat.Height;
+        project.WithAudio = WithAudio;
+        project.ApplyText(ScenesText);
+        SceneStore.Save(project);
+        return project;
+    }
+
+    /// <summary>Alle offenen Szenen der Reihe nach in die Warteschlange. Fertige bleiben (so geht es nach einem Neustart weiter).</summary>
+    [RelayCommand(CanExecute = nameof(HasSceneProject))]
+    private async Task GenerateScenesAsync()
+    {
+        if (SaveSceneForm() is not { } project || project.Scenes.Count == 0)
+        {
+            ShowStatus("Schreib zuerst die Szenen, eine pro Zeile.", isError: true);
+            return;
+        }
+
+        ShowSceneRows();
+        if (project.AllDone)
+        {
+            await ComposeScenesAsync();
+            return;
+        }
+
+        var queued = 0;
+        for (var i = 0; i < project.Scenes.Count; i++)
+        {
+            if (project.Scenes[i].Status != SceneStatus.Done
+                && !Queue.OfType<SceneJob>().Any(j => j.Project == project.Name && j.Index == i))
+            {
+                Queue.Add(new SceneJob(project.Name, i, project.Scenes.Count, project.Scenes[i].Prompt, Models.Steps) { Private = SaveToPrivate });
+                queued++;
+            }
+        }
+
+        OnQueueChanged();
+        ShowStatus($"{queued} Szenen in der Warteschlange. {SceneInfo}");
+        await RunQueueAsync();
+    }
+
+    /// <summary>"Ab Szene N neu": diese und alle folgenden neu erzeugen (sie hängen am letzten Bild davor).</summary>
+    [RelayCommand(CanExecute = nameof(HasSceneProject))]
+    private async Task RegenerateScenesAsync()
+    {
+        if (SaveSceneForm() is not { } project
+            || !int.TryParse(RegenerateFrom, NumberStyles.Integer, CultureInfo.InvariantCulture, out var number) || number < 1 || number > project.Scenes.Count)
+        {
+            ShowStatus($"Gib eine Szenen-Nummer von 1 bis {SceneProject.ParseText(ScenesText).Count} ein.", isError: true);
+            return;
+        }
+
+        project.ResetFrom(number - 1);
+        SceneStore.Save(project);
+        await GenerateScenesAsync();
+    }
+
+    [RelayCommand(CanExecute = nameof(HasSceneProject))]
+    private async Task ComposeScenesAsync()
+    {
+        if (SelectedSceneProject is not { } name || SceneStore.Load(name) is not { } project || !project.AllDone)
+        {
+            ShowStatus("Es sind noch nicht alle Szenen fertig.", isError: true);
+            return;
+        }
+
+        await ComposeAsync(project, null);
+    }
+
+    /// <summary>Der Auftrag für eine Szene: Prompt mit Stil, ab Szene 2 mit dem letzten Bild davor als Startbild.</summary>
+    private VideoRequest SceneRequest(SceneJob job)
+    {
+        var project = SceneStore.Load(job.Project) ?? throw new InvalidOperationException($"Das Projekt {job.Project} gibt es nicht mehr.");
+        if (job.Index >= project.Scenes.Count)
+        {
+            throw new InvalidOperationException("Diese Szene gibt es im Projekt nicht mehr.");
+        }
+
+        var scene = project.Scenes[job.Index];
+        string? start = null;
+        if (job.Index > 0)
+        {
+            var before = project.Scenes[job.Index - 1];
+            start = before is { Status: SceneStatus.Done, LastFrame: { } frame } ? Path.Combine(SceneStore.Folder(project.Name), frame) : null;
+            if (start is null || !File.Exists(start))
+            {
+                throw new InvalidOperationException($"Szene {job.Index} ist nicht fertig. Szene {job.Index + 1} braucht ihr letztes Bild.");
+            }
+        }
+        else if (StartImagePath is { } image && File.Exists(image))
+        {
+            start = image; // Szene 1 darf mit dem Startbild aus dem Formular beginnen.
+        }
+
+        if (scene.Seed == 0)
+        {
+            scene.Seed = NewSeed();
+            SceneStore.Save(project);
+        }
+
+        return new VideoRequest(project.PromptFor(job.Index), project.Width, project.Height, VideoRequest.FramesFor(scene.Seconds, FrameRate), FrameRate,
+            scene.Seed, project.WithAudio, null, start, SaveLastFrame: true);
+    }
+
+    /// <summary>Clip, Vorschau und letztes Bild in den Projektordner. War es die letzte Szene, wird gleich zusammengesetzt.</summary>
+    private async Task SceneDoneAsync(VideoDone done, SceneJob job)
+    {
+        try
+        {
+            var project = SceneStore.Load(job.Project) ?? throw new IOException($"Projekt {job.Project} fehlt.");
+            var folder = SceneStore.Folder(project.Name);
+            var number = (job.Index + 1).ToString("00", CultureInfo.InvariantCulture);
+            var scene = project.Scenes[job.Index];
+            scene.Clip = MoveInto(done.VideoPath, folder, $"szene-{number}.mp4");
+            scene.Thumbnail = done.ThumbnailPath is { } thumb ? MoveInto(thumb, folder, $"szene-{number}.png") : null;
+            scene.LastFrame = done.LastFramePath is { } last ? MoveInto(last, folder, $"szene-{number}-ende.png")
+                : throw new IOException("ComfyUI hat kein letztes Bild gemeldet.");
+            scene.Status = SceneStatus.Done;
+            scene.Error = null;
+            project.FinalVideo = null;
+            SceneStore.Save(project);
+            ShowSceneRows();
+            if (project.AllDone)
+            {
+                await ComposeAsync(project, job);
+            }
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException)
+        {
+            _logger.LogError(ex, "Szene nicht gespeichert.");
+            ShowStatus("Die Szene ist fertig, liess sich aber nicht speichern: " + ex.Message, isError: true);
+            StopScenes(job, SceneStatus.Failed, ex.Message);
+        }
+    }
+
+    private static string MoveInto(string source, string folder, string name)
+    {
+        var target = Path.Combine(folder, name);
+        File.Move(source, target, overwrite: true);
+        return name;
+    }
+
+    /// <summary>Eine Szene ging schief oder wurde abgebrochen: Die folgenden Szenen dieses Projekts kommen aus der Warteschlange.</summary>
+    private void StopScenes(SceneJob job, SceneStatus status, string? error)
+    {
+        foreach (var queued in Queue.OfType<SceneJob>().Where(j => j.Project == job.Project).ToList())
+        {
+            Queue.Remove(queued);
+        }
+
+        OnQueueChanged();
+        if (SceneStore.Load(job.Project) is { } project && job.Index < project.Scenes.Count)
+        {
+            project.Scenes[job.Index].Status = status;
+            project.Scenes[job.Index].Error = error;
+            SceneStore.Save(project);
+        }
+
+        ShowSceneRows();
+    }
+
+    /// <summary>Alle Clips zu einem Video (PyAV), danach in die Galerie.</summary>
+    private async Task ComposeAsync(SceneProject project, StudioJob? job)
+    {
+        var folder = SceneStore.Folder(project.Name);
+        var clips = project.Scenes.Select(s => Path.Combine(folder, s.Clip ?? "")).ToList();
+        StageText = $"Setze {clips.Count} Szenen zusammen …";
+        try
+        {
+            var installation = KiNexus.Engines.Video.ComfyInstallation.For(_paths.Resolve(_settings.Current.Paths.Engines));
+            var output = Path.Combine(folder, "video.mp4");
+            var seconds = await KiNexus.Engines.Video.SceneComposer.ComposeAsync(installation, Path.Combine(_paths.Root, "python", "video", "szenen_zusammen.py"),
+                clips, output, CancellationToken.None);
+            project.FinalVideo = "video.mp4";
+            SceneStore.Save(project);
+
+            // Eine Kopie in die Galerie (die Bibliothek verschiebt sie aus dem Rohordner).
+            var raw = Path.Combine(_library.Directory, "roh");
+            Directory.CreateDirectory(raw);
+            var copy = Path.Combine(raw, $"{DateTime.Now:yyyy-MM-dd_HHmmss}_szenen-{project.Name}.mp4");
+            File.Copy(output, copy, overwrite: true);
+            string? thumbnail = null;
+            if (project.Scenes[0].Thumbnail is { } thumb && File.Exists(Path.Combine(folder, thumb)))
+            {
+                thumbnail = Path.ChangeExtension(copy, ".png");
+                File.Copy(Path.Combine(folder, thumb), thumbnail, overwrite: true);
+            }
+
+            var prompt = $"Szenen „{project.Name}“: " + string.Join(" / ", project.Scenes.Select(s => s.Prompt));
+            var request = new VideoRequest(prompt.Length > 500 ? prompt[..500] : prompt, project.Width, project.Height,
+                (int)Math.Round(seconds * FrameRate), FrameRate, project.Scenes[0].Seed, project.WithAudio);
+            var entries = await MaybePrivateAsync([await _library.AddAsync(new VideoDone(copy, Math.Round(_clock.Elapsed.TotalSeconds), thumbnail), request, Models,
+                CancellationToken.None)], job ?? new VideoJob(request, Models) { Private = SaveToPrivate });
+            AddEntries(entries);
+            StageText = string.Create(CultureInfo.InvariantCulture, $"Fertig: {clips.Count} Szenen, {seconds:0.0} s.");
+            ShowStatus(string.Create(CultureInfo.InvariantCulture, $"Das Video aus {clips.Count} Szenen ist fertig ({seconds:0.0} s)")
+                + (entries[0].IsPrivate ? " und liegt im Privatordner." : " und läuft rechts im Player."));
+        }
+        catch (Exception ex) when (ex is IOException or UnauthorizedAccessException or InvalidOperationException or System.ComponentModel.Win32Exception)
+        {
+            _logger.LogError(ex, "Szenen nicht zusammengesetzt.");
+            StageText = "Fehler.";
+            ShowStatus("Zusammensetzen fehlgeschlagen: " + ex.Message, isError: true);
+        }
+    }
+
+    private void ShowSceneRows()
+    {
+        SceneRows.Clear();
+        if (SelectedSceneProject is not { } name || SceneStore.Load(name) is not { } project)
+        {
+            return;
+        }
+
+        var folder = SceneStore.Folder(name);
+        for (var i = 0; i < project.Scenes.Count; i++)
+        {
+            var scene = project.Scenes[i];
+            var status = scene.Status switch
+            {
+                SceneStatus.Done => string.Create(CultureInfo.InvariantCulture, $"fertig · {scene.Seconds:0.#} s"),
+                SceneStatus.Failed => "Fehler: " + scene.Error,
+                _ => Queue.OfType<SceneJob>().Any(j => j.Project == name && j.Index == i) ? "in der Warteschlange" : "offen",
+            };
+            SceneRows.Add(new SceneRow(i + 1, scene.Prompt, status,
+                scene.Thumbnail is { } thumb && File.Exists(Path.Combine(folder, thumb)) ? Path.Combine(folder, thumb) : null));
+        }
+
+        if (project.FinalVideo is not null)
+        {
+            SceneRows.Add(new SceneRow(0, "Zusammengesetzt: video.mp4 (auch in der Galerie)", string.Create(CultureInfo.InvariantCulture, $"{project.TotalSeconds:0} s"), null));
+        }
     }
 
     // ----------------------------------------------------------- Bild-Auftrag
@@ -965,6 +1330,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
             {
                 ImageJob image => _backend.GenerateImageAsync(image.Request, image.Models, job.Token),
                 VideoJob video => _backend.GenerateAsync(video.Request, video.Models, job.Token),
+                SceneJob scene => _backend.GenerateAsync(SceneRequest(scene), Models, job.Token),
                 _ => throw new InvalidOperationException("Unbekannter Auftrag."),
             };
             await foreach (var progress in progresses)
@@ -977,6 +1343,10 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
             _logger.LogError(ex, "Auftrag fehlgeschlagen.");
             StageText = "Fehler.";
             ShowStatus("Der Auftrag ist fehlgeschlagen: " + ex.Message, isError: true);
+            if (studioJob is SceneJob failedScene)
+            {
+                StopScenes(failedScene, SceneStatus.Failed, ex.Message);
+            }
         }
         finally
         {
@@ -1017,10 +1387,27 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
                 ProgressText = "";
                 await AddImagesToGalleryAsync(done with { Seconds = Math.Round(_clock.Elapsed.TotalSeconds, 1) }, imageJob);
                 break;
+            case VideoDone done when job is SceneJob sceneJob:
+                ProgressValue = 100;
+                StageText = "Szene fertig in " + Duration(_clock.Elapsed.TotalSeconds) + ".";
+                ProgressText = "";
+                await SceneDoneAsync(done, sceneJob);
+                break;
             case VideoFailed failed:
                 StageText = "Fehler.";
                 ProgressText = "";
                 ShowStatus(failed.Message, isError: true);
+                if (job is SceneJob failedScene)
+                {
+                    StopScenes(failedScene, SceneStatus.Failed, failed.Message);
+                }
+
+                break;
+            case VideoCancelled when job is SceneJob cancelledScene:
+                StageText = "Abgebrochen. Die übrigen Szenen sind aus der Warteschlange.";
+                ProgressText = "";
+                ProgressValue = 0;
+                StopScenes(cancelledScene, SceneStatus.Open, null);
                 break;
             case VideoCancelled:
                 StageText = "Abgebrochen. Es wurde nichts gespeichert.";

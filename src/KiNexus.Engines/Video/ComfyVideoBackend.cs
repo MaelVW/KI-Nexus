@@ -284,8 +284,9 @@ public sealed class ComfyVideoBackend(
         {
             var video = files.GetValueOrDefault("KN_Save")?.FirstOrDefault(File.Exists);
             var thumbnail = files.GetValueOrDefault("KN_SaveThumbnail")?.FirstOrDefault(File.Exists);
+            var lastFrame = files.GetValueOrDefault("KN_SaveLastFrame")?.FirstOrDefault(File.Exists);
             return video is not null
-                ? new VideoDone(video, seconds, thumbnail)
+                ? new VideoDone(video, seconds, thumbnail, lastFrame)
                 : new VideoFailed("ComfyUI ist fertig, hat aber keine Videodatei gemeldet.");
         }, ct);
     }

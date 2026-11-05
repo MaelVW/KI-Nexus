@@ -45,6 +45,17 @@ public static class ComfyWorkflowBuilder
         // Vorschaubild für die Galerie: ein Bild aus der Mitte des Videos.
         Inputs(workflow, "KN_Thumbnail")["batch_index"] = request.Frames / 2;
         Inputs(workflow, "KN_SaveThumbnail")["filename_prefix"] = filenamePrefix + "_vorschau";
+        if (request.SaveLastFrame)
+        {
+            // Szenen: das letzte Bild als PNG. Es ist das Startbild der nächsten Szene.
+            var frames = Inputs(workflow, "KN_Thumbnail")["image"]!.DeepClone();
+            AddNode(workflow, "36", "ImageFromBatch", "KN_LastFrame", new JsonObject { ["image"] = frames, ["batch_index"] = request.Frames - 1, ["length"] = 1 });
+            AddNode(workflow, "37", "SaveImage", "KN_SaveLastFrame", new JsonObject
+            {
+                ["images"] = new JsonArray("36", 0),
+                ["filename_prefix"] = filenamePrefix + "_ende",
+            });
+        }
 
         SetNegativePrompt(workflow, string.IsNullOrWhiteSpace(request.NegativePrompt) ? models.DefaultNegativePrompt : request.NegativePrompt, models.Guidance);
         if (!request.WithAudio)
