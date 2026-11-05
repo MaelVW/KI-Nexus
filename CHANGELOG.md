@@ -6,6 +6,11 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 
 ## [Unveröffentlicht]
 
+### Neu
+
+- **Studio: Szenen.** Längere Videos aus mehreren Clips: Projekt, Stil-Text, Szenen als Liste (eine pro Zeile, wahlweise mit Sekunden). Ab Szene 2 startet jede mit dem letzten Bild der vorherigen. Die Szenen laufen über die Warteschlange, fertige bleiben (Fortsetzen nach Neustart), „Ab Szene N neu erzeugen“. Zusammensetzen mit PyAV (`python/video/szenen_zusammen.py`), das Video kommt in die Galerie.
+- Abnahme: 3 Szenen mit dem offiziellen Modell ohne sichtbaren Sprung, 8 min 28 s. 498 Unit-Tests. Details in `docs/10-Video.md`.
+
 ## [1.14.0] – 2026-11-05 – Privatordner, eigene Vorlagen, eigene Grundmodelle
 
 ### Neu

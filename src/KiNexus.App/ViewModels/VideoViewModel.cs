@@ -491,6 +491,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
                 : throw new IOException("ComfyUI hat kein letztes Bild gemeldet.");
             scene.Status = SceneStatus.Done;
             scene.Error = null;
+            scene.GenerationSeconds = Math.Round(_clock.Elapsed.TotalSeconds, 1);
             project.FinalVideo = null;
             SceneStore.Save(project);
             ShowSceneRows();
@@ -563,7 +564,7 @@ public sealed partial class VideoViewModel : TabViewModel, IAsyncDisposable
             var prompt = $"Szenen „{project.Name}“: " + string.Join(" / ", project.Scenes.Select(s => s.Prompt));
             var request = new VideoRequest(prompt.Length > 500 ? prompt[..500] : prompt, project.Width, project.Height,
                 (int)Math.Round(seconds * FrameRate), FrameRate, project.Scenes[0].Seed, project.WithAudio);
-            var entries = await MaybePrivateAsync([await _library.AddAsync(new VideoDone(copy, Math.Round(_clock.Elapsed.TotalSeconds), thumbnail), request, Models,
+            var entries = await MaybePrivateAsync([await _library.AddAsync(new VideoDone(copy, Math.Round(project.Scenes.Sum(s => s.GenerationSeconds)), thumbnail), request, Models,
                 CancellationToken.None)], job ?? new VideoJob(request, Models) { Private = SaveToPrivate });
             AddEntries(entries);
             StageText = string.Create(CultureInfo.InvariantCulture, $"Fertig: {clips.Count} Szenen, {seconds:0.0} s.");

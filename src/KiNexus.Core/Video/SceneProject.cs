@@ -23,6 +23,9 @@ public sealed class Scene
     public string? LastFrame { get; set; }
     public string? Thumbnail { get; set; }
     public string? Error { get; set; }
+
+    /// <summary>So lange hat die Szene gedauert (inkl. Start von ComfyUI), für die Gesamtzeit in der Galerie.</summary>
+    public double GenerationSeconds { get; set; }
 }
 
 /// <summary>

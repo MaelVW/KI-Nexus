@@ -406,3 +406,28 @@ Gefunden und behoben während der Abnahme:
 - Ein echtes Foto von dir, hochkant, und Bild zu Video mit einem dev-Modell.
 - Eine lange Warteschlange (über Nacht). Dafür beendet sich ComfyUI erst 10 Minuten nach dem letzten Video.
 
+## Szenen (Bauplan Szenen, S1–S2, 5.11.2026)
+
+Längere Videos aus mehreren Clips. Im Studio: Modus **Szenen**.
+
+- **Projekt** in `data\videos\projekte\<name>\` mit `projekt.json` (Stil, Format, Ton, Szenen mit Prompt, Länge, Seed, Status und Dateien), dazu pro Szene `szene-01.mp4`, `szene-01.png` (Vorschau) und `szene-01-ende.png` (letztes Bild).
+- **Szenen** als Text, eine pro Zeile, wahlweise `5 | Prompt` (2–8 s, sonst 4 s). Der **Stil** kommt an jeden Prompt. Videomodell, Ablauf, Format und Ton wie unter Video. Szene 1 darf mit dem Startbild aus dem Formular beginnen.
+- **Anschluss:** Der Workflow speichert mit `SaveLastFrame` zusätzlich das letzte Bild (`KN_LastFrame`, `ImageFromBatch` mit Index Frames−1). Ab Szene 2 ist es das Startbild (Bild zu Video aus V4).
+- **Ablauf:** „Alle Szenen erzeugen“ legt die offenen Szenen der Reihe nach in die Warteschlange. Fertige bleiben, so geht es nach einem Neustart weiter. Ändert man eine Szene, müssen sie und alle folgenden neu. „Ab Szene N neu erzeugen“ macht das von Hand. Schlägt eine Szene fehl oder wird abgebrochen, kommen die folgenden aus der Warteschlange.
+- **Zusammensetzen** (`python\video\szenen_zusammen.py`, PyAV aus der ComfyUI-Umgebung): Das erste Bild jeder Folgeszene fällt weg (es ist das Startbild), der Ton wird an jedem Übergang je 0.1 s aus- und eingeblendet. Geschieht nach der letzten Szene von selbst. Das Video kommt als `video.mp4` ins Projekt und als Eintrag in die Galerie (auf Wunsch in den Privatordner).
+- **Nicht gebaut:** S3 (eigene Start- und Endbilder pro Szene, Referenzbild gegen Abdrift), im Bauplan optional. Auch „Szenen vorschlagen“ mit einer KI fehlt noch.
+
+### Abnahme (5.11.2026, offizielles LTX-2.3 distilled 1.1 Q4_K_M)
+
+3 Szenen à 2 s, 512×320, mit Ton: Hund rennt zum Teich → bleibt am Ufer stehen → springt hinein.
+
+| Was | Ergebnis |
+|---|---|
+| Ablauf | Alle 3 Szenen über die Warteschlange, jede ab Szene 2 mit dem letzten Bild davor, danach von selbst zusammengesetzt: 145 Bilder (3 × 49 − 2), 5.8 s, mit Ton. **8 min 28 s** inkl. Start von ComfyUI. |
+| Übergänge | Kein sichtbarer Sprung: Die Bilder vor und nach jedem Übergang sind praktisch gleich. |
+| Abdrift | Innerhalb einer Szene veränderte sich der Hund (grösser, rötlicher). Das ist die erwartete Grenze. |
+| Farben | Stark übersättigt, weil für dieses Modell noch der Ablauf **dev** gemerkt war (20 Schritte mit CFG 4 auf einem distilled-Modell). Mit „Schnell: distilled“ wäre das Bild normal. Ein Einstellungsfehler beim Test, kein Fehler der Szenen. |
+| Galerie | Die Rechenzeit ist die Summe aller Szenen (vorher fälschlich nur die letzte). |
+
+Hinweis: Ein erster Testlauf lief versehentlich mit dem zuletzt gewählten eigenen Videomodell aus `models\` statt mit dem offiziellen. Er wurde nicht ausgewertet und gelöscht.
+
