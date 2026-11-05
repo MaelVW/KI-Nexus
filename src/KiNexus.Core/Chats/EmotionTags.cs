@@ -4,7 +4,7 @@ namespace KiNexus.Core.Chats;
 
 /// <summary>
 /// Gefühls-Markierungen im Text der KI, z.B. [[gefuehl:freude]] (Avatar, Erweiterung E3).
-/// Sie werden nie angezeigt und nie vorgelesen. Ein noch unfertiges "[[…" am Ende (beim Streamen) wird auch versteckt,
+/// Strip entfernt alle Markierungen der Form [[wort:…]] (auch Befehle wie [[geraet:…]]): Sie werden nie angezeigt und nie vorgelesen. Ein noch unfertiges "[[…" am Ende (beim Streamen) wird auch versteckt,
 /// so wächst der bereinigte Text immer nur hinten an.
 /// </summary>
 public static partial class EmotionTags
@@ -19,6 +19,10 @@ public static partial class EmotionTags
     [GeneratedRegex(@"\[\[\s*gef(?:ue|ü)hl\s*:\s*([\p{L}]+)\s*\]\]", RegexOptions.IgnoreCase)]
     private static partial Regex TagPattern();
 
+    /// <summary>Jede Markierung [[wort:…]] (Gefühle, Geräte, Wünsche).</summary>
+    [GeneratedRegex(@"\[\[\s*[\p{L}]+\s*:[^\[\]]*\]\]")]
+    private static partial Regex AnyTagPattern();
+
     /// <summary>Text ohne Markierungen. Ein unfertiger Anfang am Ende ("[", "[[gef") fällt auch weg.</summary>
     public static string Strip(string text)
     {
@@ -27,7 +31,7 @@ public static partial class EmotionTags
             return text;
         }
 
-        var clean = TagPattern().Replace(text, "");
+        var clean = AnyTagPattern().Replace(text, "");
         var open = clean.LastIndexOf('[');
         if (open >= 0 && clean.IndexOf("]]", open, StringComparison.Ordinal) < 0)
         {
@@ -62,15 +66,20 @@ public static partial class EmotionTags
 
     private static bool IsPossibleTagStart(string tail)
     {
-        // tail beginnt mit "[". Passt der Rest noch zum Anfang von "[[gefuehl:name"?
-        const string prefix = "[[gefuehl:";
-        var t = tail.ToLowerInvariant().Replace("ü", "ue");
-        if (t.Length <= prefix.Length)
+        // tail beginnt mit "[". Kann daraus noch eine Markierung "[[wort:…]]" werden?
+        if (tail.Length == 1)
         {
-            return prefix.StartsWith(t, StringComparison.Ordinal);
+            return true;
         }
 
-        var rest = t.StartsWith(prefix, StringComparison.Ordinal) ? t[prefix.Length..].TrimEnd(']') : null;
-        return rest is not null && t.Length - rest.Length - prefix.Length <= 1 && rest.Length <= 20 && rest.All(c => char.IsLetter(c) || c == ' ');
+        if (tail[1] != '[' || tail.Length > 160)
+        {
+            return false;
+        }
+
+        var body = tail[2..].TrimEnd(']');
+        var colon = body.IndexOf(':', StringComparison.Ordinal);
+        var word = colon < 0 ? body : body[..colon];
+        return word.Trim().All(char.IsLetter) && (colon < 0 || !body[(colon + 1)..].Contains('['));
     }
 }

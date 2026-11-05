@@ -12,12 +12,14 @@ public class EmotionTagsTests
     [InlineData("Gleich kommt [", "Gleich kommt ")]
     [InlineData("Siehe [die Doku](https://x.ch)", "Siehe [die Doku](https://x.ch)")]
     [InlineData("Liste [1", "Liste [1")]
+    [InlineData("Licht aus. [[geraet:light.office:turn_off]]", "Licht aus. ")]
+    [InlineData("Mache ich [[geraet:light.office:set_bright", "Mache ich ")]
     public void Strip_RemovesTagsAndUnfinishedStart(string text, string expected) => Assert.Equal(expected, EmotionTags.Strip(text));
 
     [Fact]
     public void Strip_GrowsOnlyAtTheEnd_WhileStreaming()
     {
-        const string full = "Ja [[gefuehl:ueberrascht]] wirklich!";
+        const string full = "Ja [[gefuehl:ueberrascht]] wirklich! [[geraet:light.office:set_brightness:30]] Fertig.";
         var previous = "";
         for (var i = 1; i <= full.Length; i++)
         {
@@ -26,7 +28,7 @@ public class EmotionTagsTests
             previous = clean;
         }
 
-        Assert.Equal("Ja  wirklich!", previous);
+        Assert.Equal("Ja  wirklich!  Fertig.", previous);
     }
 
     [Fact]
