@@ -9,6 +9,7 @@ Version 1.0.0 = Meilensteine M0 bis M4.
 ### Neu
 
 - **Gesprächsmodus nur noch im privaten Fun-Tab:** Der Stil „Gespräch“ ist aus dem Chat-Tab und den Einstellungen verschwunden. Gespräch und Avatar liegen jetzt in einem privaten Modul (Ordner `privat\`, nicht im Repository). Fehlt das Modul, gibt es weder den Tab noch die Sprach-Einstellungen. Neu in der App: eine Andockstelle für solche Module (`Modules/AppModules.cs`, lädt nur `KiNexus.Fun.dll` neben der App) und eigene Tab-Symbole als Form.
+- **Feste Antwortform:** Eine Anfrage kann ein JSON-Schema mitgeben (`ChatRequest.ResponseSchema`). llama.cpp bekommt es als `json_schema`, Ollama als `format`, das Modell muss dann genau diese Form schreiben.
 - **Markierungen** wie `[[gefuehl:freude]]` oder `[[geraet:…]]` (alle der Form `[[wort:…]]`) werden im Chat nie angezeigt (`EmotionTags.Strip`).
 
 - **Studio: Szenen.** Längere Videos aus mehreren Clips: Projekt, Stil-Text, Szenen als Liste (eine pro Zeile, wahlweise mit Sekunden). Ab Szene 2 startet jede mit dem letzten Bild der vorherigen. Die Szenen laufen über die Warteschlange, fertige bleiben (Fortsetzen nach Neustart), „Ab Szene N neu erzeugen“. Zusammensetzen mit PyAV (`python/video/szenen_zusammen.py`), das Video kommt in die Galerie.

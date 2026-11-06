@@ -52,8 +52,10 @@ public sealed record ChatMessage(ChatRole Role, string Content, IReadOnlyList<st
 /// <summary>
 /// Eine Anfrage an die Engine. Messages enthält schon den Systemprompt (siehe ContextBudget).
 /// MaxTokens überschreibt die maximale Antwortlänge der KI, z.B. für kurze Hintergrund-Aufgaben.
+/// ResponseSchema (JSON-Schema): Die Engine muss die Antwort genau in dieser Form schreiben (llama.cpp "json_schema", Ollama "format").
 /// </summary>
-public sealed record ChatRequest(KiProfile Ki, IReadOnlyList<ChatMessage> Messages, bool Think, int? MaxTokens = null)
+public sealed record ChatRequest(KiProfile Ki, IReadOnlyList<ChatMessage> Messages, bool Think, int? MaxTokens = null,
+    System.Text.Json.Nodes.JsonObject? ResponseSchema = null)
 {
     public int EffectiveMaxTokens => MaxTokens ?? Ki.Parameters.MaxTokens;
 }

@@ -87,6 +87,16 @@ public class LlamaCppTests
     }
 
     [Fact]
+    public void Request_WithSchema_SendsJsonSchema()
+    {
+        var schema = new System.Text.Json.Nodes.JsonObject { ["type"] = "object" };
+        var body = LlamaCppProtocol.BuildChatRequest(Request(think: false) with { ResponseSchema = schema }, stream: true);
+
+        Assert.Equal("object", body["json_schema"]!["type"]!.GetValue<string>());
+        Assert.Null(LlamaCppProtocol.BuildChatRequest(Request(think: false), stream: true)["json_schema"]);
+    }
+
+    [Fact]
     public void Request_ThinkingOn_SendsSamplingFromProfile()
     {
         var body = LlamaCppProtocol.BuildChatRequest(Request(think: true), stream: false);

@@ -42,6 +42,12 @@ public static class LlamaCppProtocol
             body["reasoning_effort"] = "none";
         }
 
+        // Feste Form der Antwort: llama.cpp baut daraus eine Grammatik, das Modell kann nichts anderes schreiben.
+        if (request.ResponseSchema is { } schema)
+        {
+            body["json_schema"] = schema.DeepClone();
+        }
+
         if (stream)
         {
             body["stream_options"] = new JsonObject { ["include_usage"] = true };

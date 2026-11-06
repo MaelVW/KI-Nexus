@@ -23,6 +23,11 @@ public static class OllamaProtocol
             ["keep_alive"] = KeepAlive(request.Ki),
             ["options"] = BuildOptions(request.Ki, request.EffectiveMaxTokens),
         };
+        if (request.ResponseSchema is { } schema)
+        {
+            body["format"] = schema.DeepClone();
+        }
+
         return body;
     }
 
